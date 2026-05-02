@@ -67,26 +67,26 @@ class PanelDrawer:
             power_element.set("transform", f"translate({new_translation.real}, {new_translation.imag})")
 
         for index, value in self.board_svg_data["scoreboard"].get("indexes", {}).items():
-            if not index.isnumeric() or int(index) >= len(power_element):
+            if not index.isnumeric() or (i := int(index)) >= len(power_element):
                 continue
             if value == "__name__" and not high_player_count and not player_data.get("nickname"):
                 continue
 
             # Fix for Poland-Lithuanian Commonwealth
-            if index == 1 and len(power_element[index]) > 1:
-                power_element[index][1].text = ""
-                power_element[index].set("y", "237.67107")
-                power_element[index][0].set("y", "237.67107")
-                style = power_element[index].get("style")
+            if i == 1 and len(power_element[i]) > 1:
+                power_element[i][1].text = ""
+                power_element[i].set("y", "237.67107")
+                power_element[i][0].set("y", "237.67107")
+                style = power_element[i].get("style")
                 assert style is not None
                 style = re.sub(r"font-size:[0-9.]+px", "font-size:42.6667px", style)
-                power_element[index].set("style", style)
+                power_element[i].set("style", style)
 
             value = value.replace("__name__", player.get_name())
             value = value.replace("__score__", str(len(player.centers)))
             value = value.replace("__iscc__", str(player_data["iscc"]))
             value = value.replace("__vscc__", str(player_data["vscc"]))
-            power_element[int(index)][0].text = value
+            power_element[i][0].text = value
         return True
 
     def _draw_side_panel_scoreboard(self, svg: ElementTree) -> None:

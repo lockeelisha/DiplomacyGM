@@ -518,9 +518,10 @@ class Mapper:
                 print(f"[{self.board.datafile}] Province {province.name} says it has no supply center, but it does", file=sys.stderr)
                 continue
 
-            if province.name not in self.adjacent_provinces:
-                core_color = self.board_svg_data["unknown"]
-                half_color = core_color
+            if province.is_impassable:
+                core_color = half_color = self.impassable_color
+            elif province.name not in self.adjacent_provinces:
+                core_color = half_color = self.board_svg_data["unknown"]
             else:
                 core_color = self.player_colors[province.core_data.core.name] if province.core_data.core else "#ffffff"
                 half_color = self.player_colors[province.core_data.half_core.name] if province.core_data.half_core else core_color
