@@ -315,8 +315,6 @@ class Parser:
                 province.adjacencies.add(self.name_to_province[n])
             for n in data.get("remove_adjacencies", []):
                 province.adjacencies.remove(self.name_to_province[n])
-            for n in data.get("remove_adjacent_coasts", []):
-                adj = province.adjacencies.add_unit_type(self.name_to_province[n], UnitType.ARMY)
             for n in data.get("difficult_adjacency", []):
                 if (adj := province.adjacencies.get(self.name_to_province[n])) is not None:
                     adj.is_difficult = True
@@ -339,6 +337,21 @@ class Parser:
                 province.unit_coordinates[UnitType.FLEET.name] = loc
         return provinces
 
+    def _remove_unit_adjacencies(self, provinces: set[Province]) -> set[Province]:
+        if "overrides" not in self.data:
+            return provinces
+        for name, data in self.data["overrides"].get("provinces", {}).items():
+            province = self.name_to_province.get(name)
+            if not province:
+                logger.debug("Province %s in overrides not found in map, skipping...", name)
+                continue
+            for n in data.get("remove_adjacent_coasts", []):
+                province.adjacencies.remove(self.name_to_province[n], UnitType.FLEET)
+            for n in data.get("remove_adjacent_land", []):
+                province.adjacencies.remove(self.name_to_province[n], UnitType.ARMY)
+        return provinces
+
+
     def _get_provinces(self, provinces: set[Province], adjacencies: set[tuple[str, str]]) -> set[Province]:
         # Sets adjacencies for each province based on the adjacencies file
         for name1, name2 in adjacencies:
@@ -356,6 +369,7 @@ class Parser:
         # We set land-land fleet adjacencies afterwards, since we need to figure out which adjacencies are valid
         for province in provinces:
             province.set_adjacent_coasts()
+        provinces = self._remove_unit_adjacencies(provinces)
 
         self._initialize_province_owners(self.layer_data.get("land_layer"))
         self._initialize_province_owners(self.layer_data.get("island_fill_layer"))

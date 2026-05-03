@@ -142,7 +142,7 @@ class Province():
     def get_distance(self, other: Province, max_distance: int = 100) -> int:
         """Gets the distance between two provinces in number of moves.
         max_distance is used if we only care if the provinces are within a certain distance."""
-        visited = set()
+        visited: set[Province] = {self}
         queue: list[tuple[Province, int]] = [(self, 0)]
         while queue:
             current, distance = queue.pop(0)
@@ -150,10 +150,10 @@ class Province():
                 return distance
             if distance >= max_distance:
                 continue
-            visited.add(current)
             for neighbor in current.adjacencies.get_all():
                 if neighbor not in visited and not neighbor.is_impassable:
                     queue.append((neighbor, distance + 1))
+                    visited.add(neighbor)
         return max_distance + 1
 
     def set_coasts(self):
