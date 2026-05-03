@@ -57,7 +57,7 @@ class Board:
         self.name_to_coast: Dict[str, tuple[Province, str | None]] = {}
         for location in self.provinces:
             self.name_to_province[location.name.lower()] = location
-            for coast in location.get_multiple_coasts():
+            for coast in location.adjacencies.coasts:
                 self.name_to_coast[location.get_name(coast)] = (location, coast)
 
         for player in self.players:
@@ -220,23 +220,13 @@ class Board:
     def get_visible_provinces(self, player: Player) -> set[Province]:
         """Gets a set of provinces that a player can see in Fog of War games."""
         visible: set[Province] = set()
-        for province in self.provinces:
-            for unit in player.units:
-                if (unit.unit_type == UnitType.ARMY
-                    and province in unit.province.adjacency_data.adjacent
-                    and province.type != ProvinceType.SEA):
-                    visible.add(province)
+        visible = {p for unit in player.units
+                     for p in unit.province.adjacencies.get_all(unit.unit_type, unit.coast)}
 
-                if (unit.unit_type == UnitType.FLEET
-                    and unit.province.is_coastally_adjacent((province, None), unit.coast)):
-                    visible.add(province)
-
-        for unit in player.units:
-            visible.add(unit.province)
-
+        visible.update(unit.province for unit in player.units)
         for province in player.centers:
             if province.core_data.core == player:
-                visible.update(province.adjacency_data.adjacent)
+                visible.update(province.adjacencies.get_all())
             visible.add(province)
 
         return visible
@@ -248,7 +238,7 @@ class Board:
             if re.search(pattern, province.name.lower()):
                 matches.append((province, None))
             else:
-                matches += [(province, coast) for coast in province.get_multiple_coasts()
+                matches += [(province, coast) for coast in province.adjacencies.coasts
                             if re.search(pattern, province.get_name(coast).lower())]
         return matches
 
@@ -304,10 +294,10 @@ class Board:
     ) -> Unit:
         """Creates a new unit on the board."""
         if (unit_type == UnitType.FLEET
-            and province.get_multiple_coasts()
-            and coast not in province.get_multiple_coasts()):
+            and province.adjacencies.coasts
+            and coast not in province.adjacencies.coasts):
             raise RuntimeError(f"Cannot create unit. Province '{province.name}' requires a valid coast.")
-        if not province.get_multiple_coasts():
+        if not province.adjacencies.coasts:
             coast = None
         unit = Unit(unit_type, player, province, coast)
         if retreat_options is not None:

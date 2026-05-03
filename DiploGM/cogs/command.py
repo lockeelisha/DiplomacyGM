@@ -8,6 +8,7 @@ from discord.ext import commands
 
 from DiploGM.config import ERROR_COLOUR
 from DiploGM import perms
+from DiploGM.models.unit import UnitType
 from DiploGM.utils import (
     send_message_and_file,
     log_command,
@@ -339,7 +340,7 @@ class CommandCog(commands.Cog):
                 return
 
         # fmt: off
-        coasts = province.get_multiple_coasts()
+        coasts = province.adjacencies.coasts
         coast_info = ""
         adjacent_coasts = ""
         if coasts:
@@ -347,18 +348,18 @@ class CommandCog(commands.Cog):
             for c in coasts:
                 adjacent_coasts += f"Adjacent Coastal Provinces ({c}):\n- "
                 adjacent_list = []
-                for adj in province.get_coastal_adjacent(c):
+                for adj in province.adjacencies.get_all(coast = c):
                     adjacent_list.append(f"{adj[0] if isinstance(adj, tuple) else adj}")
                 adjacent_coasts += "\n- ".join(sorted(adjacent_list))
                 adjacent_coasts += "\n"
-        elif province.type == ProvinceType.LAND and province.get_coastal_adjacent():
+        elif province.type == ProvinceType.LAND and not province.is_landlocked():
             adjacent_coasts = "Adjacent Coastal Provinces:\n- "
             adjacent_list = []
-            for adj in province.get_coastal_adjacent():
+            for adj in province.adjacencies.get_all(UnitType.FLEET):
                 adjacent_list.append(f"{adj[0] if isinstance(adj, tuple) else adj}")
             adjacent_coasts += "\n- ".join(sorted(adjacent_list))
             adjacent_coasts += "\n"
-        adjacent_sorted = sorted([adjacent.name for adjacent in province.adjacency_data.adjacent])
+        adjacent_sorted = sorted([adjacent.name for adjacent in province.adjacencies.get_all()])
         unit_text = ((province.unit.player.get_name() if province.unit.player is not None else '')
                         + ' ' + province.unit.unit_type.name
                     if province.unit else 'None')

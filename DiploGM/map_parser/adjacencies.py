@@ -11,7 +11,7 @@ from DiploGM.utils.sanitise import parse_variant_path
 
 # Gets adjacent provinces, but with High Seas combined into one for the purpose of finding adjacency issues
 def _get_adjacent_geom(province: Province) -> set[Province]:
-    return {a for a in province.adjacency_data.adjacent if a.name[-1] not in "23456789"}
+    return {a for a in province.adjacencies.get_all() if a.name[-1] not in "23456789"}
 
 # A recursive function to find loops of provinces with no internal adjacencies
 # Generally, two adjacent provinces should share exactly two adjacencies on either side
@@ -95,7 +95,7 @@ def verify_adjacencies(variant: str) -> str:
         try:
             comp_province = board.get_province(province.name[:-1] + "1")
             # Two high seas' adjacencies should differ by only each other
-            if (comp_province.adjacency_data.adjacent ^ province.adjacency_data.adjacent
+            if (comp_province.adjacencies.get_all() ^ province.adjacencies.get_all()
                 != {province, comp_province}):
                 warnings.append(f"Province {province.name} and {comp_province.name} have different adjacencies")
             visited_provinces.add(province)
@@ -104,7 +104,7 @@ def verify_adjacencies(variant: str) -> str:
                             f"but {province.name[:-1]}1 was not found")
 
     for province in board.provinces - visited_provinces:
-        if len(province.adjacency_data.adjacent) == 0:
+        if len(province.adjacencies.get_all()) == 0:
             warnings.append(f"Province {province.name} has no adjacencies")
         visited_adjacent = set()
         for adj in _get_adjacent_geom(province) - visited_provinces:

@@ -254,14 +254,14 @@ class Mapper:
             else:
                 unit_type = UnitType.FLEET if province.type == ProvinceType.SEA else UnitType.ARMY
             locdict[province.name] = province.get_unit_coordinates(unit_type, coast)
-            for coast in province.get_multiple_coasts():
+            for coast in province.adjacencies.coasts:
                 locdict[province.get_name(coast)] = province.get_unit_coordinates(UnitType.FLEET, coast)
         locdict = {k: [v.real, v.imag] for k, v in locdict.items()}
         script = etree.Element("script")
 
         coast_to_province = {}
         for province in self.board.provinces:
-            for coast in province.get_multiple_coasts():
+            for coast in province.adjacencies.coasts:
                 coast_to_province[province.get_name(coast)] = province.name
 
         province_to_unit_type = {}

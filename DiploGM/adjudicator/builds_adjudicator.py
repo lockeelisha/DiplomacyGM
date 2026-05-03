@@ -110,8 +110,8 @@ class BuildsAdjudicator(Adjudicator):
         if (order.unit_type == UnitType.FLEET and order.province.is_landlocked()):
             error = "tried building an inland fleet"
         elif (order.unit_type == UnitType.FLEET
-            and order.province.get_multiple_coasts()
-            and order.coast not in order.province.get_multiple_coasts()):
+            and order.province.adjacencies.coasts
+            and order.coast not in order.province.adjacencies.coasts):
             error = "someone didn't specify a valid coast"
         elif order.province.unit is not None:
             error = "there is already a unit there"
@@ -137,8 +137,8 @@ class BuildsAdjudicator(Adjudicator):
         elif order.province.is_landlocked():
             error = "tried to transform in an inland province"
         elif (order.province.unit.unit_type == UnitType.ARMY
-                and order.province.get_multiple_coasts()
-                and order.coast not in order.province.get_multiple_coasts()):
+                and order.province.adjacencies.coasts
+                and order.coast not in order.province.adjacencies.coasts):
             error = "tried to transform to an invalid coast"
         else:
             new_unit_type = UnitType.FLEET if order.province.unit.unit_type == UnitType.ARMY else UnitType.ARMY

@@ -270,6 +270,7 @@ class Parser:
         self.name_to_province[province.name] = province
         return provinces
 
+    # TODO: Deprecate and remove this
     def _add_high_provinces(self, provinces: set[Province]):
         for name, data in self.data["overrides"][HIGH_PROVINCES_KEY].items():
             high_provinces: list[Province] = []
@@ -278,18 +279,20 @@ class Parser:
                 provinces = self._add_province_to_board(provinces, province)
                 high_provinces.append(province)
 
+            unit_type = UnitType.ARMY if data["type"].lower() == "land" else UnitType.FLEET
             # Add connections between each high province
-            for provinceA in high_provinces:
-                provinceA.adjacency_data.adjacent.update(provinceB for provinceB in high_provinces
-                                        if provinceA.name != provinceB.name)
+            for provinceA, provinceB in itertools.combinations(high_provinces, 2):
+                provinceA.adjacencies.add_unit_type(provinceB, unit_type)
+                provinceB.adjacencies.add_unit_type(provinceA, unit_type)
 
         for name, data in self.data["overrides"][HIGH_PROVINCES_KEY].items():
             adjacent = {self.name_to_province[n] for n in data["adjacencies"]}
+            unit_type = UnitType.ARMY if data["type"].lower() == "land" else UnitType.FLEET
             for index in range(1, data["num"] + 1):
                 high_province = self.name_to_province[name + str(index)]
-                high_province.adjacency_data.adjacent.update(adjacent)
                 for ad in adjacent:
-                    ad.adjacency_data.adjacent.add(high_province)
+                    high_province.adjacencies.add_unit_type(ad, unit_type)
+                    ad.adjacencies.add_unit_type(high_province, unit_type)
         return provinces
 
     def _json_cheats(self, provinces: set[Province]) -> set[Province]:
@@ -308,17 +311,20 @@ class Parser:
                 continue
             # Add/remove adjacencies and coasts
             # TODO: Some way to specify whether or not to clear other adjacencies?
-            province.adjacency_data.adjacent.update({self.name_to_province[n] for n in data.get("adjacencies", [])})
-            province.adjacency_data.adjacent.difference_update(
-                {self.name_to_province[n] for n in data.get("remove_adjacencies", [])})
-            province.adjacency_data.nonadjacent_coasts.update(data.get("remove_adjacent_coasts", []))
-            province.adjacency_data.difficult_adjacencies.update(data.get("difficult_adjacency", []))
+            for n in data.get("adjacencies", []):
+                province.adjacencies.add(self.name_to_province[n])
+            for n in data.get("remove_adjacencies", []):
+                province.adjacencies.remove(self.name_to_province[n])
+            for n in data.get("remove_adjacent_coasts", []):
+                adj = province.adjacencies.add_unit_type(self.name_to_province[n], UnitType.ARMY)
+            for n in data.get("difficult_adjacency", []):
+                if (adj := province.adjacencies.get(self.name_to_province[n])) is not None:
+                    adj.is_difficult = True
             if "coasts" in data:
-                province.adjacency_data.fleet_adjacent = {}
                 for coast_name, coast_adjacent in data.get("coasts", {}).items():
-                    province.adjacency_data.fleet_adjacent[coast_name] = {
-                        self._get_province_and_coast(n) for n in coast_adjacent}
-
+                    for adjacent_name in coast_adjacent:
+                        p, c = self._get_province_and_coast(adjacent_name)
+                        province.adjacencies.add_coast(p, coast_name, c)
             # Add extra unit locations for provinces that wrap around or have weird shapes
             # For compatability reasons, we assume these are sea tiles
             # TODO: Add support for armies/multicoastal tiles
@@ -338,8 +344,8 @@ class Parser:
         for name1, name2 in adjacencies:
             province1 = self.name_to_province[name1]
             province2 = self.name_to_province[name2]
-            province1.set_adjacent(province2)
-            province2.set_adjacent(province1)
+            province1.adjacencies.add(province2)
+            province2.adjacencies.add(province1)
 
         # Apply any manual overrides from the config file (e.g. adding adjacencies, multiple coasts, etc.)
         provinces = self._json_cheats(provinces)
@@ -668,7 +674,7 @@ class Parser:
                     continue
                 if province.type == ProvinceType.SEA and layer_name in {"army", "retreat_army"}:
                     continue
-                if not province.adjacency_data.fleet_adjacent and layer_name in {"fleet", "retreat_fleet"}:
+                if not province.is_landlocked() and layer_name in {"fleet", "retreat_fleet"}:
                     continue
                 copied_element = copy.deepcopy(layer_info["sample_element"])
                 copied_element.set(INKSCAPE_LABEL, province.name)

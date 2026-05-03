@@ -168,7 +168,7 @@ class OrderDrawer:
             return []
         options = []
         new_checked = already_checked + (current,)
-        for possibility in current.adjacency_data.adjacent:
+        for possibility in current.adjacencies.get_all():
             if possibility.name not in self.adjacent_provinces:
                 continue
 

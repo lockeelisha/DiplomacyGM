@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from DiploGM.models.board import Board
     from DiploGM.models.player import Player
     from DiploGM.models.unit import Unit
-    from DiploGM.models.order import UnitOrder
+    from DiploGM.models.province import Province
 
 logger = logging.getLogger(__name__)
 
@@ -247,16 +247,16 @@ class MovesAdjudicator(Adjudicator):
         to_visit = collections.deque()
         to_visit.append(order.source_province)
         while 0 < len(to_visit):
-            current = to_visit.popleft()
+            current: Province = to_visit.popleft()
             # Have to pass through at least one convoying fleet
-            if current != order.source_province and order.destination_province in current.adjacency_data.adjacent:
+            if current != order.source_province and current.adjacencies.get(order.destination_province):
                 return Resolution.SUCCEEDS
 
             visited.add(current.name)
 
             adjacent_convoys = {
                 convoy_order for convoy_order in order.convoys
-                    if convoy_order.current_province in current.adjacency_data.adjacent
+                    if current.adjacencies.get(convoy_order.current_province)
             }
             for convoy in adjacent_convoys:
                 if convoy.current_province.name in visited:
@@ -306,9 +306,9 @@ class MovesAdjudicator(Adjudicator):
 
     def _count_strength(self, order: AdjudicableOrder, attacked_country: Player | None = None) -> int:
         # Your own unit counts, unless it's a difficult adjacency
-        strength = 0
-        if order.destination_province.name not in order.base_unit.province.adjacency_data.difficult_adjacencies:
-            strength += 1
+        strength = 1
+        if (order.base_unit.province.adjacencies.is_difficult(order.destination_province)):
+            strength = 0
         for support in order.supports:
             if (self._resolve_order(support) == Resolution.SUCCEEDS
                 and (support.country is None or attacked_country != support.country)):
