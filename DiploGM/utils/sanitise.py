@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import os
 import re
+from discord.ext import commands
 from typing import Optional, Sequence, TYPE_CHECKING
 
 from DiploGM.models.turn import PhaseName, Turn
 from DiploGM.models.unit import UnitType
-from discord.ext import commands
 
 if TYPE_CHECKING:
     import discord

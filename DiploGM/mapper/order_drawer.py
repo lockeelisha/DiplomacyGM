@@ -287,13 +287,16 @@ class OrderDrawer:
                                                        self.board_svg_data["map_width"])
         else:
             dest_coast = order.destination_coast
-        dest_coord = MapperUtils.loc_to_point(order.destination, source.unit.unit_type, dest_coast, source_coord, self.board_svg_data["map_width"])
+        dest_coord = MapperUtils.loc_to_point(order.destination,
+                                              source.unit.unit_type,
+                                              dest_coast,
+                                              source_coord,
+                                              self.board_svg_data["map_width"])
         marker_start = ""
         if order.destination.unit:
-            if order.is_support_hold():
-                dest_coord = MapperUtils.pull_coordinate(coordinate, dest_coord, 1.5 * self.board_svg_data["unit_radius"])
-            else:
-                dest_coord = MapperUtils.pull_coordinate(source_coord, dest_coord, 1.5 * self.board_svg_data["unit_radius"])
+            dest_coord = MapperUtils.pull_coordinate(coordinate if order.is_support_hold() else source_coord,
+                                                     dest_coord,
+                                                     1.5*self.board_svg_data["unit_radius"])
             # Draw hold around unit that can be support-held
             if (order.is_support_hold()
                 and isinstance(source.unit.order, (ConvoyTransport, Support))
@@ -304,8 +307,7 @@ class OrderDrawer:
             # if two units are support-holding each other
             destorder = order.destination.unit.order
 
-            if (
-                isinstance(destorder, Support)
+            if (isinstance(destorder, Support)
                 and destorder.is_support_hold()
                 and order.is_support_hold()
                 and destorder.source == unit.province
@@ -403,7 +405,8 @@ class OrderDrawer:
             ]
         )
         rotate_90 = np.array([[0, -1], [1, 0]])
-        points = np.concatenate((init, init @ rotate_90, -init, -init @ rotate_90)) + np.array([coordinate.real, coordinate.imag])
+        points = np.concatenate((init, init @ rotate_90, -init, -init @ rotate_90)) \
+               + np.array([coordinate.real, coordinate.imag])
         drawn_order = MapperUtils.create_element(
             "polygon",
             {

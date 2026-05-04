@@ -4,7 +4,6 @@ import json
 import logging
 import re
 import time
-import numpy as np
 from xml.etree.ElementTree import Element, tostring
 
 import shapely
@@ -657,6 +656,7 @@ class Parser:
         return UnitType.ARMY
         # raise RuntimeError(f"Unit has {num_sides} sides which does not match any unit definition.")
 
+    # TODO: Move to Map Generation Repo
     def generate_layers(self) -> bytes:
         """Using sample SVG elements in the Army, Fleet, and Title layers,
         give each province a name, army and fleet locations, and retreat locations, then return the SVG as bytes."""

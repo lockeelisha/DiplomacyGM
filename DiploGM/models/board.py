@@ -10,7 +10,6 @@ from typing import Any, Dict, Optional, TYPE_CHECKING
 from rapidfuzz.distance import DamerauLevenshtein
 
 from DiploGM.models.order import NMR, Move, Hold, Support, ConvoyTransport, Core, Transform, RetreatMove, RetreatDisband
-from DiploGM.models.province import ProvinceType
 from DiploGM.models.unit import Unit, UnitType, DPAllocation
 from DiploGM.models.turn import Turn
 from DiploGM.utils.sanitise import parse_variant_path, sanitise_name, simple_player_name

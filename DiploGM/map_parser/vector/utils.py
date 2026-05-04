@@ -2,7 +2,6 @@ import logging
 import re
 from typing import Callable
 from xml.etree.ElementTree import Element, ElementTree
-import numpy as np
 from shapely.geometry import Point
 
 from DiploGM.map_parser.vector.transform import TransGL3
@@ -116,8 +115,6 @@ def get_sc_coordinates(supply_center_data: Element) -> complex:
     base_coordinates = complex(float(cx), float(cy))
     trans = TransGL3(supply_center_data) * TransGL3(circle)
     return trans.transform(base_coordinates)
-
-
 
 # returns:
 # new base_coordinate (= base_coordinate if not applicable),

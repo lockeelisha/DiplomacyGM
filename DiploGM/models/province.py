@@ -181,16 +181,16 @@ class Province():
                   and Province.detect_coastal_connection(self, province2)):
                 self.adjacencies.add_unit_type(province2, UnitType.FLEET)
 
-            if self.type != ProvinceType.SEA and province2.type != ProvinceType.SEA:
+            if ProvinceType.SEA not in (self.type, province2.type):
                 self.adjacencies.add_unit_type(province2, UnitType.ARMY)
-            
+
             if ((other_adj := province2.adjacencies.get(self))
                 and other_adj.coasts and not self.adjacencies.adjacencies[province2].coasts):
                 for origin_coast, dest_coast in other_adj.coasts:
                     self.adjacencies.add_coast(province2, dest_coast, origin_coast)
 
     @staticmethod
-    def detect_coastal_connection(p1: Province, p2: Province, coast: str | None = None):
+    def detect_coastal_connection(p1: Province, p2: Province) -> bool:
         """Detects whether two coastal provinces are actually connected via a common coast."""
         # multiple possible tripoints could happen if there was a scenario
         # where two canals were blocked from connecting on one side by a land province but not the other
@@ -219,7 +219,9 @@ class Province():
             procqueue: list[Province] = []
             connected_sets: set[frozenset[Province]] = set()
 
-            for adjacent in (p1.adjacencies.get_all() | p2.adjacencies.get_all() | possible_tripoint.adjacencies.get_all()
+            for adjacent in (p1.adjacencies.get_all() |
+                             p2.adjacencies.get_all() |
+                             possible_tripoint.adjacencies.get_all()
                              ).difference({p1, p2, possible_tripoint}):
                 procqueue.append(adjacent)
                 connected_sets.add(frozenset({adjacent}))
@@ -264,9 +266,9 @@ class Province():
             if l == 1:
                 return True
             if l != 2:
-                logger.error(f"WARNING: len(connected_sets) should've been 1 or 2, but got {l}.\n"
-                            f"hint: between coasts {p1} and {p2}, when looking at mutual sea {possible_tripoint}\n"
-                            f"Final state: {connected_sets}")
+                logger.error("WARNING: len(connected_sets) should've been 1 or 2, but got %s.\n"
+                             "hint: between coasts %s and %s, when looking at mutual sea %s\n"
+                             "Final state: %s", l, p1, p2, possible_tripoint, connected_sets)
 
         # no connection worked
         return False

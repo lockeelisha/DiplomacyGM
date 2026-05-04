@@ -77,7 +77,8 @@ def _validate_move_fleet(province: Province, order: Move | RetreatMove,
         return OrderValidity.INVALID, f"{province.get_name(unit.coast)} does not border {order.get_destination_str()}"
     if not strict_coast_movement:
         return OrderValidity.VALID, None
-    if destination_coast is not None and destination_coast not in province.adjacencies.get_coasts(order.destination, unit.coast):
+    if (destination_coast is not None
+        and destination_coast not in province.adjacencies.get_coasts(order.destination, unit.coast)):
         return OrderValidity.INVALID, f"{province.get_name(unit.coast)} does not border {order.get_destination_str()}"
     if strict_coast_movement and not destination_coast:
         reachable_coasts = unit.province.adjacencies.get_coasts(order.destination, unit.coast)
@@ -112,9 +113,9 @@ def _validate_move_order(province: Province, order: Move | RetreatMove,
 def _validate_convoymove_order(province: Province, order: Move) -> tuple[OrderValidity, str | None]:
     unit = province.unit
     assert unit is not None
+    destination_province = order.destination
     if unit.unit_type != UnitType.ARMY:
         return OrderValidity.INVALID, "Only armies can be convoyed"
-    destination_province = order.destination
     if destination_province.type == ProvinceType.SEA:
         return OrderValidity.INVALID, "Cannot convoy to a sea space"
     if destination_province == unit.province:
@@ -125,7 +126,7 @@ def _validate_convoymove_order(province: Province, order: Move) -> tuple[OrderVa
         return OrderValidity.MISMATCHED_ORDER, \
             f"A convoy path exists from {destination_province} to {province}, but fleets did not convoy"
     if not convoy_is_possible(province, destination_province):
-        return OrderValidity.INVALID, f"No valid convoy path from {province} to {order.destination}"
+        return OrderValidity.INVALID, f"No valid convoy path from {province} to {destination_province}"
     return OrderValidity.VALID, None
 
 def _validate_transform_order(province: Province, order: Transform) -> tuple[OrderValidity, str | None]:
