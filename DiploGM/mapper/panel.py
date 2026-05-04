@@ -63,8 +63,11 @@ class PanelDrawer:
 
         MapperUtils.color_element(power_element[0], self.player_colors[player.name])
         if self.board_svg_data.get("scoreboard", {}).get("sort", True):
-            new_translation = self.scoreboard_power_locations[banner_index] - initial_pretransform_coordinates
-            power_element.set("transform", f"translate({new_translation.real}, {new_translation.imag})")
+            original_trans = TransGL3(power_element)
+            translation = self.scoreboard_power_locations[banner_index] \
+                        - original_trans.transform(initial_pretransform_coordinates)
+            offset = TransGL3().init(x_c=translation.real, y_c=translation.imag)
+            power_element.set("transform", str(original_trans * offset))
 
         for index, value in self.board_svg_data["scoreboard"].get("indexes", {}).items():
             if not index.isnumeric() or (i := int(index)) >= len(power_element):
