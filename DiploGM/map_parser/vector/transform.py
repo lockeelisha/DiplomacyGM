@@ -27,43 +27,34 @@ class TransGL3:
             if func == "matrix":
                 if len(args) != 6:
                     raise ValueError(f"Malformed matrix transformation: {transform_string}")
-                m = np.array([
-                    [args[0], args[1], 0],
-                    [args[2], args[3], 0],
-                    [args[4], args[5], 1]
-                ])
+                m = np.array([[args[0], args[1], 0],
+                              [args[2], args[3], 0],
+                              [args[4], args[5], 1]])
             elif func == "translate":
-                tx = args[0]
-                ty = args[1] if len(args) > 1 else 0
-                m = np.array([
-                    [1, 0, 0],
-                    [0, 1, 0],
-                    [tx, ty, 1]
-                ])
+                args.append(0)
+                m = np.array([[1,       0,       0],
+                              [0,       1,       0],
+                              [args[0], args[1], 1]])
             elif func == "rotate":
                 angle = args[0] * np.pi / 180
                 cos = np.cos(angle)
                 sin = np.sin(angle)
-                if len(args) == 3:
-                    cx, cy = args[1], args[2]
-                    pre = np.array([[1,0,0],[0,1,0],[-cx,-cy,1]])
-                    rot = np.array([[cos,sin,0],[-sin,cos,0],[0,0,1]])
-                    post = np.array([[1,0,0],[0,1,0],[cx,cy,1]])
-                    m = pre @ rot @ post
-                else:
-                    m = np.array([
-                        [cos, sin, 0],
-                        [-sin, cos, 0],
-                        [0, 0, 1]
-                    ])
+                args = args + [0, 0]
+                cx, cy = args[1], args[2]
+                pre = np.array([[1,   0,   0],
+                                [0,   1,   0],
+                                [-cx, -cy, 1]])
+                rot = np.array([[cos,  sin, 0],
+                                [-sin, cos, 0],
+                                [0,    0,   1]])
+                post = np.array([[1,  0,  0],
+                                 [0,  1,  0],
+                                 [cx, cy, 1]])
+                m = pre @ rot @ post
             elif func == "scale":
-                sx = args[0]
-                sy = args[1] if len(args) > 1 else sx
-                m = np.array([
-                    [sx, 0, 0],
-                    [0, sy, 0],
-                    [0, 0, 1]
-                ])
+                m = np.array([[args[0], 0,        0],
+                              [0,       args[-1], 0],
+                              [0,       0,        1]])
             else:
                 raise ValueError(f"Unknown transformation: {transform_string}")
 
