@@ -1,3 +1,20 @@
+1.9.3
+=====
+
+Contributors:
+- notnot
+
+# New Features
+- Added `open-cores` argument to `view_orders` to see how many cores a player can build in during winter
+- Added `explain` argument to `view_orders` to label each column in the command's output
+- Added `view_open_cores` command to view which cores a power can build in
+
+# Bugfixes
+- `.view_gui` should hopefully work again
+
+# Developer Chnages
+- Moved fish, name, and custom color to board_parameters instead of player and board tables
+
 1.9.2
 =====
 

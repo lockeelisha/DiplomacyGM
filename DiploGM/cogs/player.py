@@ -9,9 +9,10 @@ from DiploGM import perms
 from DiploGM.db.database import get_connection
 from DiploGM.parse_order import parse_order, parse_remove_order
 from DiploGM.utils import get_orders, log_command, parse_season, send_message_and_file
+from DiploGM.utils.open_cores import get_open_core_text
 from DiploGM.utils.sanitise import find_discord_role, get_colour_option, remove_prefix
 from DiploGM.manager import Manager, SEVERENCE_A_ID, SEVERENCE_B_ID
-from DiploGM.models.player import ForcedDisbandOption, Player, ViewOrdersTags, OrdersSubsetOption
+from DiploGM.models.player import ForcedDisbandOption, Player, ViewOpenCoresTags, ViewOrdersTags, OrdersSubsetOption
 from DiploGM.utils.send_message import ErrorMessage, send_error, send_orders_locked_error
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ BLIND_ALIASES = ["blind", "b"]
 FORCED_RETREAT_ALIASES = ["forced-disband", "forced", "force", "disband", "pop", "f"]
 FREE_RETREAT_ALIASES = ["free-retreats", "free-retreat", "free", "retreats", "retreat", "r"]
 OPEN_CORES_ALIASES = ["open-cores", "open", "cores", "core", "c"]
-EXPLAIN_VIEW_MOVES_OUTPUT = ["explain"]
+EXPLAIN = ["explain"]
 
 class PlayerCog(commands.Cog):
     def __init__(self, bot):
@@ -155,7 +156,7 @@ class PlayerCog(commands.Cog):
         \tAliases: {FREE_RETREAT_ALIASES}
         Use the '{OPEN_CORES_ALIASES[0]}' argument to view the number of cores have no occupying unit and can be built in. (Only in winter phases)
         \tAliases: {OPEN_CORES_ALIASES}
-        Use the '{EXPLAIN_VIEW_MOVES_OUTPUT[0]}' argument to augment the output with explanations of each column.""",
+        Use the '{EXPLAIN[0]}' argument to augment the output with explanations of each column.""",
         aliases=["v", "view", "vieworders", "view-orders"],
     )
     @perms.player("view orders")
@@ -175,7 +176,7 @@ class PlayerCog(commands.Cog):
                 else ForcedDisbandOption.ONLY_FREE if any_alias_in_args(FREE_RETREAT_ALIASES)
                 else ForcedDisbandOption.UNMARKED,
             open_cores=any_alias_in_args(OPEN_CORES_ALIASES),
-            explain=any_alias_in_args(EXPLAIN_VIEW_MOVES_OUTPUT)
+            explain=any_alias_in_args(EXPLAIN)
         )
 
         try:
@@ -203,6 +204,56 @@ class PlayerCog(commands.Cog):
             title=f"{board.turn}",
             message=order_text,
         )
+
+    @commands.command(
+        brief="Outputs a list of your open cores.",
+        description=f"""Outputs a list of your open cores (cores which contain no units, and so can be built in).
+        Use the '{BLIND_ALIASES[0]}' argument to view only the number of open cores.
+        \tAliases: {BLIND_ALIASES}""",
+        aliases=["voc", "open-cores", "opencores", "view-open-cores"],
+    )
+    @perms.player(description="view open cores")
+    async def view_open_cores(
+        self,
+        ctx: commands.Context,
+        player: Player | None,
+    ) -> None:
+        assert ctx.guild is not None
+
+        
+        arguments = remove_prefix(ctx).lower().split()
+        any_alias_in_args: Callable[[Iterable[str]], bool] = lambda aliases: 0 < len(set(arguments).intersection(set(aliases)))
+
+        tags = ViewOpenCoresTags(
+            blind=any_alias_in_args(BLIND_ALIASES),
+        )
+
+        try: 
+            board = manager.get_board(ctx.guild.id)
+            message_text = get_open_core_text(ctx, board, player, tags)
+
+        except RuntimeError as err:
+            logger.error(err, exc_info=True)
+            log_command(
+                logger,
+                ctx,
+                message="Failed for an unknown reason",
+                level=logging.ERROR,
+            )
+            await send_error(ctx.channel, ErrorMessage.UNKNOWN_ERROR)
+            return
+        log_command(
+            logger,
+            ctx,
+            message=f"Success - discovered open cores for {'all players' if player is None else player.name} - {board.turn}",
+        )
+
+        await send_message_and_file(
+            channel=ctx.channel,
+            title=f"{board.turn} Open Cores",
+            message=message_text,
+        )
+        
 
     async def _fetch_maps(self, ctx: commands.Context, player: Player | None, show_moves: bool = False):
         assert ctx.guild is not None

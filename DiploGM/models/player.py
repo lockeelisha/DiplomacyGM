@@ -174,3 +174,7 @@ class ViewOrdersTags:
     forced: ForcedDisbandOption
     open_cores: bool
     explain: bool
+
+@dataclass
+class ViewOpenCoresTags:
+    blind: bool
