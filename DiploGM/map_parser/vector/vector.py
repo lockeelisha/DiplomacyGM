@@ -478,11 +478,16 @@ class Parser:
                                           set_province_name)
 
     def _initialize_supply_centers_assisted(self) -> None:
+        sc_layer_transformation = TransGL3(self.layer_data["supply_center_icons"])
         for center_data in self.layer_data["supply_center_icons"]:
             name = self.get_province_name(center_data)
             if name == "Capital Marker":
                 continue
             province = self.name_to_province[name]
+            supply_center_coords = sc_layer_transformation.transform(get_sc_coordinates(center_data))
+            supply_center_point = shapely.Point(supply_center_coords.real, supply_center_coords.imag)
+            if not shapely.dwithin(supply_center_point, province.geometry, self.data[SVG_CONFIG_KEY].get("unit_radius", 10)):
+                logger.warning(f"{self.datafile}: Supply center icon for '{name}' is not within its province")
 
             if province.has_supply_center:
                 raise RuntimeError(f"{name} already has a supply center")
