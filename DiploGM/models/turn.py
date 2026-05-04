@@ -21,6 +21,13 @@ class Turn:
             PhaseName.FALL_RETREATS: "Fall Retreats",
             PhaseName.WINTER_BUILDS: "Winter Builds"
         }
+        self.season_names: dict[PhaseName, str] = {
+            PhaseName.SPRING_MOVES: "Spring",
+            PhaseName.SPRING_RETREATS: "Spring",
+            PhaseName.FALL_MOVES: "Fall",
+            PhaseName.FALL_RETREATS: "Fall",
+            PhaseName.WINTER_BUILDS: "Winter"
+        }
         self.short_names: dict[PhaseName, str] = {
             PhaseName.SPRING_MOVES: "sm",
             PhaseName.SPRING_RETREATS: "sr",
@@ -44,19 +51,23 @@ class Turn:
 
         Supported specifiers:
             %Y - Full year
+            %B - Full year with AD/BC
             %y - Two-digit year
             %I - Zero-indexed year (year - start_year; used for DB queries)
             %S - Full phase name (e.g. "Spring Moves")
             %s - Short phase name (e.g. "sm")
+            %Z - Season name (e.g. "Spring")
         """
         if not fmt:
             return str(self)
         result = fmt
         result = result.replace("%Y", str(self.year))
+        result = result.replace("%B", f"{str(self.year) + ' AD' if self.year > 0 else str(1 - self.year) + ' BC'}")
         result = result.replace("%y", str(self.year % 100))
         result = result.replace("%I", str(self.year - self.start_year))
         result = result.replace("%S", self.phase_names[self.phase])
         result = result.replace("%s", self.short_names[self.phase])
+        result = result.replace("%Z", self.season_names[self.phase])
         return result
 
     def get_next_turn(self) -> Turn:

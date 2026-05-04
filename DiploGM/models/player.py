@@ -23,7 +23,7 @@ class VassalType(Enum):
 
 
 class PlayerClass(Enum):
-    """Used for Chaos. Can be ignored otherwise."""
+    """Used for World of Chaos vassals. Can be ignored otherwise."""
     DUCHY = 0
     KINGDOM = 1
     EMPIRE = 2
@@ -124,8 +124,9 @@ class Player:
         for unit in units:
             unit_str += f"{bullet}({unit.unit_type.value}) {unit.province.get_name(unit.coast)}"
 
-        color = (bullet + bullet.join([k + ': ' + v for k, v in self.color_dict.items()])
-                if self.color_dict is not None else self.board.data['players'][self.name].get('custom_color', self.default_color))
+        color = (bullet + self.board.data['players'][self.name].get('custom_color', self.default_color) +
+                 (bullet + bullet.join([k + ': ' + v for k, v in self.color_dict.items()])
+                  if self.color_dict is not None else ""))
         out = (
             ""
             + f"Color: {color}\n"
@@ -149,7 +150,7 @@ class Player:
         return num_builds
 
     def get_class(self) -> PlayerClass:
-        """Gets the player's rank. Used for Chaos."""
+        """Gets the player's rank. Used for World of Chaos."""
         scs = len(self.centers)
         if scs >= 6:
             return PlayerClass.EMPIRE

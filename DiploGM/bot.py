@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import inspect
 import importlib
@@ -231,17 +232,13 @@ class DiploGM(commands.Bot):
 
     async def before_any_command(self, ctx: commands.Context):
         """Before any command, log the command and thumbs-up the message."""
-        if isinstance(ctx.channel, (discord.DMChannel, discord.PartialMessageable)):
+        if isinstance(ctx.channel, (discord.DMChannel, discord.PartialMessageable)) or not ctx.guild:
             return
         assert isinstance(ctx.guild, discord.Guild)
 
-        guild = ctx.guild
-        if not guild:
-            return
-
         logger.debug(
             "[%s][#%s](%s) - '%s'",
-            guild.name,
+            ctx.guild.name,
             ctx.channel.name,
             ctx.message.author.name,
             ctx.message.content
@@ -250,8 +247,7 @@ class DiploGM(commands.Bot):
         # People input apostrophes that don't match what the province names are, we can catch all of that here
         # ctx.message.content = re.sub(r"[‘’`´′‛]", "'", ctx.message.content)
 
-        # mark the message as seen
-        await ctx.message.add_reaction("👍")
+        asyncio.create_task(ctx.message.add_reaction("👍"))
 
     async def after_any_command(self, ctx: commands.Context):
         """After any command, log the time taken to execute the command."""

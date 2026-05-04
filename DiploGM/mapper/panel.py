@@ -4,23 +4,21 @@ import re
 from typing import TYPE_CHECKING
 from xml.etree.ElementTree import ElementTree, Element
 
-from DiploGM.map_parser.vector.utils import get_element_color, find_svg_element
+import DiploGM.mapper.utils as MapperUtils
+from DiploGM.map_parser.vector.utils import get_coordinates, get_element_color, find_svg_element
 from DiploGM.map_parser.vector.transform import TransGL3
 
 if TYPE_CHECKING:
     from DiploGM.models.board import Board
     from DiploGM.models.player import Player
-    from DiploGM.mapper.utils import MapperUtils
 
 class PanelDrawer:
     """Class responsible for drawing the panel on the map."""
     def __init__(self,
-                 utils: MapperUtils,
                  board_svg: ElementTree,
                  board: Board,
                  player_colors: dict[str, str],
                  restriction: Player | None = None):
-        self.utils = utils
         self.board_svg = board_svg
         self.board = board
         self.board_svg_data = board.data["svg config"]
@@ -32,16 +30,15 @@ class PanelDrawer:
         )
         if all_power_banners_element is None:
             return
-        self.scoreboard_power_locations: list[tuple[float, float]] = []
-        for power_element in all_power_banners_element or []:
-            destination_pretransform_coordinates = TransGL3(power_element[0]).transform((float(power_element[0].get("x", 0)),
-                                                                                         float(power_element[0].get("y", 0))))
+        self.scoreboard_power_locations: list[complex] = []
+        for power_element in all_power_banners_element:
+            destination_pretransform_coordinates = TransGL3(power_element[0]).transform(get_coordinates(power_element[0]))
             destination_coordinates = TransGL3(power_element).transform(destination_pretransform_coordinates)
             self.scoreboard_power_locations.append(destination_coordinates)
 
         # each power is placed in the right spot based on the transform field which has value of
         # "translate($x,$y)" where x,y are floating point numbers; we parse these via regex and sort by y-value
-        self.scoreboard_power_locations.sort(key=lambda loc: loc[1])
+        self.scoreboard_power_locations.sort(key=lambda loc: loc.imag)
 
 
     def draw_side_panel(self, svg: ElementTree) -> None:
@@ -53,8 +50,7 @@ class PanelDrawer:
                            banner_index: int, high_player_count: bool) -> bool:
         if len(power_element) == 0:
             return False
-        initial_pretransform_coordinates = TransGL3(power_element[0]).transform((float(power_element[0].get("x", 0)),
-                                                                                 float(power_element[0].get("y", 0))))
+        initial_pretransform_coordinates = TransGL3(power_element[0]).transform(get_coordinates(power_element[0]))
         banner_coordinates = TransGL3(power_element).transform(initial_pretransform_coordinates)
         if high_player_count and banner_coordinates != self.scoreboard_power_locations[banner_index]:
             return False
@@ -65,55 +61,35 @@ class PanelDrawer:
             power_element.clear()
             return True
 
-       # TODO: Add support for chaos "points" and perhaps simplify this whole thing
-        name_index = self.board_svg_data.get("power_name_index", 1)
-        sc_index = self.board_svg_data.get("power_sc_index", 5)
-        iscc_index = self.board_svg_data.get("power_iscc_index", 6)
-        vscc_index = self.board_svg_data.get("power_vscc_index", 7)
-
-        self.utils.color_element(power_element[0], self.player_colors[player.name])
+        MapperUtils.color_element(power_element[0], self.player_colors[player.name])
         if self.board_svg_data.get("scoreboard", {}).get("sort", True):
-            new_translation = (self.scoreboard_power_locations[banner_index][0] - initial_pretransform_coordinates[0],
-                                self.scoreboard_power_locations[banner_index][1] - initial_pretransform_coordinates[1])
-            power_element.set("transform", f"translate({new_translation[0]}, {new_translation[1]})")
+            new_translation = self.scoreboard_power_locations[banner_index] - initial_pretransform_coordinates
+            power_element.set("transform", f"translate({new_translation.real}, {new_translation.imag})")
 
-        if "scoreboard" in self.board_svg_data:
-            for index, value in self.board_svg_data["scoreboard"].get("indexes", {}).items():
-                value = value.replace("__name__", player.get_name())
-                value = value.replace("__score__", str(len(player.centers)))
-                power_element[int(index)][0].text = value
-            return True
+        for index, value in self.board_svg_data["scoreboard"].get("indexes", {}).items():
+            if not index.isnumeric() or int(index) >= len(power_element):
+                continue
+            if value == "__name__" and not high_player_count and not player_data.get("nickname"):
+                continue
 
-        if high_player_count or player_data.get("nickname"):
-            power_element[name_index][0].text = player.get_name()
             # Fix for Poland-Lithuanian Commonwealth
-            if len(power_element[name_index]) > 1:
-                power_element[name_index][1].text = ""
-                power_element[name_index].set("y", "237.67107")
-                power_element[name_index][0].set("y", "237.67107")
-                style = power_element[name_index].get("style")
+            if index == 1 and len(power_element[index]) > 1:
+                power_element[index][1].text = ""
+                power_element[index].set("y", "237.67107")
+                power_element[index][0].set("y", "237.67107")
+                style = power_element[index].get("style")
                 assert style is not None
                 style = re.sub(r"font-size:[0-9.]+px", "font-size:42.6667px", style)
-                power_element[name_index].set("style", style)
-        power_element[sc_index][0].text = (str(len(player.centers))
-            if (self.restriction is None or self.restriction == player) else "???")
-        if iscc_index > -1:
-            power_element[iscc_index][0].text = str(player_data["iscc"])
-        if self.board.data["victory_conditions"] == "classic" and vscc_index > -1:
-            power_element[vscc_index][0].text = str(self.board.data["victory_count"])
-        elif vscc_index > -1:
-            power_element[vscc_index][0].text = str(player_data["vscc"])
+                power_element[index].set("style", style)
+
+            value = value.replace("__name__", player.get_name())
+            value = value.replace("__score__", str(len(player.centers)))
+            value = value.replace("__iscc__", str(player_data["iscc"]))
+            value = value.replace("__vscc__", str(player_data["vscc"]))
+            power_element[int(index)][0].text = value
         return True
 
     def _draw_side_panel_scoreboard(self, svg: ElementTree) -> None:
-        """
-        format is a list of each power; for each power, its children nodes are as follows:
-        0: colored rectangle
-        1: full name ("Dutch Empire", ...)
-        2-4: "current", "victory", "start" text labels in that order
-        5-7: SC counts in that same order
-        """
-
         root = svg.getroot()
         if root is None:
             raise ValueError("SVG root is None")
@@ -143,11 +119,15 @@ class PanelDrawer:
         if date is None:
             return
         game_name = self.board.data.get("game_name")
-        if (season_format := self.board_svg_data.get("season_format")) is not None:
-            name_text = format(self.board.turn, season_format)
-            name_text = name_text.replace("%N", game_name if game_name else "")
-        else:
-            name_text = "" if game_name is None else f"{game_name} — "
-            name_text += format(self.board.turn, "%Y %S")
-        # TODO: this is hacky; I don't know a better way
-        date[0][0].text = name_text
+        season_format = self.board_svg_data.get("season_format", "%N( - )?%B %S")
+        if isinstance(season_format, str):
+            season_format = {"0": season_format}
+        for key, value in season_format.items():
+            name_text = format(self.board.turn, value)
+            if game_name:
+                name_text = name_text.replace("%N", game_name)
+                name_text = re.sub(r"\((.*?)\)\?", r"\1", name_text)
+            else:
+                name_text = name_text.replace("%N", "")
+                name_text = re.sub(r"\((.*?)\)\?", "", name_text)
+            date[int(key)][0].text = name_text

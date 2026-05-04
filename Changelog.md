@@ -1,4 +1,4 @@
-1.9.3
+1.9.4
 =====
 
 Contributors:
@@ -9,11 +9,31 @@ Contributors:
 - Added `explain` argument to `view_orders` to label each column in the command's output
 - Added `view_open_cores` command to view which cores a power can build in
 
+1.9.3
+=====
+
 # Bugfixes
 - `.view_gui` should hopefully work again
 
 # Developer Chnages
 - Moved fish, name, and custom color to board_parameters instead of player and board tables
+- ianic
+- Golden Kumquat
+
+# New features
+- Added the Era of Solitude variant
+
+# Quality of Life
+- The bot will no longer wait to give you a thumbs-up before starting doing whatever it's supposed to do
+- Added more flexibility for displaying seasons on the map
+- Included more sample elements in Classic's config.json
+
+# Bugfixes
+- Minor fixes for Planiglobii
+
+# Developer Changes
+- Moved variant creation commands to their own cog
+- Now stores coordinates as complex numbers instead of tuples
 
 1.9.2
 =====
@@ -27,7 +47,7 @@ Contributors:
 # Bugfixes
 - `.view_gui` should hopefully work again
 
-# Developer Chnages
+# Developer Changes
 - Moved fish, name, and custom color to board_parameters instead of player and board tables
 
 1.9.1
@@ -69,7 +89,7 @@ Contributors
   - `.verify_svg()` now returns a list of issues instead of simply logging them
   - Removed warn_missing_coordinates() as the board is better at handling them
 
-# Developer Chnages
+# Developer Changes
 - Refactored the game_management cog into smaller, more manageable modules based on function
 - Moved fow, fish, and name parametres into board.data
 - Split up some large methods into smaller chunks
