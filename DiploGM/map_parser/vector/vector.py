@@ -656,62 +656,6 @@ class Parser:
         return UnitType.ARMY
         # raise RuntimeError(f"Unit has {num_sides} sides which does not match any unit definition.")
 
-    # TODO: Move to Map Generation Repo
-    def generate_layers(self) -> bytes:
-        """Using sample SVG elements in the Army, Fleet, and Title layers,
-        give each province a name, army and fleet locations, and retreat locations, then return the SVG as bytes."""
-        svg_root = etree.parse(self.data["file"])
-        layers = {}
-        existing_objects = {}
-        # First, we get a sample element from each layer, and then clear the layers
-        # We need to find out the coordinate of the sample element and then apply appropriate translations
-        for layer_name in ["army", "fleet", "retreat_army", "retreat_fleet", "titles"]:
-            layer = find_svg_element(svg_root, layer_name, self.layers)
-            if layer is None:
-                if layer_name in {"retreat_army", "retreat_fleet"}:
-                    logger.warning("Layer %s not found in SVG. Duplicating army/fleet layer.", layer_name)
-                    layer = self._create_retreat_layer(svg_root, layer_name, self.layers)
-                else:
-                    logger.warning("Layer %s not found in SVG, skipping...", layer_name)
-                    continue
-            sample_element = copy.deepcopy(layer[0])
-            if layer_name != "titles":
-                coordinate = TransGL3(sample_element).transform(get_unit_coordinates(sample_element))
-            else:
-                coordinate = get_coordinates(sample_element)
-                sample_element.set("text-anchor", "middle")
-            layers[layer_name] = {"layer": layer, "sample_element": sample_element, "coordinate": coordinate}
-            existing_objects[layer_name] = set()
-            for element in layer:
-                existing_objects[layer_name].add(element.get(INKSCAPE_LABEL))
-
-        # For each province, we add an element to each layer.
-        # We'll add a translation to put each element in the centroid of the province
-        for province in self.name_to_province.values():
-            for layer_name, layer_info in layers.items():
-                if layer_name in existing_objects and province.name in existing_objects[layer_name]:
-                    continue
-                if province.type == ProvinceType.SEA and layer_name in {"army", "retreat_army"}:
-                    continue
-                if not province.is_landlocked() and layer_name in {"fleet", "retreat_fleet"}:
-                    continue
-                copied_element = copy.deepcopy(layer_info["sample_element"])
-                copied_element.set(INKSCAPE_LABEL, province.name)
-                if layer_name == "titles":
-                    copied_element.text = province.name
-                center = shapely.centroid(province.geometry)
-                center = complex(center.x, center.y) if center else complex(0)
-                distance = center - layer_info["coordinate"]
-                if layer_name in {"retreat_army", "retreat_fleet"}:
-                    distance -= complex((self.data[SVG_CONFIG_KEY].get("unit_radius", 20) / 2),
-                                        (self.data[SVG_CONFIG_KEY].get("unit_radius", 20) / 2))
-                trans = TransGL3(copied_element) * TransGL3().init(x_c = distance.real, y_c = distance.imag)
-                copied_element.set("transform", str(trans))
-                layer_info["layer"].append(copied_element)
-
-        return etree.tostring(svg_root)
-
-
 parsers = {}
 
 
