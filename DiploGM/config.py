@@ -59,6 +59,7 @@ BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID: int = all_config["dev_hub"]["unhandled_erro
 # HUB SERVER
 HUB_SERVER_ID: int = all_config["hub"]["id"]
 ## Channels
+HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID: int = all_config["hub"]["server_presence_channel"]
 HUB_SERVER_BOT_STATUS_CHANNEL_ID: int = all_config["hub"]["status_channel"]
 HUB_SERVER_SUBSTITUTE_TICKET_CHANNEL_ID: int = all_config["hub"]["substitute_ticket_channel"]
 HUB_SERVER_SUBSTITUTE_ADVERTISE_CHANNEL_ID: int = all_config["hub"]["substitute_advertise_channel"]

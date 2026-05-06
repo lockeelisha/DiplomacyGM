@@ -22,6 +22,7 @@ game_playing = "Impdip 🔪"
 id = 1201167737163104376
 # Channel ids
 status_channel = 1284336328657600572
+server_presence_channel = 1501278988994088960
 substitute_ticket_channel = 1294689571103309944
 substitute_advertise_channel = 1201263909622010037
 substitute_log_channel = 1282421565174059053  # currently a threadchannel (#gm-hangout->'Reputation Tracker')

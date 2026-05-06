@@ -5,9 +5,11 @@ import importlib
 import logging
 import os
 import random
+import re
 import traceback
-from typing import Optional
 import aiohttp.client_exceptions
+from pathlib import Path
+from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -22,10 +24,11 @@ from DiploGM.config import (
     HUB_SERVER_ID,
     HUB_SERVER_BOT_STATUS_CHANNEL_ID,
     EXTENSIONS_TO_LOAD_ON_STARTUP,
+    HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID,
 )
 from DiploGM.events.eventbus import EventBus
 from DiploGM.errors import CommandPermissionError
-from DiploGM.utils import send_message_and_file
+from DiploGM.utils import file_hexdigest, send_message_and_file
 from DiploGM.manager import Manager
 
 logger = logging.getLogger(__name__)
@@ -60,12 +63,10 @@ class DiploGM(commands.Bot):
         self.creation_time = datetime.datetime.now(datetime.timezone.utc)
         self.last_command_time = None
 
-
     async def setup_hook(self) -> None:
         # bind command invocation handling methods
         self.before_invoke(self.before_any_command)
         self.after_invoke(self.after_any_command)
-        self.add_listener(self.on_message_listener, 'on_message')
 
         current_servers = [g.id async for g in self.fetch_guilds()]
         self.manager = Manager(board_ids=current_servers)
@@ -77,7 +78,6 @@ class DiploGM(commands.Bot):
         # modularly load command modules
         for extension in EXTENSIONS_TO_LOAD_ON_STARTUP:
             await self.load_diplogm_extension(extension)
-
 
         # sync app_commands (slash) commands with all servers
         try:
@@ -130,7 +130,6 @@ class DiploGM(commands.Bot):
             logger.info("Failed to unload Cog %s", name)
             raise e
 
-
     async def reload_extension(self, name: str, *, package: Optional[str] = None) -> None:
         """Reloads a cog extension. Will roll back to the previous version if it fails to load."""
         try:
@@ -173,25 +172,10 @@ class DiploGM(commands.Bot):
 
     # TODO: Functionality to unload/reload listeners
 
-    async def on_message_listener(self, message: discord.Message):
-        """If a player sends a message, update their last activity time."""
-        if message.author.bot:
-            return
-        server_id = message.guild.id if message.guild else None
-        sender = message.author
-        if isinstance(sender, discord.User) or server_id is None:
-            return
-        is_player = any(r.name.lower() == "player" for r in sender.roles)
-        if is_player:
-            self.manager.update_player_activity(server_id, sender)
-
-
-
     async def on_ready(self):
         """Stuff that happens when the bot has finished starting up."""
         now = datetime.datetime.now(datetime.timezone.utc)
         logger.info("Setup took %s", now - self.creation_time)
-
         logger.info("Logged in as %s", self.user)
 
         # Ensure bot is connected to the correct server
@@ -206,9 +190,51 @@ class DiploGM(commands.Bot):
         else:
             message = random.choice(WELCOME_MESSAGES)
             await send_message_and_file(channel=channel, message=message, embed_colour=EMBED_STANDARD_COLOUR)
+            await self._post_changelog(channel)
+            
 
         # Set bot's presence (optional)
         await self.change_presence(activity=discord.Game(name=GAME_PLAYING))
+
+    async def _post_changelog(self, channel) -> None:
+        def _get_recent_changelog(filepath: Path) -> tuple[str, str]:
+            with open(filepath) as f:
+                lines = f.readlines()
+
+            version = lines[0]
+            change_lines = []
+            collecting = False
+            for line in lines[1:]:
+                match = re.match(r"=+", line)
+                if match:
+                    if not collecting:
+                        collecting = True
+                    else:
+                        collecting = True
+                        change_lines = change_lines[:-1]
+                        break
+                elif collecting:
+                    change_lines.append(line)
+
+            changes = "".join(change_lines)
+            return version, changes
+
+        changelog = Path("Changelog.md")
+        digest_file = Path("assets") / "changelog.sum"
+
+        new_digest = file_hexdigest(changelog)
+        old_digest = None
+        if digest_file.exists():
+            old_digest = digest_file.read_text().strip()
+
+        changed = False
+        if new_digest != old_digest:
+            digest_file.write_text(new_digest)
+            changed = True
+
+        if changed:
+            version, changes = _get_recent_changelog(changelog)
+            await send_message_and_file(channel=channel, embed_colour="#aabb00", title=f"Changelog Version: {version}\n___", message=changes)
 
     async def close(self):
         logger.info("Shutting down gracefully.")
@@ -441,6 +467,77 @@ class DiploGM(commands.Bot):
             message=unhandled_out,
             embed_colour=ERROR_COLOUR,
         )
+
+    async def on_guild_join(self, guild: discord.Guild):
+        channel = self.get_channel(HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID) or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID)
+        if channel is None:
+            logger.warning(f"Bot joined a Guild({guild.id}) but could not find a location to log to.")
+            return
+
+        out = (
+            f"Guild: `{guild.name}`\n"
+            f"Guild ID: `{guild.id}`"
+        )
+
+        if guild.owner:
+            out += (
+                f"\nOwner: {guild.owner.mention}[{guild.owner.name}]\n"
+                f"Owner ID: `{guild.owner.id}`"
+            )
+        else:
+            out += "\n-- Owner unidentified --"
+
+        await asyncio.sleep(2)
+        async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.bot_add):
+            if not self.user or not entry.user or not entry.target:
+                continue
+
+            if entry.target.id == self.user.id:
+                inviter = entry.user
+                out += (
+                    f"\nInviter: {inviter.mention}[{inviter.name}]\n"
+                    f"Inviter ID: {inviter.id}"
+                )
+                break
+        else:
+            out += ("\n-- Inviter unidentified --")
+
+        await send_message_and_file(channel=channel, embed_colour="#00FF00", title="DiploGM joined a server", message=out)
+
+    async def on_guild_remove(self, guild: discord.Guild):
+        channel = self.get_channel(HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID) or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID)
+        if channel is None:
+            logger.warning(f"Bot was removed from Guild({guild.id}) but could not find a location to log to.")
+            return
+
+        out = (
+            f"Guild: `{guild.name}`\n"
+            f"Guild ID: `{guild.id}`"
+        )
+
+        if guild.owner:
+            out += (
+                f"\nOwner: {guild.owner.mention}[{guild.owner.name}]\n"
+                f"Owner ID: `{guild.owner.id}`"
+            )
+        else:
+            out += "\n-- Owner unidentified --"
+
+        await send_message_and_file(channel=channel, embed_colour="#FF0000", title="DiploGM left a server", message=out)
+
+    async def on_message(self, message: discord.Message):
+        """If a player sends a message, update their last activity time."""
+        if message.author.bot:
+            return
+        server_id = message.guild.id if message.guild else None
+        sender = message.author
+        if isinstance(sender, discord.User) or server_id is None:
+            return
+        is_player = any(r.name.lower() == "player" for r in sender.roles)
+        if is_player:
+            self.manager.update_player_activity(server_id, sender)
+
+        await self.process_commands(message)
 
     async def on_reaction_add(self, reaction, user):
         """1-in-10,000 chance to call out someone for reacting."""
