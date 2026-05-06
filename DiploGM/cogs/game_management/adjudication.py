@@ -20,6 +20,7 @@ from DiploGM.utils import (
 from DiploGM.utils.image import svg_to_png
 
 from DiploGM.models.order import Disband, Build
+from DiploGM.models.player import ForcedDisbandOption, OrdersSubsetOption, ViewOrdersTags
 from DiploGM.manager import Manager, SEVERENCE_A_ID, SEVERENCE_B_ID
 from DiploGM.utils.sanitise import get_colour_option, remove_prefix
 from DiploGM.utils.send_message import ErrorMessage, send_error
@@ -55,7 +56,14 @@ async def _post_orders(ctx: commands.Context, board: Board) -> str:
     assert ctx.guild is not None
 
     try:
-        order_text = get_orders(board, None, ctx, fields=True)
+        tags = ViewOrdersTags(
+            subset=OrdersSubsetOption.FULL,
+            forced=ForcedDisbandOption.MARK_FORCED,
+            blind=False,
+            open_cores=False,
+            explain=False
+        )
+        order_text = get_orders(board, None, ctx, tags=tags, fields=True)
     except RuntimeError as err:
         logger.error(err, exc_info=True)
         log_command(
@@ -286,9 +294,9 @@ async def adjudicate(ctx: commands.Context) -> None:
     args = {"return_svg": not ({"true", "t", "svg", "s"} & set(arguments)),
             "color": get_colour_option(board, arguments),
             "test": "test" in arguments,
-            "full": "full" in arguments and not "test" in arguments,
+            "full": "full" in arguments and "test" not in arguments,
             "movement": "movement" in arguments,
-            "force": ({"force", "confirm"} & set(arguments)) and not "test" in arguments}
+            "force": ({"force", "confirm"} & set(arguments)) and "test" not in arguments}
 
     if not args["force"] and not args["test"] and await _is_missing_orders(board):
         await send_message_and_file(
