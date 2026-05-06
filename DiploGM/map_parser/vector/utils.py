@@ -160,6 +160,7 @@ def parse_path(path_string: str, translation: TransGL3) -> list[list[complex]]:
                 if start is None:
                     raise ValueError("Invalid geometry: got 'z' on first element in a subgeometry")
                 province_coordinates[-1].append(translation.transform(start))
+                coordinate = start
                 start = None
                 current_index += 1
                 if current_index < len(path):

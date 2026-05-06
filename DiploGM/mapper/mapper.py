@@ -75,6 +75,8 @@ class Mapper:
                     child_label = child.get(f"{NAMESPACE['inkscape']}label")
                     if child_label is not None:
                         self.cached_symbols[unit_type][child_label] = child
+            if label == "Capital":
+                self.cached_symbols["capital"] = element
 
         visible_provinces = (self.board.get_visible_provinces(restriction)
                              if restriction else self.board.provinces)
@@ -100,7 +102,8 @@ class Mapper:
 
     def clean_layers(self, svg: ElementTree):
         """Clears layers that we won't need in the final display map."""
-        for element_name in self.board_svg_data["delete_layer"]:
+        layers_to_clear = ["army", "fleet", "retreat_army", "retreat_fleet", "symbol_templates"]
+        for element_name in layers_to_clear:
             clear_svg_element(svg, element_name, self.board_svg_data)
 
     def draw_moves_and_retreats(self, arrow_layer: Element, current_turn: turn.Turn, movement_only: bool):
@@ -501,17 +504,14 @@ class Mapper:
         capital_provinces = {self.board.data["players"][player_name]["capital"]
                              for player_name in self.board.data["players"]
                              if "capital" in self.board.data["players"][player_name]}
-        capital_marker = centers_layer.find('*[@inkscape:label="Capital Marker"]',
-            namespaces={"inkscape": "http://www.inkscape.org/namespaces/inkscape"})
-        if capital_marker is not None:
+        if (capital_marker := self.cached_symbols.get("capital")) is not None:
             capital_marker.set("transform", "")
 
-        for center_element in centers_layer:
+        for center_element in list(centers_layer):
             try:
                 province = self._get_province_from_element_by_label(center_element)
             except ValueError as ex:
-                if "capital marker" not in str(ex).lower():
-                    print(f"[{self.board.datafile}] Error during recoloring centers: {ex}", file=sys.stderr)
+                print(f"[{self.board.datafile}] Error during recoloring centers: {ex}", file=sys.stderr)
                 continue
 
             if not province.has_supply_center:
@@ -542,8 +542,6 @@ class Mapper:
                     if get_element_color(elem) != "000000":
                         MapperUtils.color_element(elem, element_color)
                 centers_layer.append(capital_copy)
-        if capital_marker is not None:
-            centers_layer.remove(capital_marker)
 
     def _get_province_from_element_by_label(self, element: Element) -> Province:
         province_name = element.get(f"{NAMESPACE['inkscape']}label")

@@ -161,8 +161,6 @@ class Parser:
                     logger.error(error)
                     errors.append(error)
                     continue
-                if name == "Capital Marker":
-                    continue
 
                 name = re.sub(r" \(?[ensw]c\)?$", "", name)  # Remove coast names
                 if name not in seen_names:
@@ -480,8 +478,6 @@ class Parser:
         sc_layer_transformation = TransGL3(self.layer_data["supply_center_icons"])
         for center_data in self.layer_data["supply_center_icons"]:
             name = self.get_province_name(center_data)
-            if name == "Capital Marker":
-                continue
             province = self.name_to_province[name]
             supply_center_coords = sc_layer_transformation.transform(get_sc_coordinates(center_data))
             supply_center_point = shapely.Point(supply_center_coords.real, supply_center_coords.imag)

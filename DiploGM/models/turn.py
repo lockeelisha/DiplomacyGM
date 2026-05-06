@@ -51,7 +51,7 @@ class Turn:
 
         Supported specifiers:
             %Y - Full year
-            %B - Full year with AD/BC
+            %B - Full year with BC
             %y - Two-digit year
             %I - Zero-indexed year (year - start_year; used for DB queries)
             %S - Full phase name (e.g. "Spring Moves")
@@ -62,7 +62,7 @@ class Turn:
             return str(self)
         result = fmt
         result = result.replace("%Y", str(self.year))
-        result = result.replace("%B", f"{str(self.year) + ' AD' if self.year > 0 else str(1 - self.year) + ' BC'}")
+        result = result.replace("%B", f"{str(self.year) if self.year > 0 else str(1 - self.year) + ' BC'}")
         result = result.replace("%y", str(self.year % 100))
         result = result.replace("%I", str(self.year - self.start_year))
         result = result.replace("%S", self.phase_names[self.phase])
