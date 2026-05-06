@@ -1,3 +1,24 @@
+1.9.5
+=====
+
+Contributors:
+- aahoughton
+
+# Quality of Life
+- Added credits to those community members who have created alternative map modes, thank you all :>
+- Included most recent changes when restarting DiploGM, obtained from Changelog.md
+
+# Bugfixes
+- Fixed issue with finding player object from discord roles when creating press directories from a GM channel
+
+# Administrative Changes
+- Hooked into Discord events `on_guild_join` and `on_guild_remove` to track DiploGM's presence within servers, output to an Admin channel
+  - Owners of servers will be logged (where accessible)
+  - The user that invited DiploGM will be logged (where accessible)
+
+# Developer Changes
+- Added new hexdigest methods in `DiploGM.utils.memory` to persistently store states for comparison
+
 1.9.4
 =====
 

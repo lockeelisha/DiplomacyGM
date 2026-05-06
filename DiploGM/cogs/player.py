@@ -522,7 +522,7 @@ class PlayerCog(commands.Cog):
                 return
             elif len(ctx.message.role_mentions) > 0:
                 for player in board.get_players():
-                    role = player.find_discord_role(guild.roles)
+                    role = find_discord_role(player, guild.roles)
                     if role is None or role not in ctx.message.role_mentions:
                         continue
 
