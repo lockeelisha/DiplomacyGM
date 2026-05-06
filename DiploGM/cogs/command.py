@@ -68,7 +68,7 @@ class CommandCog(commands.Cog):
         """Outputs the version number of the bot, read from the first line of Changelog.md"""
         with open("Changelog.md") as f:
             version = f.readline()
-    await send_message_and_file(channel=ctx.channel, msg=f"DiploGM Version: {version}")
+        await send_message_and_file(channel=ctx.channel, msg=f"DiploGM Version: {version}")
 
     def _generate_chaos_scoreboard(self, board: Board, ctx) -> str:
         response = ""
