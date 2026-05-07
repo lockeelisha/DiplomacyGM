@@ -347,16 +347,12 @@ class CommandCog(commands.Cog):
             coast_info = f"Coasts: {len(coasts)}\n"
             for c in coasts:
                 adjacent_coasts += f"Adjacent Coastal Provinces ({c}):\n- "
-                adjacent_list = []
-                for adj in province.adjacencies.get_all(coast = c):
-                    adjacent_list.append(f"{adj[0] if isinstance(adj, tuple) else adj}")
+                adjacent_list = [a.name for a in province.adjacencies.get_all(coast = c)]
                 adjacent_coasts += "\n- ".join(sorted(adjacent_list))
                 adjacent_coasts += "\n"
         elif province.type == ProvinceType.LAND and not province.is_landlocked():
             adjacent_coasts = "Adjacent Coastal Provinces:\n- "
-            adjacent_list = []
-            for adj in province.adjacencies.get_all(UnitType.FLEET):
-                adjacent_list.append(f"{adj[0] if isinstance(adj, tuple) else adj}")
+            adjacent_list = [a.name for a in province.adjacencies.get_all(UnitType.FLEET)]
             adjacent_coasts += "\n- ".join(sorted(adjacent_list))
             adjacent_coasts += "\n"
         adjacent_sorted = sorted([adjacent.name for adjacent in province.adjacencies.get_all()])

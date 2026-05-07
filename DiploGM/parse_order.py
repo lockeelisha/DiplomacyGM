@@ -360,8 +360,8 @@ def _check_for_warnings(unit: Unit) -> str | None:
         if not unit.province.adjacencies.get(unit.order.destination):
             return "This support is not to an adjacent province and will fail."
         if (unit.order.source != unit.order.destination
-            and not unit.order.destination.adjacencies.get(unit.order.source)):
-            return "This support is is between two non-adjacent provinces, and will fail unless there is a convoy."
+            and not unit.order.source.adjacencies.get(unit.order.destination)):
+            return "This support is between two non-adjacent provinces, and will fail unless there is a convoy."
     return None
 
 def _handle_individual_order(current_order: str,
