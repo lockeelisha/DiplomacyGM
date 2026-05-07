@@ -5,10 +5,10 @@ import discord
 from discord.ext import commands
 from DiploGM.config import ERROR_COLOUR
 from DiploGM.utils import send_message_and_file
-from DiploGM.models.extension import ExtensionEvent, SQLiteExtensionEventRepository
+from DiploGM.repositories.extension_repo import extension_repo
+from DiploGM.services.extension_service import extension_service
 from DiploGM.manager import Manager
 
-grace_repo = SQLiteExtensionEventRepository()
 logger = logging.getLogger(__name__)
 manager = Manager()
 
@@ -22,21 +22,15 @@ async def grace_log(ctx: commands.Context, user: discord.User, hours: float, rea
                                     embed_colour=ERROR_COLOUR)
         return
 
-    event = ExtensionEvent(
-        user_id=user.id,
-        server_id=ctx.guild.id,
-        hours=hours,
-        reason=reason
-    )
-
-    grace_repo.save(event)
+    
+    grace_id = extension_service.record_extension(user.id, ctx.guild.id, hours, reason)
     await send_message_and_file(channel=ctx.channel,
-                                title=f"Grace (No. {event.id}) logged!",
+                                title=f"Grace (No. {grace_id}) logged!",
                                 message=f"Logged under: {user.mention}\nHours: {hours}")
 
 async def grace_delete(ctx: commands.Context, grace_id: int) -> None:
     """Delete a record of grace from the database"""
-    grace_repo.delete(grace_id)
+    extension_service.delete_extension(grace_id)
     await send_message_and_file(channel=ctx.channel,
                                 message=f"If a grace with ID {grace_id} existed, it exists no longer :fire:")
 
@@ -53,24 +47,26 @@ async def grace_view_user(ctx: commands.Context, user: discord.User) -> None:
     Args:
         user (discord.User): User to check
     """
-    events = grace_repo.load_by_user(user.id)
 
-    handled_servers = set()
+    extensions = extension_service.view_user_extensions(user.id)
+
     out = ""
-    for e in sorted(events, key=lambda e: (e.server_id, e.created_at), reverse=True):
-        if e.server_id not in handled_servers:
-            server = ctx.bot.get_guild(e.server_id)
-            identifier = server.name if server else f"Guild {e.server_id}"
-            out += f"### For: {identifier}\n"
-            handled_servers.add(e.server_id)
+    if len(extensions) == 0:
+        out = "No graces caused by this user!"
+        await send_message_and_file(channel=ctx.channel, title=f"Graces caused by {user.name}", message=out)
+        return
 
-        out += f"ID({e.id}):  {user.mention}\n"
-        out += f"- Hours: {e.hours}\n"
-        out += f"- Reason: {e.reason}\n"
-        out += f"- Time: {e.created_at}\n"
+    for server_id, events in extensions.items():
+        server = ctx.bot.get_guild(server_id)
+        out += f"### For: {server.name or server_id}\n"
 
-    if len(events) == 0:
-        out = "None logged, this is a good user!"
+        for e in sorted(events, key=lambda e: e.created_at, reverse=True):
+            out += (
+                f"ID({e.id}):  {user.mention}\n"
+                f"- Hours: {e.hours}\n"
+                f"- Reason: {e.reason}\n"
+                f"- Time: {e.created_at}\n"
+            )
 
     await send_message_and_file(channel=ctx.channel, title=f"Graces caused by {user.name}", message=out)
 
@@ -78,29 +74,34 @@ async def grace_view_server(ctx: commands.Context, server_id: Optional[int] = No
     """View the grace record for the current server"""
     assert ctx.guild is not None
 
+    gid = ctx.guild.id
     gname = ctx.guild.name
-    guildid = ctx.guild.id
     if server_id is not None:
-        try:
-            guild = await ctx.bot.fetch_guild(server_id)
-            gname = guild.name
-            guildid = server_id
-        except discord.HTTPException:
-            gname = str(server_id)
-            await send_message_and_file(channel=ctx.channel,
-                                        message="Could not find that guild object",
-                                        embed_colour=ERROR_COLOUR)
+        gid = server_id
+        gname = ctx.bot.get_guild(server_id).name or gid
 
-    events = grace_repo.load_by_server(guildid)
+    extensions = extension_service.view_server_extensions(gid)
+
     out = ""
-    if len(events) == 0:
-        out = "This server is yet to have a grace! Congratulations!"
-    else:
-        for e in sorted(events, key=lambda e: e.created_at, reverse=True):
-            user = ctx.bot.get_user(e.user_id)
-            out += f"ID({e.id}):  {user.mention}\n"
-            out += f"- Hours: {e.hours}\n"
-            out += f"- Reason: {e.reason}\n"
-            out += f"- Time: {e.created_at}\n"
+    if len(extensions) == 0:
+        out = "No graces caused by this server!"
+        await send_message_and_file(channel=ctx.channel, title=f"Graces caused by {gname}", message=out)
+        return
 
-    await send_message_and_file(channel=ctx.channel, title=f"Graces in {gname}", message=out)
+    sorted_events = sorted(
+        extensions.items(),
+        key=lambda p: max(e.created_at for e in p[1]),
+        reverse=True 
+    )
+    for user_id, events in sorted_events:
+        user = ctx.bot.get_user(user_id)
+        out += f"### For: {user.name}\n"
+
+        for e in sorted(events, key=lambda e: e.created_at, reverse=True):
+            out += (
+                f"ID({e.id}) for {e.hours} hours\n"
+                f"- Reason: {e.reason}\n"
+                f"- Time: {e.created_at}\n"
+            )
+    
+    await send_message_and_file(channel=ctx.channel, title=f"Graces caused by {gname}", message=out)
