@@ -467,7 +467,7 @@ class Mapper:
             if province.is_impassable:
                 color = self.impassable_color
             elif province.name not in self.adjacent_provinces:
-                color = self.board_svg_data["unknown"]
+                color = self.board_svg_data.get("unknown", "808080")
             elif province_element in sea_elements:
                 color = self.clear_seas_color
             else:
@@ -486,7 +486,7 @@ class Mapper:
             if province.is_impassable:
                 color = self.impassable_color
             elif province.name not in self.adjacent_provinces:
-                color = self.board_svg_data["unknown"]
+                color = self.board_svg_data.get("unknown", "808080")
             else:
                 color = self.player_colors[province.owner.name] if province.owner else self.neutral_color
 
@@ -521,7 +521,7 @@ class Mapper:
             if province.is_impassable:
                 core_color = half_color = self.impassable_color
             elif province.name not in self.adjacent_provinces:
-                core_color = half_color = self.board_svg_data["unknown"]
+                core_color = half_color = self.board_svg_data.get("unknown", "808080")
             else:
                 core_color = self.player_colors[province.core_data.core.name] if province.core_data.core else "#ffffff"
                 half_color = self.player_colors[province.core_data.half_core.name] if province.core_data.half_core else core_color
