@@ -28,6 +28,7 @@ from DiploGM.config import (
 )
 from DiploGM.events.eventbus import EventBus
 from DiploGM.errors import CommandPermissionError
+from DiploGM.help import HelpCommand
 from DiploGM.utils import file_hexdigest, send_message_and_file
 from DiploGM.manager import Manager
 
@@ -59,7 +60,7 @@ WELCOME_MESSAGES = [
 
 class DiploGM(commands.Bot):
     def __init__(self, command_prefix, intents):
-        super().__init__(command_prefix=command_prefix, intents=intents)
+        super().__init__(command_prefix=command_prefix, intents=intents, help_command=HelpCommand())
         self.creation_time = datetime.datetime.now(datetime.timezone.utc)
         self.last_command_time = None
 
