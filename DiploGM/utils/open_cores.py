@@ -23,11 +23,11 @@ def get_open_cores(
             continue
         open_cores = []
         for center in player.centers:
-            if center.core_data.core is player and center.unit is None:
+            if center.can_build(player):
                 open_cores.append(center)
         if len(open_cores) > 0:
             response.append((player, tuple(open_cores)))
-    
+
     return response
 
 def get_open_core_text(
@@ -52,5 +52,5 @@ def get_open_core_text(
             continue
         for open_core in open_cores:
             response.append(f"{open_core.name}")
-    
+
     return "\n".join(response)
