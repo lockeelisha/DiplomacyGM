@@ -10,7 +10,7 @@ from DiploGM.models.order import (
     Core, Transform, RetreatMove, RetreatDisband, NMR
 )
 from DiploGM.models.province import ProvinceType
-from DiploGM.models.unit import Unit, UnitType
+from DiploGM.models.unit import Unit
 
 if TYPE_CHECKING:
     from DiploGM.models.province import Province
@@ -54,7 +54,7 @@ def convoy_is_possible(start: Province, end: Province, check_fleet_orders: bool 
                 return True
             adjacent_could_convoy = (adjacent_province.can_convoy
                 and adjacent_province.unit is not None
-                and adjacent_province.unit.unit_type == UnitType.FLEET)
+                and adjacent_province.unit.unit_type.can_convoy)
             adjacent_did_convoy = (adjacent_could_convoy
                 and adjacent_province.unit is not None
                 and isinstance(adjacent_province.unit.order, ConvoyTransport)
@@ -65,15 +65,10 @@ def convoy_is_possible(start: Province, end: Province, check_fleet_orders: bool 
 
     return False
 
-def _validate_move_army(province: Province, destination_province: Province) -> tuple[OrderValidity, str | None]:
-    if destination_province not in province.adjacencies.get_all(UnitType.ARMY):
-        return OrderValidity.INVALID, f"An army cannot move from {province} to {destination_province}"
-    return OrderValidity.VALID, None
-
-def _validate_move_fleet(province: Province, order: Move | RetreatMove,
-                         unit: Unit, strict_coast_movement: bool) -> tuple[OrderValidity, str | None]:
+def _validate_coastal_move(province: Province, order: Move | RetreatMove,
+                           unit: Unit, strict_coast_movement: bool) -> tuple[OrderValidity, str | None]:
     destination_coast = order.destination_coast if strict_coast_movement else None
-    if order.destination not in province.adjacencies.get_all(UnitType.FLEET, coast=unit.coast):
+    if order.destination not in province.adjacencies.get_all(terrain = "coast", coast=unit.coast):
         return OrderValidity.INVALID, f"{province.get_name(unit.coast)} does not border {order.get_destination_str()}"
     if not strict_coast_movement:
         return OrderValidity.VALID, None
@@ -95,16 +90,16 @@ def _validate_move_order(province: Province, order: Move | RetreatMove,
     destination_province = order.destination
     if destination_province.is_impassable:
         return OrderValidity.INVALID, "Cannot move to an impassable province"
-    if unit.unit_type == UnitType.ARMY:
-        valid, reason = _validate_move_army(province, destination_province)
+    adjacency = province.adjacencies.get(destination_province)
+    if adjacency is None:
+        return OrderValidity.INVALID, f"{province} does not border {destination_province}"
+    terrain_intersection = unit.unit_type.moves_on & adjacency.terrain
+    if not terrain_intersection:
+        return OrderValidity.INVALID, f"{unit.unit_type.name} cannot move from {province} to {destination_province}"
+    if "coast" in terrain_intersection:
+        valid, reason = _validate_coastal_move(province, order, unit, strict_coast_movement)
         if valid != OrderValidity.VALID:
             return valid, reason
-    elif unit.unit_type == UnitType.FLEET:
-        valid, reason = _validate_move_fleet(province, order, unit, strict_coast_movement)
-        if valid != OrderValidity.VALID:
-            return valid, reason
-    else:
-        raise ValueError("Unknown type of unit. Something has broken in the bot. Please report this")
 
     if isinstance(order, RetreatMove) and destination_province.unit is not None:
         return OrderValidity.INVALID, "Cannot retreat to occupied provinces"
@@ -114,17 +109,17 @@ def _validate_convoymove_order(province: Province, order: Move) -> tuple[OrderVa
     unit = province.unit
     assert unit is not None
     destination_province = order.destination
-    if unit.unit_type != UnitType.ARMY:
-        return OrderValidity.INVALID, "Only armies can be convoyed"
+    if not unit.unit_type.can_be_convoyed:
+        return OrderValidity.INVALID, "This unit cannot be convoyed"
     if destination_province.type == ProvinceType.SEA:
         return OrderValidity.INVALID, "Cannot convoy to a sea space"
     if destination_province == unit.province:
-        return OrderValidity.INVALID, "Cannot convoy army to its previous space"
+        return OrderValidity.INVALID, "Cannot convoy unit to its previous space"
     if convoy_is_possible(province, destination_province, check_fleet_orders=True):
         return OrderValidity.VALID_WITH_CONVOY, None
     if convoy_is_possible(destination_province, province, check_fleet_orders=False):
         return OrderValidity.MISMATCHED_ORDER, \
-            f"A convoy path exists from {destination_province} to {province}, but fleets did not convoy"
+            f"A convoy path exists from {destination_province} to {province}, but units did not convoy"
     if not convoy_is_possible(province, destination_province):
         return OrderValidity.INVALID, f"No valid convoy path from {province} to {destination_province}"
     return OrderValidity.VALID, None
@@ -135,11 +130,11 @@ def _validate_transform_order(province: Province, order: Transform) -> tuple[Ord
         return OrderValidity.INVALID, "Transformation must be done in a supply center"
     if province.owner != province.unit.player:
         return OrderValidity.INVALID, "Units can only transform in owned supply centers"
-    if province.type == ProvinceType.SEA:
-        return OrderValidity.INVALID, "Fleets cannot transform in sea provinces"
-    if province.is_landlocked():
-        return OrderValidity.INVALID, "Armies cannot transform in inland provinces"
-    if (province.unit.unit_type == UnitType.ARMY
+    if (new_type := province.unit.unit_type.transforms_to) is None:
+        return OrderValidity.INVALID, "This unit cannot transform"
+    if province.is_landlocked() and "land" not in new_type.moves_on:
+        return OrderValidity.INVALID, "Cannot transform in an inland province"
+    if ("coast" in new_type.moves_on
         and province.adjacencies.coasts
         and order.destination_coast not in province.adjacencies.coasts):
         return OrderValidity.INVALID, "Unit needs to transform to a valid coast"
@@ -148,8 +143,8 @@ def _validate_transform_order(province: Province, order: Transform) -> tuple[Ord
 def _validate_convoy_order(province: Province, order: ConvoyTransport) -> tuple[OrderValidity, str | None]:
     unit = province.unit
     assert unit is not None
-    if unit.unit_type != UnitType.FLEET:
-        return OrderValidity.INVALID, "Only fleets can convoy"
+    if not unit.unit_type.can_convoy:
+        return OrderValidity.INVALID, "This unit cannot convoy"
     source_unit = order.source.unit
     if not isinstance(source_unit, Unit):
         return OrderValidity.INVALID, "There is no unit to convoy"
@@ -241,7 +236,7 @@ def order_is_valid(province: Province, order: Order, strict_coast_movement=True)
         return OrderValidity.VALID, None
     if isinstance(order, (Move, RetreatMove)):
         valid, reason = _validate_move_order(province, order, strict_coast_movement)
-        if valid != OrderValidity.VALID and isinstance(order, Move) and province.unit.unit_type == UnitType.ARMY:
+        if valid != OrderValidity.VALID and isinstance(order, Move) and province.unit.unit_type.can_be_convoyed:
             # Try convoy validation if move is invalid
             return _validate_convoymove_order(province, order)
         return valid, reason

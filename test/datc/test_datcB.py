@@ -1,6 +1,5 @@
 import unittest
 
-from DiploGM.models.unit import UnitType
 from DiploGM.parse_order import parse_order
 from test.utils import BoardBuilder
 
@@ -17,7 +16,7 @@ class TestDATC_B(unittest.TestCase):
             Move should fail.
         """
         b = BoardBuilder()
-        f_portugal = b.move(b.players["France"], UnitType.FLEET, "Portugal", "Spain")
+        f_portugal = b.move(b.players["France"], "F", "Portugal", "Spain")
 
         b.assert_fail(f_portugal)
         b.moves_adjudicate(self)
@@ -31,7 +30,7 @@ class TestDATC_B(unittest.TestCase):
             I prefer that an attempt is made to the only possible coast, the north coast of Spain.
         """
         b = BoardBuilder()
-        f_gascony = b.move(b.players["France"], UnitType.FLEET, "Gascony", "Spain")
+        f_gascony = b.move(b.players["France"], "F", "Gascony", "Spain")
 
         b.assert_success(f_gascony)
         b.moves_adjudicate(self)
@@ -45,7 +44,7 @@ class TestDATC_B(unittest.TestCase):
             I prefer that the move fails.
         """
         b = BoardBuilder()
-        f_gascony = b.move(b.players["France"], UnitType.FLEET, "Gascony", "Spain sc")
+        f_gascony = b.move(b.players["France"], "F", "Gascony", "Spain sc")
 
         b.assert_fail(f_gascony)
         b.moves_adjudicate(self)
@@ -61,9 +60,9 @@ class TestDATC_B(unittest.TestCase):
             in Gasgony succeeds and the move of the Italian fleet fails.
         """
         b = BoardBuilder()
-        f_gascony = b.move(b.players["France"], UnitType.FLEET, "Gascony", "Spain nc")
-        f_marseilles = b.support_move(b.players["France"], UnitType.FLEET, "Marseilles", f_gascony, "Spain nc")
-        f_western_mediterranean = b.move(b.players["Italy"], UnitType.FLEET, "Western Mediterranean Sea", "Spain sc")
+        f_gascony = b.move(b.players["France"], "F", "Gascony", "Spain nc")
+        f_marseilles = b.support_move(b.players["France"], "F", "Marseilles", f_gascony, "Spain nc")
+        f_western_mediterranean = b.move(b.players["Italy"], "F", "Western Mediterranean Sea", "Spain sc")
 
         b.assert_success(f_gascony)
         b.assert_success(f_marseilles)
@@ -80,9 +79,9 @@ class TestDATC_B(unittest.TestCase):
             Spain is invalid and the fleet in the Gulf of Lyon is not dislodged.
         """
         b = BoardBuilder()
-        f_marseilles = b.move(b.players["France"], UnitType.FLEET, "Marseilles", "Gulf of Lyon")
-        f_spain_nc = b.support_move(b.players["France"], UnitType.FLEET, "Spain nc", f_marseilles, "Gulf of Lyon")
-        b.hold(b.players["Italy"], UnitType.FLEET, "Gulf of Lyon")
+        f_marseilles = b.move(b.players["France"], "F", "Marseilles", "Gulf of Lyon")
+        f_spain_nc = b.support_move(b.players["France"], "F", "Spain nc", f_marseilles, "Gulf of Lyon")
+        b.hold(b.players["Italy"], "F", "Gulf of Lyon")
 
         b.assert_illegal(f_spain_nc)
         b.assert_fail(f_marseilles)
@@ -101,11 +100,11 @@ class TestDATC_B(unittest.TestCase):
             in the North Atlantic Ocean.
         """
         b = BoardBuilder()
-        f_north_atlantic_ocean = b.move(b.players["England"], UnitType.FLEET, "North Atlantic Ocean", "Mid-Atlantic Ocean")
-        b.support_move(b.players["England"], UnitType.FLEET, "Irish Sea", f_north_atlantic_ocean, "Mid-Atlantic Ocean")
-        f_mid_atlantic_ocean = b.hold(b.players["France"], UnitType.FLEET, "Mid-Atlantic Ocean")
-        f_spain_nc = b.support_hold(b.players["France"], UnitType.FLEET, "Spain nc", f_mid_atlantic_ocean)
-        f_gulf_of_lyon = b.move(b.players["Italy"], UnitType.FLEET, "Gulf of Lyon", "Spain sc")
+        f_north_atlantic_ocean = b.move(b.players["England"], "F", "North Atlantic Ocean", "Mid-Atlantic Ocean")
+        b.support_move(b.players["England"], "F", "Irish Sea", f_north_atlantic_ocean, "Mid-Atlantic Ocean")
+        f_mid_atlantic_ocean = b.hold(b.players["France"], "F", "Mid-Atlantic Ocean")
+        f_spain_nc = b.support_hold(b.players["France"], "F", "Spain nc", f_mid_atlantic_ocean)
+        f_gulf_of_lyon = b.move(b.players["Italy"], "F", "Gulf of Lyon", "Spain sc")
 
         b.assert_fail(f_gulf_of_lyon)
         b.assert_fail(f_spain_nc)
@@ -131,10 +130,10 @@ class TestDATC_B(unittest.TestCase):
             coast should not be given as an option.
         """
         b = BoardBuilder()
-        f_mid_atlantic_ocean = b.move(b.players["France"], UnitType.FLEET, "Mid-Atlantic Ocean", "Spain nc")
-        f_portugal = b.support_move(b.players["France"], UnitType.FLEET, "Portugal", f_mid_atlantic_ocean, "Spain")
-        f_western_mediterranean = b.move(b.players["Italy"], UnitType.FLEET, "Western Mediterranean", "Spain sc")
-        b.support_move(b.players["Italy"], UnitType.FLEET, "Gulf of Lyon", f_western_mediterranean, "Spain sc")
+        f_mid_atlantic_ocean = b.move(b.players["France"], "F", "Mid-Atlantic Ocean", "Spain nc")
+        f_portugal = b.support_move(b.players["France"], "F", "Portugal", f_mid_atlantic_ocean, "Spain")
+        f_western_mediterranean = b.move(b.players["Italy"], "F", "Western Mediterranean", "Spain sc")
+        b.support_move(b.players["Italy"], "F", "Gulf of Lyon", f_western_mediterranean, "Spain sc")
 
         b.assert_not_illegal(f_portugal)
         b.assert_fail(f_mid_atlantic_ocean, f_western_mediterranean)
@@ -155,10 +154,10 @@ class TestDATC_B(unittest.TestCase):
             Support of Portugal is successful.
         """
         b = BoardBuilder()
-        f_gascony = b.move(b.players["France"], UnitType.FLEET, "Gascony", "Spain nc")
-        f_portugal = b.support_move(b.players["France"], UnitType.FLEET, "Portugal", f_gascony, "Spain")
-        f_western_mediterranean = b.move(b.players["Italy"], UnitType.FLEET, "Western Mediterranean", "Spain sc")
-        b.support_move(b.players["Italy"], UnitType.FLEET, "Gulf of Lyon", f_western_mediterranean, "Spain sc")
+        f_gascony = b.move(b.players["France"], "F", "Gascony", "Spain nc")
+        f_portugal = b.support_move(b.players["France"], "F", "Portugal", f_gascony, "Spain")
+        f_western_mediterranean = b.move(b.players["Italy"], "F", "Western Mediterranean", "Spain sc")
+        b.support_move(b.players["Italy"], "F", "Gulf of Lyon", f_western_mediterranean, "Spain sc")
 
         b.assert_not_illegal(f_portugal)
         b.assert_fail(f_gascony, f_western_mediterranean)
@@ -178,10 +177,10 @@ class TestDATC_B(unittest.TestCase):
             See issue 4.B.4. Coastal specification in Portugal support order does not match, making it invalid.
         """
         b = BoardBuilder()
-        f_mid_atlantic_ocean = b.move(b.players["France"], UnitType.FLEET, "Mid-Atlantic Ocean", "Spain nc")
-        f_portugal = b.support_move(b.players["France"], UnitType.FLEET, "Portugal", f_mid_atlantic_ocean, "Spain sc")
-        f_western_mediterranean = b.move(b.players["Italy"], UnitType.FLEET, "Western Mediterranean", "Spain sc")
-        b.support_move(b.players["Italy"], UnitType.FLEET, "Gulf of Lyon", f_western_mediterranean, "Spain sc")
+        f_mid_atlantic_ocean = b.move(b.players["France"], "F", "Mid-Atlantic Ocean", "Spain nc")
+        f_portugal = b.support_move(b.players["France"], "F", "Portugal", f_mid_atlantic_ocean, "Spain sc")
+        f_western_mediterranean = b.move(b.players["Italy"], "F", "Western Mediterranean", "Spain sc")
+        b.support_move(b.players["Italy"], "F", "Gulf of Lyon", f_western_mediterranean, "Spain sc")
 
         b.assert_illegal(f_portugal)
         b.assert_fail(f_mid_atlantic_ocean)
@@ -235,7 +234,7 @@ class TestDATC_B(unittest.TestCase):
             I prefer that a move will be attempted.
         """
         b = BoardBuilder()
-        a_gascony = b.move(b.players["France"], UnitType.ARMY, "Gascony", "Spain nc")
+        a_gascony = b.move(b.players["France"], "A", "Gascony", "Spain nc")
 
         b.assert_not_illegal(a_gascony)
         b.assert_success(a_gascony)
@@ -251,8 +250,8 @@ class TestDATC_B(unittest.TestCase):
             Both moves fail.
         """
         b = BoardBuilder()
-        f_bulgaria_sc = b.move(b.players["Turkey"], UnitType.FLEET, "Bulgaria sc", "Constantinople")
-        f_constantinople = b.move(b.players["Turkey"], UnitType.FLEET, "Constantinople", "Bulgaria ec")
+        f_bulgaria_sc = b.move(b.players["Turkey"], "F", "Bulgaria sc", "Constantinople")
+        f_constantinople = b.move(b.players["Turkey"], "F", "Constantinople", "Bulgaria ec")
 
         b.assert_fail(f_bulgaria_sc)
         b.assert_fail(f_constantinople)
@@ -269,7 +268,7 @@ class TestDATC_B(unittest.TestCase):
             See issue 4.B.7. Build fails, subsequent build orders may use up this right to build.
         """
         b = BoardBuilder()
-        b.build(b.players["Russia"], (UnitType.FLEET, "St. Petersburg"))
+        b.build(b.players["Russia"], ("F", "St. Petersburg"))
         b.assert_build_count(0)
         b.builds_adjudicate(self)
 
@@ -294,10 +293,10 @@ class TestDATC_B(unittest.TestCase):
             play), support without coast should not be given as an option.
         """
         b = BoardBuilder()
-        f_mid_atlantic_ocean = b.move(b.players["England"], UnitType.FLEET, "Mid-Atlantic Ocean", "Spain nc")
-        f_portugal = b.support_move(b.players["France"], UnitType.FLEET, "Portugal", f_mid_atlantic_ocean, "Spain")
-        f_western_mediterranean = b.move(b.players["Italy"], UnitType.FLEET, "Western Mediterranean", "Spain sc")
-        b.support_move(b.players["Italy"], UnitType.FLEET, "Gulf of Lyon", f_western_mediterranean, "Spain sc")
+        f_mid_atlantic_ocean = b.move(b.players["England"], "F", "Mid-Atlantic Ocean", "Spain nc")
+        f_portugal = b.support_move(b.players["France"], "F", "Portugal", f_mid_atlantic_ocean, "Spain")
+        f_western_mediterranean = b.move(b.players["Italy"], "F", "Western Mediterranean", "Spain sc")
+        b.support_move(b.players["Italy"], "F", "Gulf of Lyon", f_western_mediterranean, "Spain sc")
 
         b.assert_not_illegal(f_portugal)
         b.assert_fail(f_mid_atlantic_ocean, f_western_mediterranean)
@@ -322,9 +321,9 @@ class TestDATC_B(unittest.TestCase):
             is not required. Therefore, I prefer that the support is valid.
         """
         b = BoardBuilder()
-        a_gascony = b.move(b.players["France"], UnitType.ARMY, "Gascony", "Spain")
-        b.support_move(b.players["France"], UnitType.ARMY, "Marseilles", a_gascony, "Spain")
-        f_spain = b.hold(b.players["Italy"], UnitType.FLEET, "Spain sc")
+        a_gascony = b.move(b.players["France"], "A", "Gascony", "Spain")
+        b.support_move(b.players["France"], "A", "Marseilles", a_gascony, "Spain")
+        f_spain = b.hold(b.players["Italy"], "F", "Spain sc")
         f_portugal = b.fleet("Portugal", b.players["England"])
         parse_order(".order Portugal s Spain nc", None, b.board)
 
@@ -351,8 +350,8 @@ class TestDATC_B(unittest.TestCase):
             required. Therefore, I prefer that the support is valid.
         """
         b = BoardBuilder()
-        f_mid_atlantic_ocean = b.hold(b.players["England"], UnitType.FLEET, "Mid-Atlantic Ocean")
-        f_spain = b.move(b.players["France"], UnitType.FLEET, "Spain sc", "Mid-Atlantic Ocean")
+        f_mid_atlantic_ocean = b.hold(b.players["England"], "F", "Mid-Atlantic Ocean")
+        f_spain = b.move(b.players["France"], "F", "Spain sc", "Mid-Atlantic Ocean")
         f_western_mediterranean = b.fleet("Western Mediterranean Sea", b.players["Italy"])
         parse_order(".order Western Mediterranean Sea s Spain nc - Mid-Atlantic Ocean", None, b.board)
 
@@ -370,7 +369,7 @@ class TestDATC_B(unittest.TestCase):
             F Black Sea Convoys A Bulgaria - Sevastopol available
         """
         b = BoardBuilder()
-        a_bulgaria = b.move(b.players["Turkey"], UnitType.ARMY, "Bulgaria", "Sevastopol")
+        a_bulgaria = b.move(b.players["Turkey"], "A", "Bulgaria", "Sevastopol")
         f_black_sea = b.convoy(b.players["Turkey"], "Black Sea", a_bulgaria, "Sevastopol")
 
         b.assert_not_illegal(f_black_sea)
@@ -385,7 +384,7 @@ class TestDATC_B(unittest.TestCase):
             F Gulf of Lyon Convoys A Tuscany - Spain available
         """
         b = BoardBuilder()
-        a_tuscany = b.move(b.players["Italy"], UnitType.ARMY, "Tuscany", "Spain")
+        a_tuscany = b.move(b.players["Italy"], "A", "Tuscany", "Spain")
         f_gulf_of_lyon = b.convoy(b.players["Italy"], "Gulf of Lyon", a_tuscany, "Spain")
 
         b.assert_not_illegal(f_gulf_of_lyon)

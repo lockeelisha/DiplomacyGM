@@ -4,7 +4,7 @@ from enum import Enum
 
 from DiploGM.models.order import NMR, Hold, Core, Move, Support, ConvoyTransport, Transform, UnitOrder
 from DiploGM.models.province import Province
-from DiploGM.models.unit import Unit, UnitType
+from DiploGM.models.unit import Unit
 
 
 class Resolution(Enum):
@@ -41,7 +41,7 @@ class AdjudicableOrder:
             raise ValueError(f"Order for unit {unit} is missing")
 
         self.country = unit.player
-        self.is_army = unit.unit_type == UnitType.ARMY
+        self.moves_on = unit.unit_type.moves_on
         self.current_province = unit.province
         self.current_coast = unit.coast
 

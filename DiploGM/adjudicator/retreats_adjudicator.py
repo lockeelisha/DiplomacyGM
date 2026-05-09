@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from DiploGM.adjudicator.adjudicator import Adjudicator
 from DiploGM.models.order import NMR, RetreatMove, RebellionMarker
 from DiploGM.models.player import PlayerClass
-from DiploGM.models.unit import Unit, UnitType
+from DiploGM.models.unit import Unit
 
 if TYPE_CHECKING:
     from DiploGM.models.board import Board
@@ -32,7 +32,7 @@ class RetreatsAdjudicator(Adjudicator):
                 units_to_delete.add(unit)
                 continue
 
-            if unit.unit_type == UnitType.FLEET and not unit.order.destination_coast:
+            if "coast" in unit.unit_type.moves_on and not unit.order.destination_coast:
                 reachable_coasts = unit.province.adjacencies.get_coasts(unit.order.destination, unit.coast)
                 if len(reachable_coasts) > 1:
                     units_to_delete.add(unit)

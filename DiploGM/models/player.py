@@ -92,7 +92,7 @@ class Player:
         """Gets a string representation about the player's information."""
         bullet = "\n- "
 
-        units = sorted(self.units, key=lambda u: (u.unit_type.value, u.province.get_name(u.coast)))
+        units = sorted(self.units, key=lambda u: (u.unit_type.code, u.province.get_name(u.coast)))
         centers = sorted(self.centers, key=lambda c: c.name)
 
         if board.data["players"] == "chaos":
@@ -122,7 +122,7 @@ class Player:
 
         unit_str = "Units:"
         for unit in units:
-            unit_str += f"{bullet}({unit.unit_type.value}) {unit.province.get_name(unit.coast)}"
+            unit_str += f"{bullet}({unit.unit_type.code}) {unit.province.get_name(unit.coast)}"
 
         color = (bullet + self.board.data['players'][self.name].get('custom_color', self.default_color) +
                  (bullet + bullet.join([k + ': ' + v for k, v in self.color_dict.items()])

@@ -14,7 +14,7 @@ from DiploGM.models.order import (
     PlayerOrder, Build, Disband, TransformBuild,
     Vassal, Liege, DualMonarchy, Disown, Defect, RebellionMarker
 )
-from DiploGM.models.unit import DPAllocation, UnitType, Unit
+from DiploGM.models.unit import DPAllocation, Unit
 
 from DiploGM.models.spec_request import SpecRequest
 
@@ -133,7 +133,7 @@ class _DatabaseConnection:
             if order_type == "Build":
                 player_order = Build(
                     board.get_province(location),
-                    UnitType(unit_type[0]),
+                    board.unit_types[unit_type[0]],
                     unit_type[-2:] if len(unit_type) > 1 else None,
                 )
             elif order_type == "Disband":
@@ -219,7 +219,7 @@ class _DatabaseConnection:
             location,
             is_dislodged,
             owner,
-            is_army,
+            unit_type,
             order_type,
             order_destination,
             order_source,
@@ -240,12 +240,7 @@ class _DatabaseConnection:
             )
         else:
             retreat_options = None
-        unit = Unit(
-            UnitType.ARMY if is_army else UnitType.FLEET,
-            owner_player,
-            province,
-            coast,
-        )
+        unit = Unit(board.unit_types[unit_type], owner_player, province, coast)
         if is_dislodged:
             province.dislodged_unit = unit
             unit.retreat_options = retreat_options
@@ -354,7 +349,7 @@ class _DatabaseConnection:
             cursor.execute("UPDATE units SET failed_order=False WHERE board_id=? and phase=?",
                 (board_id, format(board.turn, "%I %S")))
         unit_data = cursor.execute(
-            "SELECT location, is_dislodged, owner, is_army, order_type, " +
+            "SELECT location, is_dislodged, owner, unit_type, order_type, " +
                    "order_destination, order_source, failed_order " +
             "FROM units WHERE board_id=? and phase=?",
             (board_id, format(board.turn, "%I %S")),
@@ -464,7 +459,7 @@ class _DatabaseConnection:
                     player.name,
                     build_order.province.get_name(build_order.coast),
                     build_order.__class__.__name__,
-                    ((build_order.unit_type.value if isinstance(build_order, Build) else "")
+                    ((build_order.unit_type.code if isinstance(build_order, Build) else "")
                      + ("" if build_order.coast is None else f" {build_order.coast}")),
                 )
                 for player in board.players
@@ -474,7 +469,7 @@ class _DatabaseConnection:
         # TODO - this is hacky
         cursor.executemany(
             "INSERT INTO units (board_id, phase, location, is_dislodged, owner, " +
-                                "is_army, order_type, order_destination, order_source, failed_order) " +
+                                "unit_type, order_type, order_destination, order_source, failed_order) " +
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
@@ -483,7 +478,7 @@ class _DatabaseConnection:
                     unit.province.get_name(unit.coast),
                     unit == unit.province.dislodged_unit,
                     unit.player.name if unit.player else None,
-                    unit.unit_type == UnitType.ARMY,
+                    unit.unit_type.code,
                     unit.order.__class__.__name__ if unit.order is not None else None,
                     unit.order.get_destination_str() if unit.order is not None else None,
                     unit.order.get_source_str() if unit.order is not None else None,
@@ -573,7 +568,7 @@ class _DatabaseConnection:
 
         cursor.executemany(
             "INSERT INTO units (board_id, phase, location, is_dislodged, owner, "
-            "is_army, order_type, order_destination, order_source, failed_order) "
+            "unit_type, order_type, order_destination, order_source, failed_order) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
@@ -582,7 +577,7 @@ class _DatabaseConnection:
                     unit.province.get_name(unit.coast),
                     unit == unit.province.dislodged_unit,
                     unit.player.name if unit.player else None,
-                    unit.unit_type == UnitType.ARMY,
+                    unit.unit_type.code,
                     unit.order.__class__.__name__ if unit.order is not None else None,
                     unit.order.get_destination_str() if unit.order is not None else None,
                     unit.order.get_source_str() if unit.order is not None else None,
@@ -717,10 +712,10 @@ class _DatabaseConnection:
                     player.name,
                     build_order.province.get_name(build_order.coast),
                     build_order.__class__.__name__,
-                    ((build_order.unit_type.value if isinstance(build_order, Build) else "")
+                    ((build_order.unit_type.code if isinstance(build_order, Build) else "")
                      + ("" if build_order.coast is None else f" {build_order.coast}")),
                     build_order.__class__.__name__,
-                    ((build_order.unit_type.value if isinstance(build_order, Build) else "")
+                    ((build_order.unit_type.code if isinstance(build_order, Build) else "")
                      + ("" if build_order.coast is None else f" {build_order.coast}")),
                 )
                 for player in players

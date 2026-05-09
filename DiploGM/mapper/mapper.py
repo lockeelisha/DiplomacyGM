@@ -68,8 +68,7 @@ class Mapper:
         self.cached_symbols = {}
         for element in self.cached_elements["symbol_templates"] or []:
             label = element.get(f"{NAMESPACE['inkscape']}label")
-            if label in {"Armies", "Fleets"}:
-                unit_type = UnitType.ARMY if label == "Armies" else UnitType.FLEET
+            if (unit_type := board.unit_types.get(label[0])) is not None and unit_type.name == label:
                 self.cached_symbols[unit_type] = {}
                 for child in element:
                     child_label = child.get(f"{NAMESPACE['inkscape']}label")
@@ -255,10 +254,10 @@ class Mapper:
                 unit_type = province.unit.unit_type
                 coast = province.unit.coast
             else:
-                unit_type = UnitType.FLEET if province.type == ProvinceType.SEA else UnitType.ARMY
+                unit_type = self.board.unit_types["F"] if province.type == ProvinceType.SEA else self.board.unit_types["A"]
             locdict[province.name] = province.get_unit_coordinates(unit_type, coast)
             for coast in province.adjacencies.coasts:
-                locdict[province.get_name(coast)] = province.get_unit_coordinates(UnitType.FLEET, coast)
+                locdict[province.get_name(coast)] = province.get_unit_coordinates(self.board.unit_types["F"], coast)
         locdict = {k: [v.real, v.imag] for k, v in locdict.items()}
         script = etree.Element("script")
 
@@ -273,7 +272,7 @@ class Mapper:
             if province.name not in self.adjacent_provinces:
                 s = '?'
             elif province.unit:
-                s = 'f' if province.unit.unit_type == UnitType.FLEET else 'a'
+                s = province.unit.unit_type.code.lower()
             province_to_unit_type[province.name] = s
 
         province_to_province_type = {}
@@ -528,7 +527,7 @@ class Mapper:
 
     def _draw_unit(self, unit: Unit, use_moves_svg=False):
         player_name = unit.player.name if unit.player else "Neutral"
-        if (copied_symbol := self.cached_symbols.get(unit.unit_type, {}).get(player_name)) is not None:
+        if (copied_symbol := self.cached_symbols.get(unit.unit_type.code, {}).get(player_name)) is not None:
             unit_element = copy.deepcopy(copied_symbol)
         else:
             unit_element = self._get_element_for_unit_type(unit.unit_type)
@@ -566,12 +565,9 @@ class Mapper:
             if unit == unit.province.dislodged_unit and unit.province.name in self.adjacent_provinces:
                 self._draw_retreat_options(unit, svg)
 
-    def _get_element_for_unit_type(self, unit_type) -> Element:
+    def _get_element_for_unit_type(self, unit_type: UnitType) -> Element:
         # Just copy a random phantom unit
-        if unit_type == UnitType.ARMY:
-            layer: Element = self.cached_elements["army"]
-        else:
-            layer: Element = self.cached_elements["fleet"]
+        layer = self.cached_elements[unit_type.name.lower()]
         return copy.deepcopy(layer[0])
 
     def _draw_retreat_options(self, unit: Unit, svg):

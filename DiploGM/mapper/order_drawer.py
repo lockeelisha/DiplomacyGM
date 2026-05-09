@@ -9,7 +9,6 @@ from DiploGM.models.order import (
     Hold, Core, Transform, Move, Support, ConvoyTransport,
     Build, Disband, TransformBuild, RetreatMove, RetreatDisband
 )
-from DiploGM.models.unit import UnitType
 import DiploGM.mapper.utils as MapperUtils
 
 if TYPE_CHECKING:
@@ -180,7 +179,7 @@ class OrderDrawer:
             is_convoying_fleet = (
                 possibility.can_convoy
                 and unit is not None
-                and unit.unit_type == UnitType.FLEET
+                and unit.unit_type.can_convoy
                 and isinstance(unit.order, ConvoyTransport)
                 and unit.order.source == source
                 and unit.order.destination == destination
@@ -282,8 +281,9 @@ class OrderDrawer:
             dest_coast = source.unit.order.destination_coast
             # If the supported move is a convoy, draw the support arrow from the last fleet instead
             if source in self.convoy_paths:
-                source_coord = MapperUtils.loc_to_point(self.convoy_paths[source][0][-2],
-                                                       UnitType.FLEET, None, coordinate,
+                last_province = self.convoy_paths[source][0][-2]
+                source_coord = MapperUtils.loc_to_point(last_province,
+                                                       last_province.unit.unit_type, None, coordinate,
                                                        self.board_svg_data["map_width"])
         else:
             dest_coast = order.destination_coast

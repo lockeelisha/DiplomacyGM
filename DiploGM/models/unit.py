@@ -1,19 +1,21 @@
 """Armies and fleets and so forth."""
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from DiploGM.models import province, player, order
 
-
-# TODO: rename to Type and import as unit.Type
-class UnitType(Enum):
-    """Type of unit."""
-    ARMY = "A"
-    FLEET = "F"
+@dataclass
+class UnitType:
+    name: str
+    code: str
+    can_convoy: bool = False
+    can_be_convoyed: bool = False
+    can_capture: bool = True
+    moves_on: set[str] = field(default_factory=lambda: {"Land"})
+    transforms_to: Optional[UnitType] = None
 
 @dataclass
 class DPAllocation:
@@ -43,17 +45,16 @@ class Unit:
         self.dp_allocations: dict[str, DPAllocation] = {}
 
     def __str__(self):
-        return f"{self.unit_type.value} {self.province.get_name(self.coast)}"
+        return f"{self.unit_type.code} {self.province.get_name(self.coast)}"
 
     def add_retreat_options(self):
         """Adds all valid retreat options based on unit type and current province."""
         if self.retreat_options is None:
             self.retreat_options = set()
-        if self.unit_type == UnitType.ARMY:
-            for province in self.province.adjacencies.get_all(self.unit_type):
-                if not province.is_impassable:
-                    self.retreat_options.add((province, None))
-        else:
+        for province in self.province.adjacencies.get_all(self.unit_type.moves_on - {"coast"}):
+            if not province.is_impassable:
+                self.retreat_options.add((province, None))
+        if "coast" in self.unit_type.moves_on:
             for province in self.province.adjacencies.get_all_with_coasts(self.coast):
                 if not province[0].is_impassable:
                     self.retreat_options.add(province)

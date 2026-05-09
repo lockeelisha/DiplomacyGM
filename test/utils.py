@@ -17,7 +17,7 @@ from DiploGM.models.order import (
     Disband,
 )
 from DiploGM.models.province import Province, ProvinceType
-from DiploGM.models.unit import DPAllocation, UnitType, Unit
+from DiploGM.models.unit import DPAllocation, Unit
 from DiploGM.models.player import Player
 from DiploGM.adjudicator.defs import ResolutionState, Resolution
 from DiploGM.adjudicator.builds_adjudicator import BuildsAdjudicator
@@ -78,7 +78,7 @@ class BoardBuilder():
         assert province.type == ProvinceType.LAND or ProvinceType.ISLAND
 
         unit = Unit(
-            UnitType.ARMY,
+            self.board.unit_types["A"],
             player,
             province,
             None
@@ -106,7 +106,7 @@ class BoardBuilder():
         province, coast = self.board.get_province_and_coast(loc)
         self.board.delete_unit(province)
         unit = Unit(
-            UnitType.FLEET,
+            self.board.unit_types["F"],
             player,
             province,
             coast
@@ -119,7 +119,7 @@ class BoardBuilder():
 
         return unit
 
-    def move(self, player: Player, unit_type: UnitType, place: str, to: str) -> Unit:
+    def move(self, player: Player, unit_type: str, place: str, to: str) -> Unit:
         """Create a unit with a move order.
 
         Args:
@@ -132,7 +132,7 @@ class BoardBuilder():
             The created unit with its move order set.
         """
 
-        if unit_type == UnitType.FLEET:
+        if unit_type == "F":
             unit = self.fleet(place, player)
         else:
             unit = self.army(place, player)
@@ -143,7 +143,7 @@ class BoardBuilder():
 
         return unit
 
-    def core(self, player: Player, unit_type: UnitType, place: str) -> Unit:
+    def core(self, player: Player, unit_type: str, place: str) -> Unit:
         """Create a unit with a core order.
 
         Args:
@@ -154,7 +154,7 @@ class BoardBuilder():
         Returns:
             The created unit with its core order set.
         """
-        if unit_type == UnitType.FLEET:
+        if unit_type == "F":
             unit = self.fleet(place, player)
         else:
             unit = self.army(place, player)
@@ -164,7 +164,7 @@ class BoardBuilder():
 
         return unit
 
-    def transform(self, player: Player, unit_type: UnitType, place: str, coast: str | None = None) -> Unit:
+    def transform(self, player: Player, unit_type: str, place: str, coast: str | None = None) -> Unit:
         """Create a unit with a transform order.
 
         Args:
@@ -176,7 +176,7 @@ class BoardBuilder():
         Returns:
             The created unit with its transform order set.
         """
-        if unit_type == UnitType.FLEET:
+        if unit_type == "F":
             unit = self.fleet(place, player)
         else:
             unit = self.army(place, player)
@@ -204,7 +204,7 @@ class BoardBuilder():
 
         return unit
 
-    def support_move(self, player: Player, unit_type: UnitType, place: str, source: Unit, to: str) -> Unit:
+    def support_move(self, player: Player, unit_type: str, place: str, source: Unit, to: str) -> Unit:
         """Create a unit with a support-move order.
 
         Args:
@@ -217,7 +217,7 @@ class BoardBuilder():
         Returns:
             The created unit with its support order set.
         """
-        if unit_type == UnitType.FLEET:
+        if unit_type == "F":
             unit = self.fleet(place, player)
         else:
             unit = self.army(place, player)
@@ -228,7 +228,7 @@ class BoardBuilder():
 
         return unit
 
-    def hold(self, player: Player, unit_type: UnitType, place: str) -> Unit:
+    def hold(self, player: Player, unit_type: str, place: str) -> Unit:
         """Create a unit with a hold order.
 
         Args:
@@ -239,7 +239,7 @@ class BoardBuilder():
         Returns:
             The created unit with its hold order set.
         """
-        if unit_type == UnitType.FLEET:
+        if unit_type == "F":
             unit = self.fleet(place, player)
         else:
             unit = self.army(place, player)
@@ -249,7 +249,7 @@ class BoardBuilder():
 
         return unit
 
-    def support_hold(self, player: Player, unit_type: UnitType, place: str, source: Unit) -> Unit:
+    def support_hold(self, player: Player, unit_type: str, place: str, source: Unit) -> Unit:
         """Create a unit with a support-hold order.
 
         Args:
@@ -261,7 +261,7 @@ class BoardBuilder():
         Returns:
             The created unit with its support order set.
         """
-        if unit_type == UnitType.FLEET:
+        if unit_type == "F":
             unit = self.fleet(place, player)
         else:
             unit = self.army(place, player)
@@ -295,7 +295,7 @@ class BoardBuilder():
         """
         unit.order = RetreatMove(destination=self.board.get_province(place))
 
-    def build(self, player: Player, *places: tuple[UnitType, str]):
+    def build(self, player: Player, *places: tuple[str, str]):
         """Add build orders for a player.
 
         Args:
@@ -304,7 +304,7 @@ class BoardBuilder():
         """
         for cur_build in places:
             province, coast = self.board.get_province_and_coast(cur_build[1])
-            player.build_orders.add(Build(province, cur_build[0], coast))
+            player.build_orders.add(Build(province, self.board.unit_types[cur_build[0]], coast))
 
     def disband(self, player: Player, *places: str):
         """Add disband orders for a player.

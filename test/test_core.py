@@ -2,7 +2,6 @@
 import unittest
 
 from test.utils import BoardBuilder
-from DiploGM.models.unit import UnitType
 
 class TestCore(unittest.TestCase):
     """Tests for the Core move, which can allow a player to build in a province.."""
@@ -13,7 +12,7 @@ class TestCore(unittest.TestCase):
             Silesia shouldn't be half-cored by Germany.
         """
         b = BoardBuilder()
-        a_silesia = b.core(b.players["Germany"], UnitType.ARMY, "Silesia")
+        a_silesia = b.core(b.players["Germany"], "A", "Silesia")
         p_silesia = b.board.get_province("Silesia")
 
         b.assert_illegal(a_silesia)
@@ -28,7 +27,7 @@ class TestCore(unittest.TestCase):
             Holland shouldn't be half-cored by Germany.
         """
         b = BoardBuilder()
-        a_holland = b.core(b.players["Germany"], UnitType.ARMY, "Holland")
+        a_holland = b.core(b.players["Germany"], "A", "Holland")
         p_holland = b.board.get_province("Holland")
 
         b.assert_illegal(a_holland)
@@ -45,7 +44,7 @@ class TestCore(unittest.TestCase):
         b = BoardBuilder()
         p_holland = b.board.get_province("Holland")
         p_holland.owner = b.players["Germany"]
-        a_holland = b.core(b.players["Germany"], UnitType.ARMY, "Holland")
+        a_holland = b.core(b.players["Germany"], "A", "Holland")
 
         b.assert_success(a_holland)
         b.moves_adjudicate(self)
@@ -62,7 +61,7 @@ class TestCore(unittest.TestCase):
         p_holland = b.board.get_province("Holland")
         p_holland.owner = b.players["Germany"]
         p_holland.core_data.half_core = b.players["Germany"]
-        a_holland = b.core(b.players["Germany"], UnitType.ARMY, "Holland")
+        a_holland = b.core(b.players["Germany"], "A", "Holland")
 
         b.assert_success(a_holland)
         b.moves_adjudicate(self)
@@ -80,8 +79,8 @@ class TestCore(unittest.TestCase):
         p_holland = b.board.get_province("Holland")
         p_holland.owner = b.players["Germany"]
         p_holland.core_data.half_core = b.players["Germany"]
-        a_holland = b.core(b.players["Germany"], UnitType.ARMY, "Holland")
-        a_belgium = b.move(b.players["France"], UnitType.ARMY, "Belgium", "Holland")
+        a_holland = b.core(b.players["Germany"], "A", "Holland")
+        a_belgium = b.move(b.players["France"], "A", "Belgium", "Holland")
 
         b.assert_fail(a_holland, a_belgium)
         b.assert_not_illegal(a_holland, a_belgium)
@@ -101,8 +100,8 @@ class TestCore(unittest.TestCase):
         p_holland = b.board.get_province("Holland")
         p_holland.owner = b.players["Germany"]
         p_holland.core_data.half_core = b.players["Germany"]
-        a_holland = b.core(b.players["Germany"], UnitType.ARMY, "Holland")
-        a_belgium = b.move(b.players["Germany"], UnitType.ARMY, "Belgium", "Holland")
+        a_holland = b.core(b.players["Germany"], "A", "Holland")
+        a_belgium = b.move(b.players["Germany"], "A", "Belgium", "Holland")
 
         b.assert_fail(a_holland, a_belgium)
         b.assert_not_illegal(a_holland, a_belgium)
@@ -123,8 +122,8 @@ class TestCore(unittest.TestCase):
         p_holland = b.board.get_province("Holland")
         p_holland.owner = b.players["Germany"]
         p_holland.core_data.half_core = b.players["Germany"]
-        a_holland = b.core(b.players["Germany"], UnitType.ARMY, "Holland")
-        a_london = b.move(b.players["England"], UnitType.ARMY, "London", "Holland")
+        a_holland = b.core(b.players["Germany"], "A", "Holland")
+        a_london = b.move(b.players["England"], "A", "London", "Holland")
         f_north_sea = b.convoy(b.players["England"], "North Sea", a_london, "Holland")
 
         b.assert_fail(a_holland, a_london)
@@ -146,8 +145,8 @@ class TestCore(unittest.TestCase):
         p_holland = b.board.get_province("Holland")
         p_holland.owner = b.players["Germany"]
         p_holland.core_data.half_core = b.players["Germany"]
-        a_holland = b.core(b.players["Germany"], UnitType.ARMY, "Holland")
-        a_london = b.move(b.players["Germany"], UnitType.ARMY, "London", "Holland")
+        a_holland = b.core(b.players["Germany"], "A", "Holland")
+        a_london = b.move(b.players["Germany"], "A", "London", "Holland")
         f_north_sea = b.convoy(b.players["England"], "North Sea", a_london, "Holland")
 
         b.assert_fail(a_holland, a_london)
@@ -169,8 +168,8 @@ class TestCore(unittest.TestCase):
         p_holland = b.board.get_province("Holland")
         p_holland.owner = b.players["Germany"]
         p_holland.core_data.half_core = b.players["Germany"]
-        a_holland = b.core(b.players["Germany"], UnitType.ARMY, "Holland")
-        b.move(b.players["England"], UnitType.ARMY, "London", "Holland")
+        a_holland = b.core(b.players["Germany"], "A", "Holland")
+        b.move(b.players["England"], "A", "London", "Holland")
 
         b.assert_success(a_holland)
         b.moves_adjudicate(self)

@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS units (
     location text,
     is_dislodged boolean,
     owner text,
-    is_army boolean,
+    unit_type text,
     order_type text,
     order_destination text,
     order_source text,
