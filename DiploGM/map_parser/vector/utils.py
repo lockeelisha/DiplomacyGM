@@ -2,7 +2,6 @@ import logging
 import re
 from typing import Callable
 from xml.etree.ElementTree import Element, ElementTree
-import numpy as np
 from shapely.geometry import Point
 
 from DiploGM.map_parser.vector.transform import TransGL3
@@ -83,9 +82,7 @@ def get_element_color(element: Element, prefix="fill:") -> str | None:
             return value
     return None
 
-def get_unit_coordinates(
-    unit_data: Element,
-) -> complex:
+def get_unit_coordinates(unit_data: Element) -> complex:
     """Gets the x, y coordinates of a unit."""
     subpath = unit_data.find("{http://www.w3.org/2000/svg}path")
     path = subpath if subpath is not None else unit_data
@@ -95,8 +92,10 @@ def get_unit_coordinates(
     if x is None or y is None:
         # find all the points the objects are at
         # take the center of the bounding box
-        path = unit_data.findall("{http://www.w3.org/2000/svg}path")[0]
         pathstr = path.get("d")
+        if pathstr is None:
+            path = unit_data.findall("{http://www.w3.org/2000/svg}path")[0]
+            pathstr = path.get("d")
         assert pathstr is not None
         coordinates = sum(parse_path(pathstr, TransGL3(path)), start = [])
         x_list = [p.real for p in coordinates]
@@ -108,19 +107,14 @@ def get_unit_coordinates(
 
 def get_sc_coordinates(supply_center_data: Element) -> complex:
     circles = supply_center_data.findall(".//svg:circle", namespaces=NAMESPACE)
-    if not circles:
-        logger.warning("SC Coordinate not found")
-        return complex(0)
-    cx = circles[0].get("cx")
-    cy = circles[0].get("cy")
+    circle = circles[0] if circles else supply_center_data
+    cx = circle.get("cx")
+    cy = circle.get("cy")
     if cx is None or cy is None:
-        logger.warning("SC Coordinate not found")
-        return complex(0)
+        return get_unit_coordinates(supply_center_data)
     base_coordinates = complex(float(cx), float(cy))
-    trans = TransGL3(supply_center_data) * TransGL3(circles[0])
+    trans = TransGL3(supply_center_data) * TransGL3(circle)
     return trans.transform(base_coordinates)
-
-
 
 # returns:
 # new base_coordinate (= base_coordinate if not applicable),
@@ -166,6 +160,7 @@ def parse_path(path_string: str, translation: TransGL3) -> list[list[complex]]:
                 if start is None:
                     raise ValueError("Invalid geometry: got 'z' on first element in a subgeometry")
                 province_coordinates[-1].append(translation.transform(start))
+                coordinate = start
                 start = None
                 current_index += 1
                 if current_index < len(path):

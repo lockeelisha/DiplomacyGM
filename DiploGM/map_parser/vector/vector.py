@@ -4,7 +4,6 @@ import json
 import logging
 import re
 import time
-import numpy as np
 from xml.etree.ElementTree import Element, tostring
 
 import shapely
@@ -162,8 +161,6 @@ class Parser:
                     logger.error(error)
                     errors.append(error)
                     continue
-                if name == "Capital Marker":
-                    continue
 
                 name = re.sub(r" \(?[ensw]c\)?$", "", name)  # Remove coast names
                 if name not in seen_names:
@@ -270,6 +267,7 @@ class Parser:
         self.name_to_province[province.name] = province
         return provinces
 
+    # TODO: Deprecate and remove this
     def _add_high_provinces(self, provinces: set[Province]):
         for name, data in self.data["overrides"][HIGH_PROVINCES_KEY].items():
             high_provinces: list[Province] = []
@@ -278,18 +276,20 @@ class Parser:
                 provinces = self._add_province_to_board(provinces, province)
                 high_provinces.append(province)
 
+            unit_type = UnitType.ARMY if data["type"].lower() == "land" else UnitType.FLEET
             # Add connections between each high province
-            for provinceA in high_provinces:
-                provinceA.adjacency_data.adjacent.update(provinceB for provinceB in high_provinces
-                                        if provinceA.name != provinceB.name)
+            for provinceA, provinceB in itertools.combinations(high_provinces, 2):
+                provinceA.adjacencies.add_unit_type(provinceB, unit_type)
+                provinceB.adjacencies.add_unit_type(provinceA, unit_type)
 
         for name, data in self.data["overrides"][HIGH_PROVINCES_KEY].items():
             adjacent = {self.name_to_province[n] for n in data["adjacencies"]}
+            unit_type = UnitType.ARMY if data["type"].lower() == "land" else UnitType.FLEET
             for index in range(1, data["num"] + 1):
                 high_province = self.name_to_province[name + str(index)]
-                high_province.adjacency_data.adjacent.update(adjacent)
                 for ad in adjacent:
-                    ad.adjacency_data.adjacent.add(high_province)
+                    high_province.adjacencies.add_unit_type(ad, unit_type)
+                    ad.adjacencies.add_unit_type(high_province, unit_type)
         return provinces
 
     def _json_cheats(self, provinces: set[Province]) -> set[Province]:
@@ -308,17 +308,18 @@ class Parser:
                 continue
             # Add/remove adjacencies and coasts
             # TODO: Some way to specify whether or not to clear other adjacencies?
-            province.adjacency_data.adjacent.update({self.name_to_province[n] for n in data.get("adjacencies", [])})
-            province.adjacency_data.adjacent.difference_update(
-                {self.name_to_province[n] for n in data.get("remove_adjacencies", [])})
-            province.adjacency_data.nonadjacent_coasts.update(data.get("remove_adjacent_coasts", []))
-            province.adjacency_data.difficult_adjacencies.update(data.get("difficult_adjacency", []))
+            for n in data.get("adjacencies", []):
+                province.adjacencies.add(self.name_to_province[n])
+            for n in data.get("remove_adjacencies", []):
+                province.adjacencies.remove(self.name_to_province[n])
+            for n in data.get("difficult_adjacency", []):
+                if (adj := province.adjacencies.get(self.name_to_province[n])) is not None:
+                    adj.is_difficult = True
             if "coasts" in data:
-                province.adjacency_data.fleet_adjacent = {}
                 for coast_name, coast_adjacent in data.get("coasts", {}).items():
-                    province.adjacency_data.fleet_adjacent[coast_name] = {
-                        self._get_province_and_coast(n) for n in coast_adjacent}
-
+                    for adjacent_name in coast_adjacent:
+                        p, c = self._get_province_and_coast(adjacent_name)
+                        province.adjacencies.add_coast(p, coast_name, c)
             # Add extra unit locations for provinces that wrap around or have weird shapes
             # For compatability reasons, we assume these are sea tiles
             # TODO: Add support for armies/multicoastal tiles
@@ -333,13 +334,28 @@ class Parser:
                 province.unit_coordinates[UnitType.FLEET.name] = loc
         return provinces
 
+    def _remove_unit_adjacencies(self, provinces: set[Province]) -> set[Province]:
+        if "overrides" not in self.data:
+            return provinces
+        for name, data in self.data["overrides"].get("provinces", {}).items():
+            province = self.name_to_province.get(name)
+            if not province:
+                logger.debug("Province %s in overrides not found in map, skipping...", name)
+                continue
+            for n in data.get("remove_adjacent_coasts", []):
+                province.adjacencies.remove(self.name_to_province[n], UnitType.FLEET)
+            for n in data.get("remove_adjacent_land", []):
+                province.adjacencies.remove(self.name_to_province[n], UnitType.ARMY)
+        return provinces
+
+
     def _get_provinces(self, provinces: set[Province], adjacencies: set[tuple[str, str]]) -> set[Province]:
         # Sets adjacencies for each province based on the adjacencies file
         for name1, name2 in adjacencies:
             province1 = self.name_to_province[name1]
             province2 = self.name_to_province[name2]
-            province1.set_adjacent(province2)
-            province2.set_adjacent(province1)
+            province1.adjacencies.add(province2)
+            province2.adjacencies.add(province1)
 
         # Apply any manual overrides from the config file (e.g. adding adjacencies, multiple coasts, etc.)
         provinces = self._json_cheats(provinces)
@@ -350,6 +366,7 @@ class Parser:
         # We set land-land fleet adjacencies afterwards, since we need to figure out which adjacencies are valid
         for province in provinces:
             province.set_adjacent_coasts()
+        provinces = self._remove_unit_adjacencies(provinces)
 
         self._initialize_province_owners(self.layer_data.get("land_layer"))
         self._initialize_province_owners(self.layer_data.get("island_fill_layer"))
@@ -458,11 +475,14 @@ class Parser:
                                           set_province_name)
 
     def _initialize_supply_centers_assisted(self) -> None:
+        sc_layer_transformation = TransGL3(self.layer_data["supply_center_icons"])
         for center_data in self.layer_data["supply_center_icons"]:
             name = self.get_province_name(center_data)
-            if name == "Capital Marker":
-                continue
             province = self.name_to_province[name]
+            supply_center_coords = sc_layer_transformation.transform(get_sc_coordinates(center_data))
+            supply_center_point = shapely.Point(supply_center_coords.real, supply_center_coords.imag)
+            if not shapely.dwithin(supply_center_point, province.geometry, self.data[SVG_CONFIG_KEY].get("unit_radius", 10)):
+                logger.warning(f"{self.datafile}: Supply center icon for '{name}' is not within its province")
 
             if province.has_supply_center:
                 raise RuntimeError(f"{name} already has a supply center")
@@ -631,61 +651,6 @@ class Parser:
             return data_to_unit[num_sides]
         return UnitType.ARMY
         # raise RuntimeError(f"Unit has {num_sides} sides which does not match any unit definition.")
-
-    def generate_layers(self) -> bytes:
-        """Using sample SVG elements in the Army, Fleet, and Title layers,
-        give each province a name, army and fleet locations, and retreat locations, then return the SVG as bytes."""
-        svg_root = etree.parse(self.data["file"])
-        layers = {}
-        existing_objects = {}
-        # First, we get a sample element from each layer, and then clear the layers
-        # We need to find out the coordinate of the sample element and then apply appropriate translations
-        for layer_name in ["army", "fleet", "retreat_army", "retreat_fleet", "titles"]:
-            layer = find_svg_element(svg_root, layer_name, self.layers)
-            if layer is None:
-                if layer_name in {"retreat_army", "retreat_fleet"}:
-                    logger.warning("Layer %s not found in SVG. Duplicating army/fleet layer.", layer_name)
-                    layer = self._create_retreat_layer(svg_root, layer_name, self.layers)
-                else:
-                    logger.warning("Layer %s not found in SVG, skipping...", layer_name)
-                    continue
-            sample_element = copy.deepcopy(layer[0])
-            if layer_name != "titles":
-                coordinate = TransGL3(sample_element).transform(get_unit_coordinates(sample_element))
-            else:
-                coordinate = get_coordinates(sample_element)
-                sample_element.set("text-anchor", "middle")
-            layers[layer_name] = {"layer": layer, "sample_element": sample_element, "coordinate": coordinate}
-            existing_objects[layer_name] = set()
-            for element in layer:
-                existing_objects[layer_name].add(element.get(INKSCAPE_LABEL))
-
-        # For each province, we add an element to each layer.
-        # We'll add a translation to put each element in the centroid of the province
-        for province in self.name_to_province.values():
-            for layer_name, layer_info in layers.items():
-                if layer_name in existing_objects and province.name in existing_objects[layer_name]:
-                    continue
-                if province.type == ProvinceType.SEA and layer_name in {"army", "retreat_army"}:
-                    continue
-                if not province.adjacency_data.fleet_adjacent and layer_name in {"fleet", "retreat_fleet"}:
-                    continue
-                copied_element = copy.deepcopy(layer_info["sample_element"])
-                copied_element.set(INKSCAPE_LABEL, province.name)
-                if layer_name == "titles":
-                    copied_element.text = province.name
-                center = shapely.centroid(province.geometry)
-                center = complex(center.x, center.y) if center else complex(0)
-                distance = center - layer_info["coordinate"]
-                if layer_name in {"retreat_army", "retreat_fleet"}:
-                    distance -= complex((self.data[SVG_CONFIG_KEY].get("unit_radius", 20) / 2),
-                                        (self.data[SVG_CONFIG_KEY].get("unit_radius", 20) / 2))
-                trans = TransGL3(copied_element) * TransGL3().init(x_c = distance.real, y_c = distance.imag)
-                copied_element.set("transform", str(trans))
-                layer_info["layer"].append(copied_element)
-
-        return etree.tostring(svg_root)
-
 
 parsers = {}
 

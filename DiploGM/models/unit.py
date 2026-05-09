@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from DiploGM.models.province import ProvinceType
-
 if TYPE_CHECKING:
     from DiploGM.models import province, player, order
 
@@ -52,17 +50,13 @@ class Unit:
         if self.retreat_options is None:
             self.retreat_options = set()
         if self.unit_type == UnitType.ARMY:
-            for province in self.province.adjacency_data.adjacent:
-                if province.type in (ProvinceType.LAND, ProvinceType.ISLAND) and not province.is_impassable:
+            for province in self.province.adjacencies.get_all(self.unit_type):
+                if not province.is_impassable:
                     self.retreat_options.add((province, None))
         else:
-            for province in self.province.get_coastal_adjacent(self.coast):
-                if province[0].is_impassable:
-                    continue
-                if isinstance(province, tuple):
+            for province in self.province.adjacencies.get_all_with_coasts(self.coast):
+                if not province[0].is_impassable:
                     self.retreat_options.add(province)
-                else:
-                    self.retreat_options.add((province, None))
 
     def remove_retreat_option(self, province: province.Province):
         """Removes a specific retreat option."""
@@ -70,7 +64,7 @@ class Unit:
             return
         # Use discard to avoid KeyError if an option is not present
         self.retreat_options.discard((province, None))
-        for coast in province.get_multiple_coasts():
+        for coast in province.adjacencies.coasts:
             self.retreat_options.discard((province, coast))
 
     def remove_many_retreat_options(self, provinces: set[province.Province]):

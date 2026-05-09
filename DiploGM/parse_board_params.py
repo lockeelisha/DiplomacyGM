@@ -1,10 +1,10 @@
 """Module to parse commands to edit the board parameters."""
+import string
 from DiploGM.config import ERROR_COLOUR, PARTIAL_ERROR_COLOUR
 from DiploGM.utils import get_keywords
 from DiploGM.mapper.mapper import Mapper
 from DiploGM.models.board import Board
 from DiploGM.db.database import get_connection
-import string
 
 def parse_board_params(message: str, board: Board) -> tuple[str, str, bytes | None, str | None, str | None]:
     """Parses a message containing commands to edit the board parameters,

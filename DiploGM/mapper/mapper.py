@@ -75,6 +75,8 @@ class Mapper:
                     child_label = child.get(f"{NAMESPACE['inkscape']}label")
                     if child_label is not None:
                         self.cached_symbols[unit_type][child_label] = child
+            if label == "Capital":
+                self.cached_symbols["capital"] = element
 
         visible_provinces = (self.board.get_visible_provinces(restriction)
                              if restriction else self.board.provinces)
@@ -100,7 +102,8 @@ class Mapper:
 
     def clean_layers(self, svg: ElementTree):
         """Clears layers that we won't need in the final display map."""
-        for element_name in self.board_svg_data["delete_layer"]:
+        layers_to_clear = ["army", "fleet", "retreat_army", "retreat_fleet", "symbol_templates"]
+        for element_name in layers_to_clear:
             clear_svg_element(svg, element_name, self.board_svg_data)
 
     def draw_moves_and_retreats(self, arrow_layer: Element, current_turn: turn.Turn, movement_only: bool):
@@ -254,14 +257,14 @@ class Mapper:
             else:
                 unit_type = UnitType.FLEET if province.type == ProvinceType.SEA else UnitType.ARMY
             locdict[province.name] = province.get_unit_coordinates(unit_type, coast)
-            for coast in province.get_multiple_coasts():
+            for coast in province.adjacencies.coasts:
                 locdict[province.get_name(coast)] = province.get_unit_coordinates(UnitType.FLEET, coast)
         locdict = {k: [v.real, v.imag] for k, v in locdict.items()}
         script = etree.Element("script")
 
         coast_to_province = {}
         for province in self.board.provinces:
-            for coast in province.get_multiple_coasts():
+            for coast in province.adjacencies.coasts:
                 coast_to_province[province.get_name(coast)] = province.name
 
         province_to_unit_type = {}
@@ -464,7 +467,7 @@ class Mapper:
             if province.is_impassable:
                 color = self.impassable_color
             elif province.name not in self.adjacent_provinces:
-                color = self.board_svg_data["unknown"]
+                color = self.board_svg_data.get("unknown", "808080")
             elif province_element in sea_elements:
                 color = self.clear_seas_color
             else:
@@ -483,7 +486,7 @@ class Mapper:
             if province.is_impassable:
                 color = self.impassable_color
             elif province.name not in self.adjacent_provinces:
-                color = self.board_svg_data["unknown"]
+                color = self.board_svg_data.get("unknown", "808080")
             else:
                 color = self.player_colors[province.owner.name] if province.owner else self.neutral_color
 
@@ -501,26 +504,24 @@ class Mapper:
         capital_provinces = {self.board.data["players"][player_name]["capital"]
                              for player_name in self.board.data["players"]
                              if "capital" in self.board.data["players"][player_name]}
-        capital_marker = centers_layer.find('*[@inkscape:label="Capital Marker"]',
-            namespaces={"inkscape": "http://www.inkscape.org/namespaces/inkscape"})
-        if capital_marker is not None:
+        if (capital_marker := self.cached_symbols.get("capital")) is not None:
             capital_marker.set("transform", "")
 
-        for center_element in centers_layer:
+        for center_element in list(centers_layer):
             try:
                 province = self._get_province_from_element_by_label(center_element)
             except ValueError as ex:
-                if "capital marker" not in str(ex).lower():
-                    print(f"[{self.board.datafile}] Error during recoloring centers: {ex}", file=sys.stderr)
+                print(f"[{self.board.datafile}] Error during recoloring centers: {ex}", file=sys.stderr)
                 continue
 
             if not province.has_supply_center:
                 print(f"[{self.board.datafile}] Province {province.name} says it has no supply center, but it does", file=sys.stderr)
                 continue
 
-            if province.name not in self.adjacent_provinces:
-                core_color = self.board_svg_data["unknown"]
-                half_color = core_color
+            if province.is_impassable:
+                core_color = half_color = self.impassable_color
+            elif province.name not in self.adjacent_provinces:
+                core_color = half_color = self.board_svg_data.get("unknown", "808080")
             else:
                 core_color = self.player_colors[province.core_data.core.name] if province.core_data.core else "#ffffff"
                 half_color = self.player_colors[province.core_data.half_core.name] if province.core_data.half_core else core_color
@@ -541,8 +542,6 @@ class Mapper:
                     if get_element_color(elem) != "000000":
                         MapperUtils.color_element(elem, element_color)
                 centers_layer.append(capital_copy)
-        if capital_marker is not None:
-            centers_layer.remove(capital_marker)
 
     def _get_province_from_element_by_label(self, element: Element) -> Province:
         province_name = element.get(f"{NAMESPACE['inkscape']}label")

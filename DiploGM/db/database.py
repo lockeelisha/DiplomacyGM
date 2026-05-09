@@ -141,6 +141,9 @@ class _DatabaseConnection:
             elif order_type == "TransformBuild":
                 player_order = TransformBuild(board.get_province(location),
                                               unit_type[-2:] if len(unit_type) > 1 else None)
+            elif order_type == "Waive":
+                player.waived_orders = int(location)
+                continue
             else:
                 logger.warning(f"Unknown build order type: {order_type}")
                 continue
@@ -370,8 +373,6 @@ class _DatabaseConnection:
         ).fetchall()
         for dp_info in dp_data:
             self._load_dp_orders(board, dp_info)
-
-        board.run_variant_scripts()
 
         return board
 
@@ -722,6 +723,14 @@ class _DatabaseConnection:
                 for player in players
                 for build_order in player.build_orders if isinstance(build_order, PlayerOrder)
             ],
+        )
+        cursor.executemany(
+            "INSERT OR REPLACE INTO builds (board_id, phase, player, location, order_type, unit_type) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                (board.board_id, format(board.turn, "%I %S"), player.name, player.waived_orders, "Waive", "")
+                for player in players
+            ]
         )
         cursor.executemany(
             "INSERT INTO vassal_orders (board_id, phase, player, target_player, order_type) VALUES (?, ?, ?, ?, ?) ",

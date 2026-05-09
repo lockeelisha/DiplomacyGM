@@ -102,9 +102,9 @@ def _create_unit(_, keywords: list[str], board: Board) -> None:
 
     player = board.get_player(keywords[1])
     province, coast = board.get_province_and_coast(" ".join(keywords[2:]))
-    if unit_type == UnitType.FLEET and province.get_multiple_coasts() and coast not in province.get_multiple_coasts():
+    if unit_type == UnitType.FLEET and province.adjacencies.coasts and coast not in province.adjacencies.coasts:
         raise ValueError(f"Province '{province.name}' requires a valid coast.")
-    if not province.get_multiple_coasts():
+    if not province.adjacencies.coasts:
         coast = None
 
     board.create_unit(unit_type, player, province, coast, None)
@@ -118,9 +118,9 @@ def _create_dislodged_unit(_, keywords: list[str], board: Board) -> None:
         raise ValueError(f"Invalid Unit Type received: {unit_type}")
     player = board.get_player(keywords[1])
     province, coast = board.get_province_and_coast(keywords[2])
-    if province.get_multiple_coasts() and coast not in province.get_multiple_coasts():
+    if province.adjacencies.coasts and coast not in province.adjacencies.coasts:
         raise ValueError(f"Province '{province.name}' requires a valid coast.")
-    if not province.get_multiple_coasts():
+    if not province.adjacencies.coasts:
         coast = None
     retreat_options = {board.get_province_and_coast(province_name) for province_name in keywords[3:]}
     if not all(retreat_options):
@@ -141,9 +141,9 @@ def _move_unit(_, keywords: list[str], board: Board) -> None:
     if not unit:
         raise RuntimeError(f"No unit to move in {old_province}")
     new_province, new_coast = board.get_province_and_coast(keywords[1])
-    if new_province.get_multiple_coasts() and new_coast not in new_province.get_multiple_coasts():
+    if new_province.adjacencies.coasts and new_coast not in new_province.adjacencies.coasts:
         raise ValueError(f"Province '{new_province.name}' requires a valid coast.")
-    if not new_province.get_multiple_coasts():
+    if not new_province.adjacencies.coasts:
         new_coast = None
     board.move_unit(unit, new_province, new_coast)
 

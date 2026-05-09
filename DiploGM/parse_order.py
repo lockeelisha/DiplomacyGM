@@ -123,8 +123,8 @@ class TreeToOrder(Transformer):
         if not province.has_supply_center:
             raise ValueError(f"{province} does not have a supply center.")
         if (unit_type == UnitType.FLEET
-            and province.get_multiple_coasts()
-            and coast not in province.get_multiple_coasts()):
+            and province.adjacencies.coasts
+            and coast not in province.adjacencies.coasts):
             raise ValueError(f"You did not specify a coast for {province}")
         if self.player_restriction:
             if province.owner != self.player_restriction:
@@ -349,19 +349,19 @@ builds_parser   = Lark(ebnf, start="build", parser="earley")
 
 def _check_for_warnings(unit: Unit) -> str | None:
     if isinstance(unit.order, (order.Move, order.RetreatMove)):
-        if unit.order.destination not in unit.province.adjacency_data.adjacent:
+        if not unit.province.adjacencies.get(unit.order.destination):
             return "This move is not to an adjacent province. This will fail unless there is a convoy."
         if (unit.unit_type == UnitType.FLEET
-            and unit.order.destination.get_multiple_coasts()
+            and unit.order.destination.adjacencies.coasts
             and not unit.order.destination_coast):
             return "Destination province has multiple coasts. " + \
                    "This might cause your order to fail if the fleet can reach more than one."
     if isinstance(unit.order, order.Support):
-        if unit.order.destination not in unit.province.adjacency_data.adjacent:
+        if not unit.province.adjacencies.get(unit.order.destination):
             return "This support is not to an adjacent province and will fail."
         if (unit.order.source != unit.order.destination
-            and unit.order.destination not in unit.order.source.adjacency_data.adjacent):
-            return "This support is is between two non-adjacent provinces, and will fail unless there is a convoy."
+            and not unit.order.source.adjacencies.get(unit.order.destination)):
+            return "This support is between two non-adjacent provinces, and will fail unless there is a convoy."
     return None
 
 def _handle_individual_order(current_order: str,

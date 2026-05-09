@@ -1,3 +1,25 @@
+1.9.6
+=====
+
+Contributors:
+- Golden Kumquat
+
+# Quality of Life
+- Added "remove_adjacent_land" as a province override option for variant configs. Handy for Helladip-like hybrid territories
+- Bot will now warn you if a supply center is not inside its province's territory
+- `.verify_adjacencies` is now much more robust and will spit out far fewer false positives
+- Capital markers can now be added to the "Symbol Templates" layer for dynamic capital locations
+
+# Bugfixes
+- Fixed a lot of adjacency issues with older maps.
+- Waive orders are now saved between restarts
+- Fixed an issue with transformations not being in the right order, causing map elements to be in the wrong size/place
+- Fixed an issue where civil disorder disbands would crash the bot due to an issue with distance calculations
+
+# Developer Changes
+- Refactored how unit adjacencies are handled to be less complicated and easier to do stuff with
+  - Adjacencies are now stored in their own class, and each adjacency stores which units can cross it and if it's a difficult crossing
+
 1.9.5
 =====
 

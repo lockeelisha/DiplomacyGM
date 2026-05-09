@@ -33,8 +33,7 @@ class RetreatsAdjudicator(Adjudicator):
                 continue
 
             if unit.unit_type == UnitType.FLEET and not unit.order.destination_coast:
-                reachable_coasts = {c for c in unit.order.destination.get_multiple_coasts()
-                                    if unit.province.is_coastally_adjacent((unit.order.destination, c), unit.coast)}
+                reachable_coasts = unit.province.adjacencies.get_coasts(unit.order.destination, unit.coast)
                 if len(reachable_coasts) > 1:
                     units_to_delete.add(unit)
                 if reachable_coasts:
@@ -77,7 +76,7 @@ class RetreatsAdjudicator(Adjudicator):
             if len(retreating_units) != 1:
                 difficult_units = {u for u in retreating_units
                                    if isinstance(u.order, RetreatMove)
-                                       and u.order.destination.name in u.province.adjacency_data.difficult_adjacencies}
+                                      and u.province.adjacencies.is_difficult(u.order.destination)}
                 units_to_delete.update(difficult_units)
                 retreating_units.difference_update(difficult_units)
                 if len(retreating_units) != 1:
