@@ -5,6 +5,7 @@ import collections
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from DiploGM.models.adjacency import Terrain
 from DiploGM.models.order import (
     Order, Hold, Move, Support, ConvoyTransport,
     Core, Transform, RetreatMove, RetreatDisband, NMR
@@ -68,7 +69,7 @@ def convoy_is_possible(start: Province, end: Province, check_fleet_orders: bool 
 def _validate_coastal_move(province: Province, order: Move | RetreatMove,
                            unit: Unit, strict_coast_movement: bool) -> tuple[OrderValidity, str | None]:
     destination_coast = order.destination_coast if strict_coast_movement else None
-    if order.destination not in province.adjacencies.get_all(terrain = "coast", coast=unit.coast):
+    if order.destination not in province.adjacencies.get_all(terrain = Terrain.COAST, coast=unit.coast):
         return OrderValidity.INVALID, f"{province.get_name(unit.coast)} does not border {order.get_destination_str()}"
     if not strict_coast_movement:
         return OrderValidity.VALID, None
@@ -96,7 +97,7 @@ def _validate_move_order(province: Province, order: Move | RetreatMove,
     terrain_intersection = unit.unit_type.moves_on & adjacency.terrain
     if not terrain_intersection:
         return OrderValidity.INVALID, f"{unit.unit_type.name} cannot move from {province} to {destination_province}"
-    if "coast" in terrain_intersection:
+    if Terrain.COAST in terrain_intersection:
         valid, reason = _validate_coastal_move(province, order, unit, strict_coast_movement)
         if valid != OrderValidity.VALID:
             return valid, reason
@@ -132,9 +133,9 @@ def _validate_transform_order(province: Province, order: Transform) -> tuple[Ord
         return OrderValidity.INVALID, "Units can only transform in owned supply centers"
     if (new_type := province.unit.unit_type.transforms_to) is None:
         return OrderValidity.INVALID, "This unit cannot transform"
-    if province.is_landlocked() and "land" not in new_type.moves_on:
+    if province.is_landlocked() and Terrain.LAND not in new_type.moves_on:
         return OrderValidity.INVALID, "Cannot transform in an inland province"
-    if ("coast" in new_type.moves_on
+    if (Terrain.COAST in new_type.moves_on
         and province.adjacencies.coasts
         and order.destination_coast not in province.adjacencies.coasts):
         return OrderValidity.INVALID, "Unit needs to transform to a valid coast"

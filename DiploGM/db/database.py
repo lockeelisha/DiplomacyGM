@@ -39,6 +39,8 @@ class _DatabaseConnection:
                 ":memory:"
             )  # Special wildcard; in-memory db
 
+        self._connection.execute("PRAGMA journal_mode=WAL")
+        self._connection.execute("PRAGMA synchronous=NORMAL")
         self._initialize_schema()
 
     def _initialize_schema(self):

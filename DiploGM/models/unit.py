@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Optional
 
+from DiploGM.models.adjacency import Terrain
+
 if TYPE_CHECKING:
     from DiploGM.models import province, player, order
 
@@ -14,7 +16,7 @@ class UnitType:
     can_convoy: bool = False
     can_be_convoyed: bool = False
     can_capture: bool = True
-    moves_on: set[str] = field(default_factory=lambda: {"Land"})
+    moves_on: set[Terrain] = field(default_factory=lambda: {Terrain.LAND})
     transforms_to: Optional[UnitType] = None
 
 @dataclass
@@ -51,10 +53,10 @@ class Unit:
         """Adds all valid retreat options based on unit type and current province."""
         if self.retreat_options is None:
             self.retreat_options = set()
-        for province in self.province.adjacencies.get_all(self.unit_type.moves_on - {"coast"}):
+        for province in self.province.adjacencies.get_all(self.unit_type.moves_on - {Terrain.COAST}):
             if not province.is_impassable:
                 self.retreat_options.add((province, None))
-        if "coast" in self.unit_type.moves_on:
+        if Terrain.COAST in self.unit_type.moves_on:
             for province in self.province.adjacencies.get_all_with_coasts(self.coast):
                 if not province[0].is_impassable:
                     self.retreat_options.add(province)

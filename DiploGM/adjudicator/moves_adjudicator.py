@@ -13,6 +13,7 @@ from DiploGM.adjudicator.defs import (
 )
 from DiploGM.adjudicator.validate_order import OrderValidity, is_valid_result, order_is_valid
 from DiploGM.db import database
+from DiploGM.models.adjacency import Terrain
 from DiploGM.models.order import NMR, Core, Support
 
 if TYPE_CHECKING:
@@ -144,7 +145,7 @@ class MovesAdjudicator(Adjudicator):
                 logger.warning("Skipping %s: %s", order, "tried to transform a unit that cannot transform")
                 return
             order.base_unit.unit_type = new_type
-            order.base_unit.coast = order.destination_coast if "coast" in new_type.moves_on else None
+            order.base_unit.coast = order.destination_coast if Terrain.COAST in new_type.moves_on else None
         if order.type == OrderType.MOVE and not order.is_sortie and order.resolution == Resolution.SUCCEEDS:
             logger.debug("Moving %s to %s", order.source_province, order.destination_province)
             if order.source_province.unit == order.base_unit:

@@ -8,7 +8,7 @@ from enum import Enum
 from typing import TYPE_CHECKING
 import logging
 import shapely
-from DiploGM.models.adjacency import AdjacencyData
+from DiploGM.models.adjacency import AdjacencyData, Terrain
 from DiploGM.models.unit import UnitType
 
 logger = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ class Province():
 
     def is_landlocked(self) -> bool:
         """Checks to see if the province is landlocked, i.e. has no fleet adjacencies."""
-        return self.type == ProvinceType.LAND and not self.adjacencies.get_all("coast")
+        return self.type == ProvinceType.LAND and not self.adjacencies.get_all(Terrain.COAST)
 
     def get_distance(self, other: Province, max_distance: int = 100) -> int:
         """Gets the distance between two provinces in number of moves.
@@ -162,12 +162,12 @@ class Province():
 
         if self.type in (ProvinceType.SEA, ProvinceType.ISLAND):
             for province in self.adjacencies.get_all():
-                self.adjacencies.add_terrain(province, "sea")
+                self.adjacencies.add_terrain(province, Terrain.SEA)
             return
 
         for province in self.adjacencies.get_all():
             if province.type in (ProvinceType.SEA, ProvinceType.ISLAND):
-                self.adjacencies.add_terrain(province, "sea")
+                self.adjacencies.add_terrain(province, Terrain.SEA)
 
     def set_adjacent_coasts(self):
         """Once sea and island adjacencies have been set, set land adjacencies"""
@@ -175,12 +175,12 @@ class Province():
         # TODO: (BETA) this will generate false positives (e.g. mini province keeping 2 big province coasts apart)
         for province2, adjacency in self.adjacencies.adjacencies.items():
             if self.type != ProvinceType.LAND or province2.type != ProvinceType.LAND:
-                self.adjacencies.add_terrain(province2, "sea")
+                self.adjacencies.add_terrain(province2, Terrain.SEA)
             elif Province.detect_coastal_connection(self, province2):
-                self.adjacencies.add_terrain(province2, "coast")
+                self.adjacencies.add_terrain(province2, Terrain.COAST)
 
             if ProvinceType.SEA not in (self.type, province2.type):
-                self.adjacencies.add_terrain(province2, "land")
+                self.adjacencies.add_terrain(province2, Terrain.LAND)
 
             if ((other_adj := province2.adjacencies.get(self))
                 and other_adj.coasts and not adjacency.coasts):
@@ -193,7 +193,7 @@ class Province():
         # multiple possible tripoints could happen if there was a scenario
         # where two canals were blocked from connecting on one side by a land province but not the other
         # or by multiple rainbow-shaped seas
-        possible_tripoints = p1.adjacencies.get_all("sea") & p2.adjacencies.get_all("sea")
+        possible_tripoints = p1.adjacencies.get_all(Terrain.SEA) & p2.adjacencies.get_all(Terrain.SEA)
         for possible_tripoint in possible_tripoints:
             if possible_tripoint.type == ProvinceType.LAND:
                 continue

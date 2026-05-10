@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from DiploGM.adjudicator.adjudicator import Adjudicator
+from DiploGM.models.adjacency import Terrain
 from DiploGM.models.player import Player
 from DiploGM.models.order import (
     Build,
@@ -105,9 +106,9 @@ class BuildsAdjudicator(Adjudicator):
     def _adjudicate_build(self, order: Build, player: Player) -> int:
         # ignore coast specifications for army
         error = ""
-        if ("land" not in order.unit_type.moves_on and order.province.is_landlocked()):
+        if (Terrain.LAND not in order.unit_type.moves_on and order.province.is_landlocked()):
             error = "tried building an inland fleet"
-        elif ("coast" in order.unit_type.moves_on
+        elif (Terrain.COAST in order.unit_type.moves_on
             and order.province.adjacencies.coasts
             and order.coast not in order.province.adjacencies.coasts):
             error = "someone didn't specify a valid coast"
@@ -132,9 +133,9 @@ class BuildsAdjudicator(Adjudicator):
             error = "tried to transform in a province without a supply center"
         elif (new_type := order.province.unit.unit_type.transforms_to) is None:
             error = "tried to transform a unit that cannot transform"
-        elif order.province.is_landlocked() and "land" not in new_type.moves_on:
+        elif order.province.is_landlocked() and Terrain.LAND not in new_type.moves_on:
             error = "tried to transform in an inland province"
-        elif ("coast" in new_type.moves_on
+        elif (Terrain.COAST in new_type.moves_on
               and order.province.adjacencies.coasts
               and order.coast not in order.province.adjacencies.coasts):
             error = "tried to transform to an invalid coast"

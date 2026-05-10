@@ -58,11 +58,22 @@ class Mapper:
 
         clear_svg_element(self.board_svg, "starting_units", self.board_svg_data)
 
+        # TODO: Check this
         self.cached_elements = {}
-        for element_name in ["army", "fleet", "retreat_army", "retreat_fleet", "unit_output", "symbol_templates"]:
+        cached_layers = ["unit_output", "symbol_templates"]
+        unit_type_layers = []
+        for unit_type in self.board.unit_types.values():
+            unit_type_layers.append(f"{unit_type.name.lower()}")
+            unit_type_layers.append(f"retreat_{unit_type.name.lower()}")
+        for element_name in cached_layers + unit_type_layers:
             self.cached_elements[element_name] = find_svg_element(
                 self.board_svg, element_name, self.board_svg_data
             )
+
+        for layer_name in unit_type_layers:
+            layer = self.cached_elements.get(layer_name)
+            if layer is not None:
+                layer.set("style", "display:none")
 
         # Load cached unit symbols if they exist, which we can copy over for fancy units
         self.cached_symbols = {}

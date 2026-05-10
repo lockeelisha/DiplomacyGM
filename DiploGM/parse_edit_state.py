@@ -5,6 +5,7 @@ For changes to game-wide settings, see .edit_game in parse_board_params.py."""
 import logging
 
 from DiploGM.config import ERROR_COLOUR, PARTIAL_ERROR_COLOUR
+from DiploGM.models.adjacency import Terrain
 from DiploGM.utils import get_keywords, parse_season
 from DiploGM.mapper.mapper import Mapper
 from DiploGM.models.board import Board
@@ -101,7 +102,7 @@ def _create_unit(_, keywords: list[str], board: Board) -> None:
 
     player = board.get_player(keywords[1])
     province, coast = board.get_province_and_coast(" ".join(keywords[2:]))
-    if "coast" in unit_type.moves_on and province.adjacencies.coasts and coast not in province.adjacencies.coasts:
+    if Terrain.COAST in unit_type.moves_on and province.adjacencies.coasts and coast not in province.adjacencies.coasts:
         raise ValueError(f"Province '{province.name}' requires a valid coast.")
     if not province.adjacencies.coasts:
         coast = None
@@ -117,7 +118,7 @@ def _create_dislodged_unit(_, keywords: list[str], board: Board) -> None:
         raise ValueError(f"Invalid Unit Type received: {unit_type}")
     player = board.get_player(keywords[1])
     province, coast = board.get_province_and_coast(keywords[2])
-    if "coast" in unit_type.moves_on and province.adjacencies.coasts and coast not in province.adjacencies.coasts:
+    if Terrain.COAST in unit_type.moves_on and province.adjacencies.coasts and coast not in province.adjacencies.coasts:
         raise ValueError(f"Province '{province.name}' requires a valid coast.")
     if not province.adjacencies.coasts:
         coast = None

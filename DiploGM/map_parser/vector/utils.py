@@ -7,6 +7,7 @@ from shapely.geometry import Point
 from DiploGM.map_parser.vector.transform import TransGL3
 from DiploGM.models.province import Province
 
+# TODO: Better way of doing custom units
 LAYER_DICTIONARY = {
     "land_layer": {"Region Colors", "Region Fills", "Provinces"},
     "island_borders": {"Island Adjacencies", "Hybrid Adjacencies"},
@@ -54,7 +55,7 @@ def find_svg_element(svg_root: Element | ElementTree, layer_name: str, config_da
     if layer_id is not None and isinstance(layer_id, str):
         if (element := svg_root.find(f'*[@id="{layer_id}"]')) is not None:
             return element
-    for element_label in LAYER_DICTIONARY.get(layer_name, set()):
+    for element_label in LAYER_DICTIONARY.get(layer_name, set()) | {layer_name}:
         if (element := svg_root.find(f'*[@inkscape:label="{element_label}"]',
             namespaces={"inkscape": "http://www.inkscape.org/namespaces/inkscape"})) is not None:
             return element

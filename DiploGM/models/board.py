@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from rapidfuzz.distance import DamerauLevenshtein
 
+from DiploGM.models.adjacency import Terrain
 from DiploGM.models.order import NMR, Move, Hold, Support, ConvoyTransport, Core, Transform, RetreatMove, RetreatDisband
 from DiploGM.models.unit import Unit, UnitType, DPAllocation
 from DiploGM.models.turn import Turn
@@ -298,7 +299,7 @@ class Board:
             if unit_type.strip()[0].upper() not in self.unit_types:
                 raise ValueError(f"Unit type {unit_type} not found")
             unit_type = self.unit_types[unit_type.strip()[0].upper()]
-        if ("coast" in unit_type.moves_on
+        if (Terrain.COAST in unit_type.moves_on
             and province.adjacencies.coasts
             and coast not in province.adjacencies.coasts):
             raise RuntimeError(f"Cannot create unit. Province '{province.name}' requires a valid coast.")
@@ -447,6 +448,8 @@ class Board:
             NMR, Hold, Core, Transform, Move, ConvoyTransport, Support,
             RetreatMove, RetreatDisband
             ]
+        if order_type == "ConvoyMove":
+            order_type = "Move"
         order_class = next(
             _class
             for _class in order_classes

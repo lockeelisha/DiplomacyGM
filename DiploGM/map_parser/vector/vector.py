@@ -18,6 +18,7 @@ from DiploGM.map_parser.vector.utils import (
     get_unit_coordinates, parse_path, initialize_province_resident_data,
     LAYER_DICTIONARY, NAMESPACE, SVG_CONFIG_KEY
 )
+from DiploGM.models.adjacency import Terrain
 from DiploGM.models.turn import PhaseName, Turn
 from DiploGM.models.board import Board
 from DiploGM.models.player import Player
@@ -107,7 +108,7 @@ class Parser:
                     can_convoy = data.get("can_convoy", False),
                     can_be_convoyed = data.get("can_be_convoyed", False),
                     can_capture = data.get("can_capture", True),
-                    moves_on = set(data.get("moves_on", ["Land"])),
+                    moves_on = {Terrain[terrain.upper()] for terrain in data.get("moves_on", ["Land"])},
                     transforms_to = None
                 )
                 if data.get("transforms_to"):
@@ -345,9 +346,9 @@ class Parser:
                 logger.debug("Province %s in overrides not found in map, skipping...", name)
                 continue
             for n in data.get("remove_adjacent_coasts", []):
-                province.adjacencies.remove(self.name_to_province[n], "coast")
+                province.adjacencies.remove(self.name_to_province[n], Terrain.COAST)
             for n in data.get("remove_adjacent_land", []):
-                province.adjacencies.remove(self.name_to_province[n], "land")
+                province.adjacencies.remove(self.name_to_province[n], Terrain.LAND)
         return provinces
 
 
