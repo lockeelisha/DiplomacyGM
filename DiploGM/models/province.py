@@ -46,7 +46,7 @@ class Province():
         province_type: ProvinceType,
     ):
         self.name: str = name
-        self.geometry: shapely.Polygon | shapely.MultiPolygon = coordinates
+        self.geometry:  shapely.Polygon | shapely.MultiPolygon | None = coordinates
         self.unit_coordinates: dict[str, UnitLocation] = {}
         self.type: ProvinceType = province_type
         self.is_impassable: bool = False
