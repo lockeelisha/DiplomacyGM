@@ -12,7 +12,7 @@ import lxml.etree as etree
 
 from DiploGM.map_parser.vector.utils import (
     clear_svg_element, get_element_color, find_svg_element, get_coordinates,
-    get_unit_coordinates, get_sc_coordinates, initialize_province_resident_data,
+    get_unit_coordinates, get_sc_coordinates,
     NAMESPACE, SVG_CONFIG_KEY
 )
 from DiploGM.db.database import logger
@@ -299,32 +299,6 @@ class Mapper:
         script.text = js % (str(locdict), self.board_svg_data, coast_to_province, province_to_unit_type,
                             province_to_province_type, repr(arrow_layer.get("id")), immediate)
         root.append(script)
-
-        coasts = find_svg_element(root, "coast_markers", self.board_svg_data)
-        def get_text_coordinate(e : etree.Element) -> complex:
-            trans = TransGL3(e)
-            x, y = e.attrib["x"], e.attrib["y"]
-            assert x is not None and y is not None
-            return trans.transform(complex(float(x), float(y)) + complex(3.25, -3.576 / 2))
-
-        def match(p: Province, e: Element, _:str | None):
-            e.set("onclick", f'obj_clicked(event, "{p} {e[0].text}", false)')
-            e.set("oncontextmenu", f'obj_clicked(event, "{p} {e[0].text}", false)')
-
-        if coasts is not None:
-            initialize_province_resident_data(self.board.provinces, coasts, get_text_coordinate, match)
-
-        def set_province_supply_center(p: Province, e: Element, _:str | None) -> None:
-            e.set("onclick", f'obj_clicked(event, "{p.name}", false)')
-            e.set("oncontextmenu", f'obj_clicked(event, "{p.name}", false)')
-
-        supply_center_icons = find_svg_element(root, "supply_center_icons", self.board_svg_data)
-        if supply_center_icons is None:
-            raise ValueError("Supply center icons layer not found in SVG")
-        initialize_province_resident_data(self.board.provinces,
-                                          supply_center_icons,
-                                          get_sc_coordinates,
-                                          set_province_supply_center)
 
         for layer_name in ("land_layer", "island_borders", "island_ring_layer", "island_fill_layer", "sea_borders"):
             layer = find_svg_element(root, layer_name, self.board_svg_data)
