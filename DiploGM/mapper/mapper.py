@@ -70,15 +70,15 @@ class Mapper:
             )
 
         # Load cached unit symbols if they exist, which we can copy over for fancy units
-        self.cached_symbols = {}
+        self.cached_symbols: dict[str, etree.Element] = {}
         for element in self.cached_elements["symbol_templates"] or []:
             label = element.get(f"{NAMESPACE['inkscape']}label")
             if (unit_type := board.unit_types.get(label[0])) is not None and unit_type.name == label:
-                self.cached_symbols[unit_type] = {}
+                self.cached_symbols[unit_type.code] = {}
                 for child in element:
                     child_label = child.get(f"{NAMESPACE['inkscape']}label")
                     if child_label is not None:
-                        self.cached_symbols[unit_type][child_label] = child
+                        self.cached_symbols[unit_type.code][child_label] = child
             if label == "Capital":
                 self.cached_symbols["capital"] = element
 
@@ -107,7 +107,7 @@ class Mapper:
     def clean_layers(self, svg: ElementTree):
         """Clears layers that we won't need in the final display map."""
         for element_name in self.cached_elements:
-            if element_name == "unit_output":
+            if element_name in ("unit_output", "unit_output_moves"):
                 continue
             clear_svg_element(svg, element_name, self.board_svg_data)
 

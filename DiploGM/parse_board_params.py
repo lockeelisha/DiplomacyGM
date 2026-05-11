@@ -118,9 +118,9 @@ def _set_capital(_, keywords: list[str], board: Board) -> tuple[str | None, str 
     if not (player := board.get_player(player_name)):
         raise ValueError(f"{player_name} was not found in the board")
     key_name = f"players/{player.name}/capital"
-    board.get_province(new_capital)
-    board.set_data(["players", player.name, "capital"], new_capital)
-    return key_name, new_capital
+    capital = board.get_province(new_capital)
+    board.set_data(["players", player.name, "capital"], capital.name)
+    return key_name, capital.name
 
 def _set_player_name(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
     player_name, new_name = (keywords[0].lower(), ' '.join(keywords[1:]))
