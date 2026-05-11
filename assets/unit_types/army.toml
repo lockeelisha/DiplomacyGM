@@ -1,0 +1,10 @@
+# Default Army properties
+# Variants can use this as a template in the variants/<variant>/unit_types folder to make custom units
+name = "Army"
+code = "A"
+
+can_convoy = false
+can_be_convoyed = true
+can_capture = true
+moves_on = ["land"]
+transforms_to = "F"
