@@ -58,7 +58,6 @@ class Mapper:
 
         clear_svg_element(self.board_svg, "starting_units", self.board_svg_data)
 
-        # TODO: Check this
         self.cached_elements = {}
         cached_layers = ["unit_output", "symbol_templates"]
         unit_type_layers = []
@@ -69,11 +68,6 @@ class Mapper:
             self.cached_elements[element_name] = find_svg_element(
                 self.board_svg, element_name, self.board_svg_data
             )
-
-        for layer_name in unit_type_layers:
-            layer = self.cached_elements.get(layer_name)
-            if layer is not None:
-                layer.set("style", "display:none")
 
         # Load cached unit symbols if they exist, which we can copy over for fancy units
         self.cached_symbols = {}
@@ -112,8 +106,9 @@ class Mapper:
 
     def clean_layers(self, svg: ElementTree):
         """Clears layers that we won't need in the final display map."""
-        layers_to_clear = ["army", "fleet", "retreat_army", "retreat_fleet", "symbol_templates"]
-        for element_name in layers_to_clear:
+        for element_name in self.cached_elements:
+            if element_name == "unit_output":
+                continue
             clear_svg_element(svg, element_name, self.board_svg_data)
 
     def draw_moves_and_retreats(self, arrow_layer: Element, current_turn: turn.Turn, movement_only: bool):

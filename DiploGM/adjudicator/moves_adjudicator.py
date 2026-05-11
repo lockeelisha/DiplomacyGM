@@ -166,13 +166,11 @@ class MovesAdjudicator(Adjudicator):
             order.base_unit.province = order.destination_province
             order.base_unit.coast = order.destination_coast
             order.destination_province.unit = order.base_unit
-            if not order.destination_province.has_supply_center or self._board.turn.is_fall():
-                self._board.change_owner(order.destination_province, order.country)
+            self._board.change_owner(order.destination_province, order.country)
         if (order.type == OrderType.HOLD
             and order.resolution == Resolution.SUCCEEDS
             and order.source_province.dislodged_unit is None):
-            if not order.destination_province.has_supply_center or self._board.turn.is_fall():
-                self._board.change_owner(order.destination_province, order.country)
+            self._board.change_owner(order.destination_province, order.country)
 
     def _update_board(self):
         if not all(order.state == ResolutionState.RESOLVED for order in self.orders):
@@ -200,9 +198,7 @@ class MovesAdjudicator(Adjudicator):
                 unit.remove_many_retreat_options(contested)
 
             # Update provinces again to capture SCs in fall where units held
-            elif (self._board.turn.is_fall()
-                and unit.province.owner != unit.player):
-                self._board.change_owner(unit.province, unit.player)
+            self._board.change_owner(unit.province, unit.player)
 
     def _find_contested_areas(self):
         bounces_and_occupied = set()

@@ -277,8 +277,13 @@ class Board:
         close = [display for dist, display in candidates if dist <= best_dist + CONFIDENT_GAP][:3]
         return f"Did you mean one of: {', '.join(close)}?"
 
-    def change_owner(self, province: Province, player: Player | None):
+    def change_owner(self, province: Province, player: Player | None, force_change: bool = False):
         """Changes the owner of a province, including supply center, if applicable."""
+        would_claim = (province.unit is not None
+                       and province.unit.unit_type.can_capture
+                       and (not province.has_supply_center or self.turn.is_fall()))
+        if not (force_change or would_claim):
+            return
         if province.has_supply_center:
             if province.owner:
                 province.owner.centers.remove(province)

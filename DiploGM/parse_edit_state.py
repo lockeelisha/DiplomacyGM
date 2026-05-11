@@ -91,7 +91,7 @@ def _set_province_owner(command: str, keywords: list[str], board: Board) -> None
     else:
         province.is_impassable = False
         player = board.get_player(keywords[1])
-    board.change_owner(province, player)
+    board.change_owner(province, player, force_change=True)
     if "total" in command:
         province.core_data.core = player
 
@@ -171,8 +171,10 @@ def _dislodge_unit(_, keywords: list[str], board: Board) -> None:
 def _make_units_claim_provinces(_, keywords: list[str], board: Board) -> None:
     claim_centers = keywords and keywords[0].lower() == "true"
     for unit in board.units:
+        if not unit.unit_type.can_capture:
+            continue
         if claim_centers or not unit.province.has_supply_center:
-            board.change_owner(unit.province, unit.player)
+            board.change_owner(unit.province, unit.player, force_change=True)
 
 
 def _set_player_points(_, keywords: list[str], board: Board) -> None:

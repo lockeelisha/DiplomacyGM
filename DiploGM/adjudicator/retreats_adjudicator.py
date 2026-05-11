@@ -95,8 +95,7 @@ class RetreatsAdjudicator(Adjudicator):
             unit.province = destination_province
             unit.coast = destination_coast
             destination_province.unit = unit
-            if not destination_province.has_supply_center or self._board.turn.is_fall():
-                self._board.change_owner(destination_province, unit.player)
+            self._board.change_owner(destination_province, unit.player)
 
         for unit in units_to_delete:
             if unit.player is not None:

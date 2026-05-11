@@ -42,7 +42,7 @@ def _parse_province(province: Province, province_data: dict, board: Board) -> No
     if province_data.get("is_impassable", False) is True:
         province.is_impassable = True
 
-    board.change_owner(province, board.get_player(province_data.get("owner", "None")))
+    board.change_owner(province, board.get_player(province_data.get("owner", "None")), force_change=True)
     province.core_data.core = board.get_player(province_data.get("core", "None"))
     province.core_data.half_core = board.get_player(province_data.get("half_core", "None"))
 
