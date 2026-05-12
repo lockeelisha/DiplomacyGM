@@ -3,7 +3,6 @@ import unittest
 
 from test.utils import BoardBuilder
 from DiploGM.models.order import Move, Support
-from DiploGM.models.unit import UnitType
 
 class TestDP(unittest.TestCase):
     """Tests for DP orders, which can be used by players to 'bid' points to give orders to neutral units."""
@@ -17,7 +16,7 @@ class TestDP(unittest.TestCase):
         b = BoardBuilder()
         a_serbia = b.army("Serbia", None)
         p_albania = b.board.get_province("Albania")
-        f_trieste = b.move(b.players["Austria"], UnitType.FLEET, "Trieste", "Albania")
+        f_trieste = b.move(b.players["Austria"], "F", "Trieste", "Albania")
         b.dp_order(b.players["England"], a_serbia, 1, Move(destination=p_albania))
 
         b.assert_fail(a_serbia, f_trieste)
@@ -35,8 +34,8 @@ class TestDP(unittest.TestCase):
         a_serbia = b.army("Serbia", None)
         p_trieste = b.board.get_province("Trieste")
         p_albania = b.board.get_province("Albania")
-        f_trieste = b.move(b.players["Austria"], UnitType.FLEET, "Trieste", "Albania")
-        a_greece = b.move(b.players["Turkey"], UnitType.ARMY, "Greece", "Albania")
+        f_trieste = b.move(b.players["Austria"], "F", "Trieste", "Albania")
+        a_greece = b.move(b.players["Turkey"], "A", "Greece", "Albania")
         b.dp_order(b.players["England"], a_serbia, 1, Support(source=p_trieste, destination=p_albania))
 
         b.assert_success(a_serbia, f_trieste)
@@ -55,10 +54,9 @@ class TestDP(unittest.TestCase):
         b = BoardBuilder()
         a_serbia = b.army("Serbia", None)
         p_trieste = b.board.get_province("Trieste")
-        p_albania = b.board.get_province("Albania")
-        f_trieste = b.hold(b.players["Austria"], UnitType.FLEET, "Trieste")
-        a_venice = b.move(b.players["Italy"], UnitType.ARMY, "Venice", "Trieste")
-        f_adriatic_sea = b.support_move(b.players["Italy"], UnitType.FLEET, "Adriatic Sea", a_venice, "Trieste")
+        f_trieste = b.hold(b.players["Austria"], "F", "Trieste")
+        a_venice = b.move(b.players["Italy"], "A", "Venice", "Trieste")
+        f_adriatic_sea = b.support_move(b.players["Italy"], "F", "Adriatic Sea", a_venice, "Trieste")
         b.dp_order(b.players["England"], a_serbia, 1, Support(source=p_trieste, destination=p_trieste))
 
         b.assert_success(a_serbia, f_trieste, f_adriatic_sea)
@@ -78,7 +76,7 @@ class TestDP(unittest.TestCase):
         a_serbia = b.army("Serbia", None)
         p_trieste = b.board.get_province("Trieste")
         p_albania = b.board.get_province("Albania")
-        f_trieste = b.move(b.players["Austria"], UnitType.FLEET, "Trieste", "Albania")
+        f_trieste = b.move(b.players["Austria"], "F", "Trieste", "Albania")
         b.dp_order(b.players["England"], a_serbia, 1, Support(source=p_trieste, destination=p_albania))
         b.dp_order(b.players["France"], a_serbia, 2, Move(destination=p_albania))
 
@@ -97,7 +95,7 @@ class TestDP(unittest.TestCase):
         a_serbia = b.army("Serbia", None)
         p_trieste = b.board.get_province("Trieste")
         p_albania = b.board.get_province("Albania")
-        f_trieste = b.move(b.players["Austria"], UnitType.FLEET, "Trieste", "Albania")
+        f_trieste = b.move(b.players["Austria"], "F", "Trieste", "Albania")
         b.dp_order(b.players["England"], a_serbia, 1, Support(source=p_trieste, destination=p_albania))
         b.dp_order(b.players["France"], a_serbia, 1, Move(destination=p_albania))
 
@@ -117,7 +115,7 @@ class TestDP(unittest.TestCase):
         a_serbia = b.army("Serbia", None)
         p_trieste = b.board.get_province("Trieste")
         p_albania = b.board.get_province("Albania")
-        f_trieste = b.move(b.players["Austria"], UnitType.FLEET, "Trieste", "Albania")
+        f_trieste = b.move(b.players["Austria"], "F", "Trieste", "Albania")
         b.dp_order(b.players["England"], a_serbia, 3, Support(source=p_trieste, destination=p_albania))
         b.dp_order(b.players["France"], a_serbia, 2, Move(destination=p_albania))
         b.dp_order(b.players["Germany"], a_serbia, 2, Move(destination=p_albania))
@@ -139,9 +137,9 @@ class TestDP(unittest.TestCase):
         a_serbia = b.army("Serbia", None)
         p_greece = b.board.get_province("Greece")
         p_albania = b.board.get_province("Albania")
-        f_trieste = b.move(b.players["Austria"], UnitType.FLEET, "Trieste", "Albania")
-        a_bulgaria = b.move(b.players["Turkey"], UnitType.ARMY, "Bulgaria", "Serbia")
-        f_aegean_sea = b.move(b.players["Turkey"], UnitType.FLEET, "Aegean Sea", "Greece")
+        f_trieste = b.move(b.players["Austria"], "F", "Trieste", "Albania")
+        a_bulgaria = b.move(b.players["Turkey"], "A", "Bulgaria", "Serbia")
+        f_aegean_sea = b.move(b.players["Turkey"], "F", "Aegean Sea", "Greece")
         b.dp_order(b.players["England"], a_serbia, 1, Move(destination=p_greece))
         b.dp_order(b.players["Turkey"], a_serbia, 2, Move(destination=p_albania))
 
@@ -163,9 +161,9 @@ class TestDP(unittest.TestCase):
         a_serbia = b.army("Serbia", None)
         p_greece = b.board.get_province("Greece")
         p_albania = b.board.get_province("Albania")
-        a_trieste = b.move(b.players["Austria"], UnitType.ARMY, "Trieste", "Albania")
-        a_bulgaria = b.support_move(b.players["Turkey"], UnitType.ARMY, "Bulgaria", a_trieste, "Serbia")
-        f_aegean_sea = b.move(b.players["Turkey"], UnitType.FLEET, "Aegean Sea", "Greece")
+        a_trieste = b.move(b.players["Austria"], "A", "Trieste", "Albania")
+        b.support_move(b.players["Turkey"], "A", "Bulgaria", a_trieste, "Serbia")
+        f_aegean_sea = b.move(b.players["Turkey"], "F", "Aegean Sea", "Greece")
         b.dp_order(b.players["England"], a_serbia, 1, Move(destination=p_greece))
         b.dp_order(b.players["Turkey"], a_serbia, 2, Move(destination=p_albania))
 

@@ -8,7 +8,7 @@ from discord.ext import commands
 
 from DiploGM.config import ERROR_COLOUR
 from DiploGM import perms
-from DiploGM.models.unit import UnitType
+from DiploGM.models.adjacency import Terrain
 from DiploGM.utils import (
     send_message_and_file,
     log_command,
@@ -352,7 +352,7 @@ class CommandCog(commands.Cog):
                 adjacent_coasts += "\n"
         elif province.type == ProvinceType.LAND and not province.is_landlocked():
             adjacent_coasts = "Adjacent Coastal Provinces:\n- "
-            adjacent_list = [a.name for a in province.adjacencies.get_all(UnitType.FLEET)]
+            adjacent_list = [a.name for a in province.adjacencies.get_all(Terrain.COAST)]
             adjacent_coasts += "\n- ".join(sorted(adjacent_list))
             adjacent_coasts += "\n"
         adjacent_sorted = sorted([adjacent.name for adjacent in province.adjacencies.get_all()])

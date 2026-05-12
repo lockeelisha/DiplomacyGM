@@ -2,7 +2,6 @@ import unittest
 
 from test.utils import BoardBuilder
 from DiploGM.models.order import ConvoyTransport, Hold, Move, Support
-from DiploGM.models.unit import UnitType
 from DiploGM.parse_order import parse_order, parse_remove_order
 
 class TestParseOrder(unittest.TestCase):
@@ -48,7 +47,7 @@ class TestParseOrder(unittest.TestCase):
 
     def test_remove_order(self):
         b = BoardBuilder()
-        a_berlin = b.move(b.players["Germany"], UnitType.ARMY, "Berlin", "Kiel")
+        a_berlin = b.move(b.players["Germany"], "A", "Berlin", "Kiel")
 
         order = "Berlin"
         parse_remove_order(order, b.players["Germany"], b.board)

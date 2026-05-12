@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from rapidfuzz.distance import DamerauLevenshtein
 
+from DiploGM.models.adjacency import Terrain
 from DiploGM.models.order import NMR, Move, Hold, Support, ConvoyTransport, Core, Transform, RetreatMove, RetreatDisband
 from DiploGM.models.unit import Unit, UnitType, DPAllocation
 from DiploGM.models.turn import Turn
@@ -28,6 +29,7 @@ class Board:
         self,
         players: set[Player],
         provinces: set[Province],
+        unit_types: dict[str, UnitType],
         units: set[Unit],
         turn: Turn,
         data: dict,
@@ -35,6 +37,7 @@ class Board:
     ):
         self.players: set[Player] = players
         self.provinces: set[Province] = provinces
+        self.unit_types: dict[str, UnitType] = unit_types
         self.units: set[Unit] = units
         self.turn: Turn = turn
         self.board_id = 0
@@ -220,7 +223,7 @@ class Board:
         """Gets a set of provinces that a player can see in Fog of War games."""
         visible: set[Province] = set()
         visible = {p for unit in player.units
-                     for p in unit.province.adjacencies.get_all(unit.unit_type, unit.coast)}
+                     for p in unit.province.adjacencies.get_all(unit.unit_type.moves_on, unit.coast)}
 
         visible.update(unit.province for unit in player.units)
         for province in player.centers:
@@ -274,8 +277,13 @@ class Board:
         close = [display for dist, display in candidates if dist <= best_dist + CONFIDENT_GAP][:3]
         return f"Did you mean one of: {', '.join(close)}?"
 
-    def change_owner(self, province: Province, player: Player | None):
+    def change_owner(self, province: Province, player: Player | None, force_change: bool = False):
         """Changes the owner of a province, including supply center, if applicable."""
+        would_claim = (province.unit is not None
+                       and province.unit.unit_type.can_capture
+                       and (not province.has_supply_center or self.turn.is_fall()))
+        if not (force_change or would_claim):
+            return
         if province.has_supply_center:
             if province.owner:
                 province.owner.centers.remove(province)
@@ -285,14 +293,18 @@ class Board:
 
     def create_unit(
         self,
-        unit_type: UnitType,
+        unit_type: UnitType | str,
         player: Player | None,
         province: Province,
         coast: str | None,
         retreat_options: set[tuple[Province, str | None]] | None,
     ) -> Unit:
         """Creates a new unit on the board."""
-        if (unit_type == UnitType.FLEET
+        if isinstance(unit_type, str):
+            if unit_type.strip()[0].upper() not in self.unit_types:
+                raise ValueError(f"Unit type {unit_type} not found")
+            unit_type = self.unit_types[unit_type.strip()[0].upper()]
+        if (Terrain.COAST in unit_type.moves_on
             and province.adjacencies.coasts
             and coast not in province.adjacencies.coasts):
             raise RuntimeError(f"Cannot create unit. Province '{province.name}' requires a valid coast.")
@@ -441,6 +453,8 @@ class Board:
             NMR, Hold, Core, Transform, Move, ConvoyTransport, Support,
             RetreatMove, RetreatDisband
             ]
+        if order_type == "ConvoyMove":
+            order_type = "Move"
         order_class = next(
             _class
             for _class in order_classes
@@ -480,7 +494,7 @@ class Board:
 
         def export_unit(u: Unit) -> dict:
             result: dict = {
-                "type": u.unit_type.value,
+                "type": u.unit_type.code,
             }
             add_if_exists(result, "owner", u.player)
             add_if_exists(result, "coast", u.coast)

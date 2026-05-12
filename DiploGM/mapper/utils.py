@@ -68,8 +68,8 @@ def get_unit_coordinates(province: Province,
         locations = coords[coast]
     elif unit_type.name in coords:
         locations = coords[unit_type.name]
-    elif UnitType.ARMY.name in coords:
-        locations = coords[UnitType.ARMY.name]
+    elif "Army" in coords:
+        locations = coords["Army"]
     else:
         locations = next(iter(coords.values()))
     return {loc.retreat_coordinate if retreat else loc.primary_coordinate

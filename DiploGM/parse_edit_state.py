@@ -5,11 +5,11 @@ For changes to game-wide settings, see .edit_game in parse_board_params.py."""
 import logging
 
 from DiploGM.config import ERROR_COLOUR, PARTIAL_ERROR_COLOUR
-from DiploGM.utils import get_unit_type, get_keywords, parse_season
+from DiploGM.models.adjacency import Terrain
+from DiploGM.utils import get_keywords, parse_season
 from DiploGM.mapper.mapper import Mapper
 from DiploGM.models.board import Board
 from DiploGM.db.database import get_connection
-from DiploGM.models.unit import UnitType
 
 logger = logging.getLogger(__name__)
 
@@ -91,18 +91,18 @@ def _set_province_owner(command: str, keywords: list[str], board: Board) -> None
     else:
         province.is_impassable = False
         player = board.get_player(keywords[1])
-    board.change_owner(province, player)
+    board.change_owner(province, player, force_change=True)
     if "total" in command:
         province.core_data.core = player
 
 def _create_unit(_, keywords: list[str], board: Board) -> None:
-    unit_type = get_unit_type(keywords[0])
+    unit_type = board.unit_types.get(keywords[0].strip().upper()[0])
     if unit_type is None:
         raise ValueError(f"Invalid Unit Type received: {unit_type}")
 
     player = board.get_player(keywords[1])
     province, coast = board.get_province_and_coast(" ".join(keywords[2:]))
-    if unit_type == UnitType.FLEET and province.adjacencies.coasts and coast not in province.adjacencies.coasts:
+    if Terrain.COAST in unit_type.moves_on and province.adjacencies.coasts and coast not in province.adjacencies.coasts:
         raise ValueError(f"Province '{province.name}' requires a valid coast.")
     if not province.adjacencies.coasts:
         coast = None
@@ -113,12 +113,12 @@ def _create_unit(_, keywords: list[str], board: Board) -> None:
 def _create_dislodged_unit(_, keywords: list[str], board: Board) -> None:
     if not board.turn.is_retreats():
         raise RuntimeError("Cannot create a dislodged unit in move phase")
-    unit_type = get_unit_type(keywords[0])
-    if not unit_type:
+    unit_type = board.unit_types.get(keywords[0].strip().upper()[0])
+    if unit_type is None:
         raise ValueError(f"Invalid Unit Type received: {unit_type}")
     player = board.get_player(keywords[1])
     province, coast = board.get_province_and_coast(keywords[2])
-    if province.adjacencies.coasts and coast not in province.adjacencies.coasts:
+    if Terrain.COAST in unit_type.moves_on and province.adjacencies.coasts and coast not in province.adjacencies.coasts:
         raise ValueError(f"Province '{province.name}' requires a valid coast.")
     if not province.adjacencies.coasts:
         coast = None
@@ -172,7 +172,7 @@ def _make_units_claim_provinces(_, keywords: list[str], board: Board) -> None:
     claim_centers = keywords and keywords[0].lower() == "true"
     for unit in board.units:
         if claim_centers or not unit.province.has_supply_center:
-            board.change_owner(unit.province, unit.player)
+            board.change_owner(unit.province, unit.player, force_change=True)
 
 
 def _set_player_points(_, keywords: list[str], board: Board) -> None:
@@ -221,13 +221,13 @@ def _apocalypse(_, keywords: list[str], board: Board) -> None:
     delete_all = "all" in keywords
 
     if delete_all or "army" in keywords:
-        armies = set(filter(lambda u: u.unit_type == UnitType.ARMY, board.units))
+        armies = set(filter(lambda u: u.unit_type == board.unit_types["A"], board.units))
         board.units -= armies
         for player in board.players:
             player.units -= armies
 
     if delete_all or "fleet" in keywords:
-        fleets = set(filter(lambda u: u.unit_type == UnitType.FLEET, board.units))
+        fleets = set(filter(lambda u: u.unit_type == board.unit_types["F"], board.units))
         board.units -= fleets
         for player in board.players:
             player.units -= fleets

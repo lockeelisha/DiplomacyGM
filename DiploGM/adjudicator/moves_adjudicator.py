@@ -13,8 +13,8 @@ from DiploGM.adjudicator.defs import (
 )
 from DiploGM.adjudicator.validate_order import OrderValidity, is_valid_result, order_is_valid
 from DiploGM.db import database
+from DiploGM.models.adjacency import Terrain
 from DiploGM.models.order import NMR, Core, Support
-from DiploGM.models.unit import UnitType
 
 if TYPE_CHECKING:
     from DiploGM.models.board import Board
@@ -141,12 +141,11 @@ class MovesAdjudicator(Adjudicator):
             order.source_province.core_data.corer = order.country
         if order.type == OrderType.TRANSFORM and order.resolution == Resolution.SUCCEEDS:
             logger.debug("Transforming %s", order.base_unit)
-            if order.base_unit.unit_type == UnitType.ARMY:
-                order.base_unit.unit_type = UnitType.FLEET
-                order.base_unit.coast = order.destination_coast
-            else:
-                order.base_unit.unit_type = UnitType.ARMY
-                order.base_unit.coast = None
+            if (new_type := order.base_unit.unit_type.transforms_to) is None:
+                logger.warning("Skipping %s: %s", order, "tried to transform a unit that cannot transform")
+                return
+            order.base_unit.unit_type = new_type
+            order.base_unit.coast = order.destination_coast if Terrain.COAST in new_type.moves_on else None
         if order.type == OrderType.MOVE and not order.is_sortie and order.resolution == Resolution.SUCCEEDS:
             logger.debug("Moving %s to %s", order.source_province, order.destination_province)
             if order.source_province.unit == order.base_unit:
@@ -167,13 +166,11 @@ class MovesAdjudicator(Adjudicator):
             order.base_unit.province = order.destination_province
             order.base_unit.coast = order.destination_coast
             order.destination_province.unit = order.base_unit
-            if not order.destination_province.has_supply_center or self._board.turn.is_fall():
-                self._board.change_owner(order.destination_province, order.country)
+            self._board.change_owner(order.destination_province, order.country)
         if (order.type == OrderType.HOLD
             and order.resolution == Resolution.SUCCEEDS
             and order.source_province.dislodged_unit is None):
-            if not order.destination_province.has_supply_center or self._board.turn.is_fall():
-                self._board.change_owner(order.destination_province, order.country)
+            self._board.change_owner(order.destination_province, order.country)
 
     def _update_board(self):
         if not all(order.state == ResolutionState.RESOLVED for order in self.orders):
@@ -201,9 +198,7 @@ class MovesAdjudicator(Adjudicator):
                 unit.remove_many_retreat_options(contested)
 
             # Update provinces again to capture SCs in fall where units held
-            elif (self._board.turn.is_fall()
-                and unit.province.owner != unit.player):
-                self._board.change_owner(unit.province, unit.player)
+            self._board.change_owner(unit.province, unit.player)
 
     def _find_contested_areas(self):
         bounces_and_occupied = set()

@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from DiploGM.adjudicator.adjudicator import Adjudicator
+from DiploGM.models.adjacency import Terrain
 from DiploGM.models.player import Player
 from DiploGM.models.order import (
     Build,
@@ -18,8 +19,6 @@ from DiploGM.models.order import (
     DualMonarchy,
     RebellionMarker
 )
-from DiploGM.models.province import ProvinceType
-from DiploGM.models.unit import UnitType
 
 if TYPE_CHECKING:
     from DiploGM.models.board import Board
@@ -107,9 +106,9 @@ class BuildsAdjudicator(Adjudicator):
     def _adjudicate_build(self, order: Build, player: Player) -> int:
         # ignore coast specifications for army
         error = ""
-        if (order.unit_type == UnitType.FLEET and order.province.is_landlocked()):
+        if (Terrain.LAND not in order.unit_type.moves_on and order.province.is_landlocked()):
             error = "tried building an inland fleet"
-        elif (order.unit_type == UnitType.FLEET
+        elif (Terrain.COAST in order.unit_type.moves_on
             and order.province.adjacencies.coasts
             and order.coast not in order.province.adjacencies.coasts):
             error = "someone didn't specify a valid coast"
@@ -132,17 +131,16 @@ class BuildsAdjudicator(Adjudicator):
             error = "there is no unit there to transform"
         elif not order.province.has_supply_center:
             error = "tried to transform in a province without a supply center"
-        elif order.province.type == ProvinceType.SEA:
-            error = "tried to transform in a sea province"
-        elif order.province.is_landlocked():
+        elif (new_type := order.province.unit.unit_type.transforms_to) is None:
+            error = "tried to transform a unit that cannot transform"
+        elif order.province.is_landlocked() and Terrain.LAND not in new_type.moves_on:
             error = "tried to transform in an inland province"
-        elif (order.province.unit.unit_type == UnitType.ARMY
-                and order.province.adjacencies.coasts
-                and order.coast not in order.province.adjacencies.coasts):
+        elif (Terrain.COAST in new_type.moves_on
+              and order.province.adjacencies.coasts
+              and order.coast not in order.province.adjacencies.coasts):
             error = "tried to transform to an invalid coast"
         else:
-            new_unit_type = UnitType.FLEET if order.province.unit.unit_type == UnitType.ARMY else UnitType.ARMY
-            order.province.unit.unit_type = new_unit_type
+            order.province.unit.unit_type = new_type
             order.province.unit.coast = order.coast
             return
 

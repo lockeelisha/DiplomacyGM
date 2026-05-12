@@ -9,12 +9,13 @@ from lark import Lark, Transformer, UnexpectedEOF, UnexpectedCharacters, v_args
 from lark.exceptions import VisitError
 
 from DiploGM.config import ERROR_COLOUR, PARTIAL_ERROR_COLOUR
-from DiploGM.utils import get_unit_type, _manage_coast_signature
+from DiploGM.models.adjacency import Terrain
+from DiploGM.utils import _manage_coast_signature
 from DiploGM.models import order
 from DiploGM.models.board import Board
 from DiploGM.models.player import Player
 from DiploGM.models.province import Province
-from DiploGM.models.unit import DPAllocation, Unit, UnitType
+from DiploGM.models.unit import DPAllocation, Unit
 
 logger = logging.getLogger(__name__)
 
@@ -116,13 +117,13 @@ class TreeToOrder(Transformer):
         else:
             raise ValueError("Invalid build order format")
 
-        unit_type = get_unit_type(unit_type)
+        unit_type = self.board.unit_types.get(unit_type.strip().upper()[0])
         if unit_type is None:
             raise ValueError(f"{unit_type} isn't a valid unit type")
 
         if not province.has_supply_center:
             raise ValueError(f"{province} does not have a supply center.")
-        if (unit_type == UnitType.FLEET
+        if (Terrain.COAST in unit_type.moves_on
             and province.adjacencies.coasts
             and coast not in province.adjacencies.coasts):
             raise ValueError(f"You did not specify a coast for {province}")
@@ -351,7 +352,7 @@ def _check_for_warnings(unit: Unit) -> str | None:
     if isinstance(unit.order, (order.Move, order.RetreatMove)):
         if not unit.province.adjacencies.get(unit.order.destination):
             return "This move is not to an adjacent province. This will fail unless there is a convoy."
-        if (unit.unit_type == UnitType.FLEET
+        if (Terrain.COAST in unit.unit_type.moves_on
             and unit.order.destination.adjacencies.coasts
             and not unit.order.destination_coast):
             return "Destination province has multiple coasts. " + \

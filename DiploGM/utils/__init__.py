@@ -8,7 +8,6 @@ from .sanitise import (
     sanitise_name,
     get_keywords,
     _manage_coast_signature,
-    get_unit_type,
     parse_season,
     get_value_from_timestamp
 )

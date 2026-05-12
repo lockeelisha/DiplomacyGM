@@ -7,7 +7,6 @@ from unittest.mock import MagicMock
 from discord.ext import commands
 
 from DiploGM.models.turn import Turn, PhaseName
-from DiploGM.models.unit import UnitType
 from test.DiploGM.cogs.utils import (
     CogTestCase,
     create_mock_context,
@@ -144,8 +143,8 @@ class TestRemoveAll(PlayerCogTestCase):
 
     def setUp(self):
         super().setUp()
-        self.a_paris = self.builder.hold(self.players["France"], UnitType.ARMY, "Paris")
-        self.a_london = self.builder.hold(self.players["England"], UnitType.ARMY, "London")
+        self.a_paris = self.builder.hold(self.players["France"], "A", "Paris")
+        self.a_london = self.builder.hold(self.players["England"], "A", "London")
 
     async def test_remove_all_as_player(self):
         """Player removes only their own orders."""
@@ -173,7 +172,7 @@ class TestViewOrdersMoves(PlayerCogTestCase):
     def setUp(self):
         super().setUp()
         # France: A Paris (hold order), A Marseilles (no order)
-        self.builder.hold(self.players["France"], UnitType.ARMY, "Paris")
+        self.builder.hold(self.players["France"], "A", "Paris")
         self.builder.army("Mar", self.players["France"])
 
     async def test_view_full(self):
@@ -226,7 +225,7 @@ class TestViewOrdersRetreats(PlayerCogTestCase):
     def setUp(self):
         super().setUp()
         self.board.turn = Turn(1901, PhaseName.SPRING_RETREATS)
-        self.a_paris = self.board.create_unit(UnitType.ARMY,
+        self.a_paris = self.board.create_unit("A",
                                               self.players["France"],
                                               self.board.get_province("Paris"),
                                               None,
@@ -267,9 +266,9 @@ class TestViewOrdersBuilds(PlayerCogTestCase):
         """France orders builds → .view shows them."""
         self.builder.build(
             self.players["France"],
-            (UnitType.FLEET, "Brest"),
-            (UnitType.ARMY, "Paris"),
-            (UnitType.ARMY, "Marseilles"),
+            ("F", "Brest"),
+            ("A", "Paris"),
+            ("A", "Marseilles"),
         )
         ctx = create_mock_player_context(message_content=".view_orders")
         await self.invoke(self.cog, "view_orders", ctx, self.players["France"])
@@ -282,9 +281,9 @@ class TestViewOrdersBuilds(PlayerCogTestCase):
         """.view missing returns nothing when all builds are submitted."""
         self.builder.build(
             self.players["France"],
-            (UnitType.FLEET, "Brest"),
-            (UnitType.ARMY, "Paris"),
-            (UnitType.ARMY, "Marseilles"),
+            ("F", "Brest"),
+            ("A", "Paris"),
+            ("A", "Marseilles"),
         )
         ctx = create_mock_player_context(message_content=".view_orders missing")
         await self.invoke(self.cog, "view_orders", ctx, self.players["France"])
@@ -303,7 +302,7 @@ class TestViewOrdersPermissions(PlayerCogTestCase):
 
     def setUp(self):
         super().setUp()
-        self.builder.hold(self.players["France"], UnitType.ARMY, "Paris")
+        self.builder.hold(self.players["France"], "A", "Paris")
 
     async def test_gm_in_player_channel(self):
         """GM in France's channel sees only France's orders."""

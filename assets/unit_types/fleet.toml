@@ -1,0 +1,10 @@
+# Default Fleet properties
+# Variants can use this as a template in the variants/<variant>/unit_types folder to make custom units
+name = "Fleet"
+code = "F"
+
+can_convoy = true
+can_be_convoyed = false
+can_capture = true
+moves_on = ["coast", "sea"]
+transforms_to = "A"

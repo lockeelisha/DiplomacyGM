@@ -2,8 +2,10 @@ import copy
 import itertools
 import json
 import logging
+import os
 import re
 import time
+import tomllib
 from xml.etree.ElementTree import Element, tostring
 
 import shapely
@@ -16,6 +18,7 @@ from DiploGM.map_parser.vector.utils import (
     get_unit_coordinates, parse_path, initialize_province_resident_data,
     LAYER_DICTIONARY, NAMESPACE, SVG_CONFIG_KEY
 )
+from DiploGM.models.adjacency import Terrain
 from DiploGM.models.turn import PhaseName, Turn
 from DiploGM.models.board import Board
 from DiploGM.models.player import Player
@@ -38,6 +41,7 @@ class Parser:
         # Loads the config files for the variant
         # We get the variant-wide config, and then apply any version-specific changes, if applicible
         self.data = self._load_config(data)
+        self.unit_types = self._load_unit_types(self.data)
 
         svg_root = etree.parse(self.data["file"])
 
@@ -86,6 +90,32 @@ class Parser:
 
         data["file"] = f"{parse_variant_path(variant_name)}/{data['file']}"
         return data
+
+    def _load_unit_types(self, data: dict) -> dict[str, UnitType]:
+        unit_files = ["assets/unit_types/army.toml", "assets/unit_types/fleet.toml"]
+        for folder in [parse_variant_path(self.datafile, return_parent=True), parse_variant_path(self.datafile)]:
+            if os.path.isdir(f"{folder}/units"):
+                unit_files.extend([f"{folder}/units/{f}" for f in os.listdir(f"{folder}/units") if f.endswith(".toml")])
+        unit_types: dict[str, UnitType] = {}
+        transforms: dict[str, str] = {}
+        for unit_file in unit_files:
+            with open(unit_file, "rb") as f:
+                data = tomllib.load(f)
+                unit_code = data.get("code", data["name"][0].upper())
+                unit_types[unit_code] = UnitType(
+                    name = data["name"],
+                    code = unit_code,
+                    can_convoy = data.get("can_convoy", False),
+                    can_be_convoyed = data.get("can_be_convoyed", False),
+                    can_capture = data.get("can_capture", True),
+                    moves_on = {Terrain[terrain.upper()] for terrain in data.get("moves_on", ["Land"])},
+                    transforms_to = None
+                )
+                if data.get("transforms_to"):
+                    transforms[unit_code] = data["transforms_to"]
+        for unit_code, transform_code in transforms.items():
+            unit_types[unit_code].transforms_to = unit_types[transform_code]
+        return unit_types
 
     def _create_retreat_layer(self, svg_root: etree._ElementTree, layer_name: str, config_data: dict) -> Element:
         """If a retreat layer is not found, we create one by copying the normal unit layer."""
@@ -227,7 +257,7 @@ class Parser:
             if "vscc" not in game_data["players"][player.name]:
                 game_data["players"][player.name]["vscc"] = game_data["victory_count"]
 
-        return Board(self.players, provinces, units, initial_turn, game_data, self.datafile)
+        return Board(self.players, provinces, self.unit_types, units, initial_turn, game_data, self.datafile)
 
     def _read_map(self) -> tuple[set[Province], set[tuple[str, str]]]:
         """Reads the SVG, gets provinces information and coordinates,
@@ -267,36 +297,9 @@ class Parser:
         self.name_to_province[province.name] = province
         return provinces
 
-    # TODO: Deprecate and remove this
-    def _add_high_provinces(self, provinces: set[Province]):
-        for name, data in self.data["overrides"][HIGH_PROVINCES_KEY].items():
-            high_provinces: list[Province] = []
-            for index in range(1, data["num"] + 1):
-                province = Province(name + str(index), shapely.Polygon(), getattr(ProvinceType, data["type"]))
-                provinces = self._add_province_to_board(provinces, province)
-                high_provinces.append(province)
-
-            unit_type = UnitType.ARMY if data["type"].lower() == "land" else UnitType.FLEET
-            # Add connections between each high province
-            for provinceA, provinceB in itertools.combinations(high_provinces, 2):
-                provinceA.adjacencies.add_unit_type(provinceB, unit_type)
-                provinceB.adjacencies.add_unit_type(provinceA, unit_type)
-
-        for name, data in self.data["overrides"][HIGH_PROVINCES_KEY].items():
-            adjacent = {self.name_to_province[n] for n in data["adjacencies"]}
-            unit_type = UnitType.ARMY if data["type"].lower() == "land" else UnitType.FLEET
-            for index in range(1, data["num"] + 1):
-                high_province = self.name_to_province[name + str(index)]
-                for ad in adjacent:
-                    high_province.adjacencies.add_unit_type(ad, unit_type)
-                    ad.adjacencies.add_unit_type(high_province, unit_type)
-        return provinces
-
     def _json_cheats(self, provinces: set[Province]) -> set[Province]:
         if "overrides" not in self.data:
             return provinces
-        if HIGH_PROVINCES_KEY in self.data["overrides"]:
-            provinces = self._add_high_provinces(provinces)
 
         offset = complex(self.data[SVG_CONFIG_KEY].get("loc_x_offset", 0),
                          self.data[SVG_CONFIG_KEY].get("loc_y_offset", 0))
@@ -322,7 +325,7 @@ class Parser:
                         province.adjacencies.add_coast(p, coast_name, c)
             # Add extra unit locations for provinces that wrap around or have weird shapes
             # For compatability reasons, we assume these are sea tiles
-            # TODO: Add support for armies/multicoastal tiles
+            # TODO: Add support for other unit types
             unit_locs = data.get("unit_loc", [])
             retreat_locs = data.get("retreat_unit_loc", [])
             for index, coordinate in enumerate(unit_locs):
@@ -330,8 +333,8 @@ class Parser:
                 retreat_coord = retreat_locs[index] if index < len(retreat_locs) else coordinate
                 retreat = complex(*retreat_coord) + offset
                 loc = UnitLocation(primary, retreat)
-                province.all_coordinates.setdefault(UnitType.FLEET.name, set()).add(loc)
-                province.unit_coordinates[UnitType.FLEET.name] = loc
+                province.all_coordinates.setdefault("fleet", set()).add(loc)
+                province.unit_coordinates["fleet"] = loc
         return provinces
 
     def _remove_unit_adjacencies(self, provinces: set[Province]) -> set[Province]:
@@ -343,9 +346,9 @@ class Parser:
                 logger.debug("Province %s in overrides not found in map, skipping...", name)
                 continue
             for n in data.get("remove_adjacent_coasts", []):
-                province.adjacencies.remove(self.name_to_province[n], UnitType.FLEET)
+                province.adjacencies.remove(self.name_to_province[n], Terrain.COAST)
             for n in data.get("remove_adjacent_land", []):
-                province.adjacencies.remove(self.name_to_province[n], UnitType.ARMY)
+                province.adjacencies.remove(self.name_to_province[n], Terrain.LAND)
         return provinces
 
 
@@ -519,7 +522,7 @@ class Parser:
             return
             # raise RuntimeError(f"{province.name} already has a unit")
 
-        unit_type = self._get_unit_type(unit_data)
+        unit_type = self.unit_types[self._get_unit_type(unit_data)]
 
         # assume that all starting units are on provinces colored in to their color
         player = province.owner
@@ -550,10 +553,10 @@ class Parser:
                                           self._set_province_unit)
 
     def _set_phantom_unit_coordinates(self) -> None:
-        layers = [("army", UnitType.ARMY, False),
-                  ("retreat_army", UnitType.ARMY, True),
-                  ("fleet", UnitType.FLEET, False),
-                  ("retreat_fleet", UnitType.FLEET, True)]
+        layers = [("army", self.unit_types["A"], False),
+                  ("retreat_army", self.unit_types["A"], True),
+                  ("fleet", self.unit_types["F"], False),
+                  ("retreat_fleet", self.unit_types["F"], True)]
         for layer_name, unit_type, is_retreat in layers:
             layer = self.layer_data[layer_name]
             layer_translation = TransGL3(layer)
@@ -625,11 +628,12 @@ class Parser:
             return player
         return None
 
-    def _get_unit_type(self, unit_data: Element) -> UnitType:
+    def _get_unit_type(self, unit_data: Element) -> str:
         # Might not be the best if there's overlap, I guess
-        data_to_unit = {"f": UnitType.FLEET, "a": UnitType.ARMY,
-                        "sail": UnitType.FLEET, "shield": UnitType.ARMY,
-                        "3": UnitType.FLEET, "6": UnitType.ARMY}
+        # TODO: Figure out how best to represent custom units here
+        data_to_unit = {"f": "F", "a": "A",
+                        "sail": "F", "shield": "A",
+                        "3": "F", "6": "A"}
 
         if self.data[SVG_CONFIG_KEY]["unit_type_labeled"]:
             name = self.get_province_name(unit_data).lower()
@@ -649,7 +653,7 @@ class Parser:
         num_sides = unit_data.get("{http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd}sides")
         if num_sides in data_to_unit:
             return data_to_unit[num_sides]
-        return UnitType.ARMY
+        return "A"
         # raise RuntimeError(f"Unit has {num_sides} sides which does not match any unit definition.")
 
 parsers = {}

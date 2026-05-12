@@ -7,7 +7,6 @@ from discord.ext import commands
 from typing import Optional, Sequence, TYPE_CHECKING
 
 from DiploGM.models.turn import PhaseName, Turn
-from DiploGM.models.unit import UnitType
 
 if TYPE_CHECKING:
     import discord
@@ -67,17 +66,6 @@ def _manage_coast_signature(keyword: str) -> str:
             new_suffix = f" {coast_key}"
             keyword += f" {new_suffix}"
     return keyword
-
-
-def get_unit_type(command: str) -> UnitType | None:
-    """Gets the unit type from its string."""
-    command = command.strip()
-    if command in unit_dict[ARMY]:
-        return UnitType.ARMY
-    if command in unit_dict[FLEET]:
-        return UnitType.FLEET
-    return None
-
 
 def parse_season(
     arguments: list[str], default_turn: Turn

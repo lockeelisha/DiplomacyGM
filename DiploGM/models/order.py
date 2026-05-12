@@ -228,7 +228,7 @@ class Build(PlayerOrder):
         self.coast: str | None = coast
 
     def __str__(self):
-        return f"Build {self.unit_type.value} {self.province}" + (f" {self.coast}" if self.coast else "")
+        return f"Build {self.unit_type.code} {self.province}" + (f" {self.coast}" if self.coast else "")
 
 
 class Disband(PlayerOrder):

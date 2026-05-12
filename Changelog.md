@@ -1,3 +1,25 @@
+1.10.0
+=====
+
+Contributors:
+- Golden Kumquat
+
+# New Features
+- Variants can override existing unit types or create custom new unit types. Currently the following custom parameters can be set:
+  - The name/abbreviation of the unit
+  - If the unit can move over land, on sea, and/or along coasts
+  - If the unit can convoy or be convoyed
+  - If the unit can capture provinces
+  - What the unit can transform into, if it can transform
+
+# Developer Changes
+- Replaced the UnitType enum with types loaded from toml files
+- Updated database to change "is_army" to "unit_type" to support new types
+
+# Bugfixes
+- Fixed `.edit_game capital` not properly handling capitalization
+- Removed geometry from provinces on load, as it was taking a ton of memory for no good reason
+
 1.9.6
 =====
 
