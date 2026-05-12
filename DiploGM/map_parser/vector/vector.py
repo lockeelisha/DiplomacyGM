@@ -333,8 +333,8 @@ class Parser:
                 retreat_coord = retreat_locs[index] if index < len(retreat_locs) else coordinate
                 retreat = complex(*retreat_coord) + offset
                 loc = UnitLocation(primary, retreat)
-                province.all_coordinates.setdefault("fleet", set()).add(loc)
-                province.unit_coordinates["fleet"] = loc
+                province.all_coordinates.setdefault("Fleet", set()).add(loc)
+                province.unit_coordinates["Fleet"] = loc
         return provinces
 
     def _remove_unit_adjacencies(self, provinces: set[Province]) -> set[Province]:
