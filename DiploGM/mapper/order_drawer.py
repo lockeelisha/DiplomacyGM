@@ -293,10 +293,11 @@ class OrderDrawer:
                                               source_coord,
                                               self.board_svg_data["map_width"])
         marker_start = ""
+        marker_end = f"url(#{'red' if has_failed else ''}{'ball' if order.is_support_hold() else 'arrow'})"
         if order.destination.unit:
             dest_coord = MapperUtils.pull_coordinate(coordinate if order.is_support_hold() else source_coord,
                                                      dest_coord,
-                                                     1.5*self.board_svg_data["unit_radius"])
+                                                     self.board_svg_data["unit_radius"])
             # Draw hold around unit that can be support-held
             if (order.is_support_hold()
                 and isinstance(source.unit.order, (ConvoyTransport, Support))
@@ -314,15 +315,12 @@ class OrderDrawer:
                 and (self.player_restriction is None
                      or order.destination.unit.player.name == self.player_restriction)
             ):
-                # This check is so we only do it once, so it doesn't overlay
-                # it doesn't matter which one is the origin & which is the dest
-                if id(order.destination.unit) < id(unit):
-                    return []
-                marker_start = f"url(#{'red' if has_failed else ''}ball)"
+                marker_end = f"url(#{'red' if has_failed else ''}ball)"
                 # doesn't matter that v3 has been pulled, as it's still collinear
-                coordinate = source_coord = MapperUtils.pull_coordinate(
+                source_coord = MapperUtils.pull_coordinate(
                     dest_coord, coordinate, self.board_svg_data["unit_radius"]
                 )
+                coordinate = source_coord = (source_coord + dest_coord) / 2
 
         dasharray_size = 2.5 * self.board_svg_data["order_stroke_width"]
         drawn_order = MapperUtils.create_element(
@@ -337,7 +335,7 @@ class OrderDrawer:
                 "stroke-width": self.board_svg_data["order_stroke_width"],
                 "stroke-linecap": "round",
                 "marker-start": marker_start,
-                "marker-end": f"url(#{'red' if has_failed else ''}{'ball' if order.is_support_hold() else 'arrow'})",
+                "marker-end": marker_end,
             },
         )
         return [drawn_order]
