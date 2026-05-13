@@ -233,35 +233,32 @@ class OrderDrawer:
         valid_convoys = self.convoy_paths.get(unit.province, [[unit.province, order.destination]])
         latest_paths = []
         for path in valid_convoys:
-            p = [coordinate]
+            points = [coordinate]
             start = coordinate
             for loc in path[1:]:
-                p += [MapperUtils.loc_to_point(loc, unit.unit_type, order.destination_coast, start, self.board_svg_data["map_width"])]
-                start = p[-1]
+                points += [MapperUtils.loc_to_point(loc, unit.unit_type, order.destination_coast,
+                                                    start, self.board_svg_data["map_width"])]
+                start = points[-1]
 
             if path[-1].unit:
-                p[-1] = MapperUtils.pull_coordinate(p[-2], p[-1], 1.5 * self.board_svg_data["unit_radius"])
+                points[-1] = MapperUtils.pull_coordinate(points[-2], points[-1],
+                                                         1.5 * self.board_svg_data["unit_radius"])
 
-            p = np.array(p)
-
-            # given surrounding points, generate a control point
-            def g(point: np.ndarray) -> complex:
-                centered = point[::2] - point[1]
-
-                # TODO: possible div / 0 if the two convoyed points are in a straight line with the convoyer on one side
-                vec = centered[0] - centered[1] / abs(centered[1])
-                return vec / abs(vec) * 30 + point[1]
+            points = np.array(points)
 
             # this is a bit weird, because the loop is in-between two values
             # (S LO)(OP LO)(OP E)
-            s = f"M {f(p[0])} C {f(p[1])}, "
-            for x in range(1, len(p) - 1):
-                s += f"{f(g(p[x-1:x+2]))}, {f(p[x])} S "
+            stroke = f"M {f(points[0])} C {f(points[1])}, "
+            for x in range(1, len(points) - 1):
+                vectors = (points[x-1] - points[x], points[x+1] - points[x])
+                control_point = vectors[0] / abs(vectors[0]) - vectors[1] / abs(vectors[1])
+                control_point = points[x] if control_point == 0 else points[x] + control_point / abs(control_point) * 30
+                stroke += f"{f(control_point)}, {f(points[x])} S "
 
-            s += f"{f(p[-2])}, {f(p[-1])}"
+            stroke += f"{f(points[-2])}, {f(points[-1])}"
             stroke_color = "red" if has_failed else "black"
             marker_color = "redarrow" if has_failed else "arrow"
-            latest_paths.append(self._draw_path(s, marker_end = marker_color, stroke_color = stroke_color))
+            latest_paths.append(self._draw_path(stroke, marker_end = marker_color, stroke_color = stroke_color))
         return latest_paths
 
     def _draw_support(self,

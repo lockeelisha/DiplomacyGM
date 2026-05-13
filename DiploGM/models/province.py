@@ -172,10 +172,11 @@ class Province():
     def set_adjacent_coasts(self):
         """Once sea and island adjacencies have been set, set land adjacencies"""
         # Multi-coast provinces are currently manually set
-        # TODO: (BETA) this will generate false positives (e.g. mini province keeping 2 big province coasts apart)
         for province2, adjacency in self.adjacencies.adjacencies.items():
-            if self.type != ProvinceType.LAND or province2.type != ProvinceType.LAND:
+            if self.type != ProvinceType.LAND and province2.type != ProvinceType.LAND:
                 self.adjacencies.add_terrain(province2, Terrain.SEA)
+            elif self.type != ProvinceType.LAND or province2.type != ProvinceType.LAND:
+                self.adjacencies.add_terrain(province2, Terrain.COAST)
             elif Province.detect_coastal_connection(self, province2):
                 self.adjacencies.add_terrain(province2, Terrain.COAST)
 

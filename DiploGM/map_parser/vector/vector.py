@@ -311,7 +311,6 @@ class Parser:
                 logger.debug("Province %s in overrides not found in map, skipping...", name)
                 continue
             # Add/remove adjacencies and coasts
-            # TODO: Some way to specify whether or not to clear other adjacencies?
             for n in data.get("adjacencies", []):
                 province.adjacencies.add(self.name_to_province[n])
             for n in data.get("remove_adjacencies", []):
@@ -560,7 +559,8 @@ class Parser:
             layers.append((f"retreat_{unit_type.name.lower()}", unit_type, True))
 
         for layer_name, unit_type, is_retreat in layers:
-            layer = self.layer_data[layer_name]
+            if (layer := self.layer_data.get(layer_name)) is None:
+                continue
             layer_translation = TransGL3(layer)
             for unit_data in list(layer):
                 unit_translation = TransGL3(unit_data)

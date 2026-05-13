@@ -160,7 +160,6 @@ class CommandCog(commands.Cog):
         csv = "csv" in arguments
         alphabetical = len({"a", "alpha", "alphabetical"} & set(arguments)) > 0
 
-        # TODO: We should combine these, since this will be done a lot
         try:
             board = manager.get_board(ctx.guild.id)
         except RuntimeError:

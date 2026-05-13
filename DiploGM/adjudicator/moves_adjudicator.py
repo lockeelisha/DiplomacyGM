@@ -88,7 +88,6 @@ class MovesAdjudicator(Adjudicator):
         if isinstance(unit.order, Core) and self.parameters.get("supportable_cores"):
             unit.order.is_support_holdable = True
 
-        # TODO clean up mapper info
         valid, reason = order_is_valid(unit.province, unit.order)
         if not is_valid_result(valid):
             logger.debug("Order for %s is invalid because %s", unit, reason)
