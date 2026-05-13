@@ -72,7 +72,7 @@ class Mapper:
         # Load cached unit symbols if they exist, which we can copy over for fancy units
         self.cached_symbols: dict[str, etree.Element] = {}
         for element in self.cached_elements["symbol_templates"] or []:
-            label = element.get(f"{NAMESPACE['inkscape']}label")
+            label = element.get(f"{NAMESPACE['inkscape']}label", " ")
             if (unit_type := board.unit_types.get(label[0])) is not None and unit_type.name == label:
                 self.cached_symbols[unit_type.code] = {}
                 for child in element:

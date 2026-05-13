@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 class UnitType:
     name: str
     code: str
+    aliases: set[str] = field(default_factory=set)
     can_convoy: bool = False
     can_be_convoyed: bool = False
     can_capture: bool = True

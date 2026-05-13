@@ -219,18 +219,14 @@ def _apocalypse(_, keywords: list[str], board: Board) -> None:
     province- deletes all ownnership
     """
     delete_all = "all" in keywords
+    unit_types = {type.name: type for type in board.unit_types.values()}
 
-    if delete_all or "army" in keywords:
-        armies = set(filter(lambda u: u.unit_type == board.unit_types["A"], board.units))
-        board.units -= armies
-        for player in board.players:
-            player.units -= armies
-
-    if delete_all or "fleet" in keywords:
-        fleets = set(filter(lambda u: u.unit_type == board.unit_types["F"], board.units))
-        board.units -= fleets
-        for player in board.players:
-            player.units -= fleets
+    for unit_name in unit_types:
+        if delete_all or unit_name.lower() in keywords:
+            units = set(filter(lambda u: u.unit_type == unit_types[unit_name], board.units))
+            board.units -= units
+            for player in board.players:
+                player.units -= units
 
     if delete_all or "province" in keywords:
         for province in board.provinces:

@@ -155,10 +155,10 @@ l_unit : (DESCRIPTOR)? province
 
 retreat_unit : (DESCRIPTOR)? province
 
-DESCRIPTOR.2 : /a|army|cannon|f|fleet|boat|ship/i _WS
+DESCRIPTOR.2 : /{{UNIT_TYPE_STRINGS}}/i _WS
 
 province : PROVINCE (_WS PROVINCE) ~ 0..3
 
-PROVINCE : /(?![fFaA]\s)[a-zA-Z0-9\._‘’`´′‛'-]+(?=\s)/
+PROVINCE : /(?![{{UNIT_TYPE_CODES}}]\s)[a-zA-Z0-9\._‘’`´′‛'-]+(?=\s)/
 
 COAST.2: /[a-z]c/i

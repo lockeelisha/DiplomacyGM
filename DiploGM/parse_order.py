@@ -340,13 +340,25 @@ class TreeToOrder(Transformer):
         return unit
 
 generator = TreeToOrder()
-
+parser_cache: dict[str, Lark] = {}
 with open("DiploGM/orders.ebnf", "r", encoding="utf-8") as f:
     ebnf = f.read()
 
-movement_parser = Lark(ebnf, start="order", parser="earley")
-retreats_parser = Lark(ebnf, start="retreat", parser="earley")
-builds_parser   = Lark(ebnf, start="build", parser="earley")
+def _get_parser(board: Board) -> Lark:
+    cache_key = f"{board.datafile}:{board.turn.phase}:{''.join(sorted(board.unit_types.keys()))}"
+    if cache_key in parser_cache:
+        return parser_cache[cache_key]
+    unit_strings = [unit_type.code.lower() for unit_type in board.unit_types.values()]
+    unit_codes = unit_strings.copy()
+    unit_codes.extend([c.upper() for c in unit_codes])
+    unit_strings.extend([unit_type.name for unit_type in board.unit_types.values()])
+    unit_strings.extend([alias for unit_type in board.unit_types.values() for alias in unit_type.aliases])
+    ebnf_with_units = ebnf.replace("{{UNIT_TYPE_STRINGS}}", "|".join(unit_strings))
+    ebnf_with_units = ebnf_with_units.replace("{{UNIT_TYPE_CODES}}", "".join(unit_codes))
+    start = "order" if board.turn.is_moves() else "retreat" if board.turn.is_retreats() else "build"
+    parser = Lark(ebnf_with_units, start=start, parser="earley")
+    parser_cache[cache_key] = parser
+    return parser
 
 def _check_for_warnings(unit: Unit) -> str | None:
     if isinstance(unit.order, (order.Move, order.RetreatMove)):
@@ -406,19 +418,7 @@ def parse_order(message: str, player_restriction: Player | None, board: Board) -
     orderoutput = []
     warnings = []
     errors = []
-    if board.turn.is_moves():
-        parser = movement_parser
-    elif board.turn.is_retreats():
-        parser = retreats_parser
-    elif board.turn.is_builds():
-        parser = builds_parser
-    else:
-        return {
-            "message": "The game is in an unknown phase. "
-                       "Something has gone very wrong with the bot. "
-                       "Please report this to a gm",
-            "embed_colour": ERROR_COLOUR,
-        }
+    parser = _get_parser(board)
 
     generator.set_state(board, player_restriction)
     for current_order in orderlist:

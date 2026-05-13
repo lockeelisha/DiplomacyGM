@@ -41,7 +41,7 @@ class Parser:
         # Loads the config files for the variant
         # We get the variant-wide config, and then apply any version-specific changes, if applicible
         self.data = self._load_config(data)
-        self.unit_types = self._load_unit_types(self.data)
+        self.unit_types = self._load_unit_types()
 
         svg_root = etree.parse(self.data["file"])
 
@@ -91,7 +91,7 @@ class Parser:
         data["file"] = f"{parse_variant_path(variant_name)}/{data['file']}"
         return data
 
-    def _load_unit_types(self, data: dict) -> dict[str, UnitType]:
+    def _load_unit_types(self) -> dict[str, UnitType]:
         unit_files = ["assets/unit_types/army.toml", "assets/unit_types/fleet.toml"]
         for folder in [parse_variant_path(self.datafile, return_parent=True), parse_variant_path(self.datafile)]:
             if os.path.isdir(f"{folder}/units"):
@@ -100,19 +100,20 @@ class Parser:
         transforms: dict[str, str] = {}
         for unit_file in unit_files:
             with open(unit_file, "rb") as f:
-                data = tomllib.load(f)
-                unit_code = data.get("code", data["name"][0].upper())
+                unit_data = tomllib.load(f)
+                unit_code = unit_data.get("code", unit_data["name"][0].upper())
                 unit_types[unit_code] = UnitType(
-                    name = data["name"],
+                    name = unit_data["name"],
                     code = unit_code,
-                    can_convoy = data.get("can_convoy", False),
-                    can_be_convoyed = data.get("can_be_convoyed", False),
-                    can_capture = data.get("can_capture", True),
-                    moves_on = {Terrain[terrain.upper()] for terrain in data.get("moves_on", ["Land"])},
+                    aliases = set(unit_data.get("aliases", [])),
+                    can_convoy = unit_data.get("can_convoy", False),
+                    can_be_convoyed = unit_data.get("can_be_convoyed", False),
+                    can_capture = unit_data.get("can_capture", True),
+                    moves_on = {Terrain[terrain.upper()] for terrain in unit_data.get("moves_on", ["Land"])},
                     transforms_to = None
                 )
-                if data.get("transforms_to"):
-                    transforms[unit_code] = data["transforms_to"]
+                if unit_data.get("transforms_to"):
+                    transforms[unit_code] = unit_data["transforms_to"]
         for unit_code, transform_code in transforms.items():
             unit_types[unit_code].transforms_to = unit_types[transform_code]
         return unit_types

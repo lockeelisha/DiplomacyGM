@@ -196,9 +196,9 @@ class MovesAdjudicator(Adjudicator):
             unit.order = None
             if unit.retreat_options is not None:
                 unit.remove_many_retreat_options(contested)
-
-            # Update provinces again to capture SCs in fall where units held
-            self._board.change_owner(unit.province, unit.player)
+            else:
+                # Update provinces to capture SCs in fall where units held
+                self._board.change_owner(unit.province, unit.player)
 
     def _find_contested_areas(self):
         bounces_and_occupied = set()
