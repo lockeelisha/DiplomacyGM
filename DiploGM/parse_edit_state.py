@@ -171,6 +171,8 @@ def _dislodge_unit(_, keywords: list[str], board: Board) -> None:
 def _make_units_claim_provinces(_, keywords: list[str], board: Board) -> None:
     claim_centers = keywords and keywords[0].lower() == "true"
     for unit in board.units:
+        if unit.province.dislodged_unit == unit:
+            continue
         if claim_centers or not unit.province.has_supply_center:
             board.change_owner(unit.province, unit.player, force_change=True)
 

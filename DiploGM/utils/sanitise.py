@@ -19,14 +19,6 @@ coast_dict = {
     "wc": ["wc", "west coast", "(wc)"],
 }
 
-ARMY = "army"
-FLEET = "fleet"
-
-unit_dict = {
-    ARMY: ["a", "army", "cannon"],
-    FLEET: ["f", "fleet", "boat", "ship"],
-}
-
 def sanitise_name(name: str) -> str:
     """Removes apostrophes and replaces hyphens with spaces."""
     name = re.sub(r"[‘’`´′‛.']", "", name)

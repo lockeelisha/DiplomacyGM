@@ -120,7 +120,7 @@ class Parser:
 
     def _create_retreat_layer(self, svg_root: etree._ElementTree, layer_name: str, config_data: dict) -> Element:
         """If a retreat layer is not found, we create one by copying the normal unit layer."""
-        move_layer_name = "army" if layer_name == "retreat_army" else "fleet"
+        move_layer_name = layer_name.replace("retreat_", "")
         print(f"Retreat layer {layer_name} not found. Creating one by copying {move_layer_name} layer.")
         move_layer = find_svg_element(svg_root, move_layer_name, config_data)
         if move_layer is None:
@@ -554,10 +554,11 @@ class Parser:
                                           self._set_province_unit)
 
     def _set_phantom_unit_coordinates(self) -> None:
-        layers = [("army", self.unit_types["A"], False),
-                  ("retreat_army", self.unit_types["A"], True),
-                  ("fleet", self.unit_types["F"], False),
-                  ("retreat_fleet", self.unit_types["F"], True)]
+        layers = []
+        for unit_type in self.unit_types.values():
+            layers.append((unit_type.name.lower(), unit_type, False))
+            layers.append((f"retreat_{unit_type.name.lower()}", unit_type, True))
+
         for layer_name, unit_type, is_retreat in layers:
             layer = self.layer_data[layer_name]
             layer_translation = TransGL3(layer)

@@ -507,7 +507,10 @@ def parse_remove_order(message: str, player_restriction: Player | None, board: B
 def _parse_remove_order(command: str, player_restriction: Player | None, board: Board) -> Player | Unit | str:
     command = command.lower().strip()
     components = command.split(" ")
-    if components[0] in ["a", "f", "army", "fleet"]:
+
+    unit_types = set(board.unit_types.keys())
+    unit_types.update({unit_type.name.lower() for unit_type in board.unit_types.values()})
+    if components[0] in unit_types:
         command = " ".join(components[1:])
 
     province, _ = board.get_province_and_coast(command)
