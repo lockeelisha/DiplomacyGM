@@ -18,9 +18,9 @@ if TYPE_CHECKING:
 class Terrain(Enum):
     """Types of province crossings. For default play, armies can move across land, while fleets can move
     across coasts (i.e. two provinces that have a coast such as Brest and Picardy) and seas."""
-    LAND = "land"
-    COAST = "coast"
-    SEA = "sea"
+    LAND = "land"   # Between two land provinces
+    COAST = "coast" # Between land and sea provinces, or two land provinces that share a coast
+    SEA = "sea"     # Between two sea provinces
 
 @dataclass
 class Adjacency:
@@ -58,8 +58,6 @@ class AdjacencyData:
         adj = self.add(province)
         adj.terrain.add(terrain)
         self.adjacent_by_type[terrain].add(province)
-        if terrain == Terrain.COAST:
-            self.add_terrain(province, Terrain.LAND)
         return adj
 
     def add_coast(self, province: Province, origin_coast: str | None, dest_coast: str | None):
