@@ -1,3 +1,4 @@
+"""DATC J: TEST CASES, CIVIL DISORDER AND DISBANDS"""
 import unittest
 
 from test.utils import BoardBuilder
@@ -6,7 +7,8 @@ from test.utils import BoardBuilder
 # https://github.com/diplomacy/diplomacy/blob/master/diplomacy/tests/test_datc.py being used as a reference as well.
 
 # 6.J. TEST CASES, CIVIL DISORDER AND DISBANDS
-class TestDATC_J(unittest.TestCase):
+class TestDatcJ(unittest.TestCase):
+    """DATC J: TEST CASES, CIVIL DISORDER AND DISBANDS"""
     # DEVIATES since currently build orders are unordered
     def test_6_j_1(self):
         """ 6.J.1. TEST CASE, TOO MANY REMOVE ORDERS

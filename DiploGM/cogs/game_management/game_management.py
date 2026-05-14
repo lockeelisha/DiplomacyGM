@@ -1,3 +1,5 @@
+"""Cog for managing games, including creation, editing, and adjudication.
+This has a lot of commands, so logic has been split into separate modules."""
 import logging
 from typing import Optional
 import discord
@@ -16,6 +18,7 @@ logger = logging.getLogger(__name__)
 manager = Manager()
 
 class GameManagementCog(commands.Cog):
+    """Cog for managing games, including creation, editing, and adjudication."""
     def __init__(self, bot):
         self.bot = bot
 
@@ -76,6 +79,11 @@ class GameManagementCog(commands.Cog):
     @commands.command(brief="lists all variants currently supported")
     @perms.gm_only("lists variants")
     async def list_variants(self, ctx: commands.Context) -> None:
+        """Lists all variants currently supported by the bot.
+        
+        Usage:
+            `.list_variants`
+        """
         await game_creation.list_variants(ctx)
 
     @commands.command(brief="Creates channels and roles for a variant")

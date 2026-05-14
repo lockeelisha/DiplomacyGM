@@ -1,12 +1,14 @@
+"""DATC C: TEST CASES, CIRCULAR MOVEMENT"""
 import unittest
 
 from test.utils import BoardBuilder
 
-# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with 
+# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with
 # https://github.com/diplomacy/diplomacy/blob/master/diplomacy/tests/test_datc.py being used as a reference as well.
 
 # 6.C. TEST CASES, CIRCULAR MOVEMENT
-class TestDATC_C(unittest.TestCase):
+class TestDatcC(unittest.TestCase):
+    """DATC C: TEST CASES, CIRCULAR MOVEMENT"""
     def test_6_c_1(self):
         """ 6.C.1. TEST CASE, THREE ARMY CIRCULAR MOVEMENT
             Three units can change place, even in spring 1901.

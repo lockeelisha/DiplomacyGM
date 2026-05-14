@@ -10,7 +10,7 @@ from xml.etree.ElementTree import Element, tostring
 
 import shapely
 from deepmerge.merger import Merger
-from lxml import etree
+import lxml.etree as etree
 
 from DiploGM.map_parser.vector.transform import TransGL3
 from DiploGM.map_parser.vector.utils import (
@@ -465,7 +465,7 @@ class Parser:
 
     # Sets province names given the names layer
     def _initialize_province_names(self, provinces: set[Province]) -> None:
-        def set_province_name(province: Province, name_data: Element, _: str | None) -> None:
+        def set_province_name(province: Province, name_data: etree.Element, _: str | None) -> None:
             if province.name != "":
                 raise RuntimeError(f"Province already has name: {province.name}")
             new_name = name_data.findall(".//svg:tspan", namespaces=NAMESPACE)[0].text
@@ -542,7 +542,7 @@ class Parser:
 
     # Sets province unit values
     def _initialize_units(self, provinces: set[Province]) -> None:
-        def get_coordinates(unit_data: Element) -> complex:
+        def get_coordinates(unit_data: etree.Element) -> complex:
             path = unit_data.findall(".//svg:path", namespaces=NAMESPACE)[0]
             points = parse_path(path.get("d"), TransGL3(unit_data))
             return points[0][0]

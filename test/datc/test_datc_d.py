@@ -1,12 +1,14 @@
+"""DATC D: TEST CASES, SUPPORTS AND DISLODGES"""
 import unittest
 
 from test.utils import BoardBuilder
 
-# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with 
+# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with
 # https://github.com/diplomacy/diplomacy/blob/master/diplomacy/tests/test_datc.py being used as a reference as well.
 
 # 6.D. TEST CASES, SUPPORTS AND DISLODGES
-class TestDATC_D(unittest.TestCase):
+class TestDatcD(unittest.TestCase):
+    """DATC D: TEST CASES, SUPPORTS AND DISLODGES"""
     def test_6_d_1(self):
         """ 6.D.1. TEST CASE, SUPPORTED HOLD CAN PREVENT DISLODGEMENT
             The most simple support to hold order.
@@ -391,7 +393,7 @@ class TestDATC_D(unittest.TestCase):
             Turkey: F Ankara - Constantinople
             The Russian fleet in Constantinople is not dislodged, because one of the support is of Russian origin.
             The support from Black Sea to Ankara will sustain and the fleet in Ankara will be dislodged.
-        """        
+        """
         b = BoardBuilder()
         f_black_sea = b.move(b.players["Russia"], "F", "Black Sea", "Ankara")
         f_constantinople = b.support_move(b.players["Russia"], "F", "Constantinople", f_black_sea, "Ankara")
@@ -607,7 +609,7 @@ class TestDATC_D(unittest.TestCase):
             supported Russian fleet.
 
             Note that we treat impossible moves as unsupportable, so the test case has been adjusted accordingly.
-        """ 
+        """
         b = BoardBuilder()
         f_rumania = b.move(b.players["Russia"], "F", "Rumania", "Holland")
         a_budapest = b.support_hold(b.players["Austria"], "A", "Budapest", f_rumania)

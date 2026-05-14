@@ -1,13 +1,15 @@
+"""DATC B: TEST CASES, MULTI-COAST ISSUES"""
 import unittest
 
 from DiploGM.parse_order import parse_order
 from test.utils import BoardBuilder
 
-# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with 
+# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with
 # https://github.com/diplomacy/diplomacy/blob/master/diplomacy/tests/test_datc.py being used as a reference as well.
 
 # 6.B. TEST CASES, COASTAL ISSUES
-class TestDATC_B(unittest.TestCase):
+class TestDatcB(unittest.TestCase):
+    """DATC B: TEST CASES, MULTI-COAST ISSUES"""
     def test_6_b_1(self):
         """ 6.B.1. TEST CASE, MOVING WITH UNSPECIFIED COAST WHEN COAST IS NECESSARY
             Coast is significant in this case:

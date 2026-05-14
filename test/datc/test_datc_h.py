@@ -1,3 +1,4 @@
+"""DATC H: TEST CASES, RETREATING"""
 import unittest
 from test.utils import BoardBuilder
 from DiploGM.models.order import (
@@ -7,11 +8,12 @@ from DiploGM.models.order import (
 )
 
 
-# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with 
+# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with
 # https://github.com/diplomacy/diplomacy/blob/master/diplomacy/tests/test_datc.py being used as a reference as well.
 
 # 6.H. TEST CASES, RETREATING
-class TestDATC_H(unittest.TestCase):
+class TestDatcH(unittest.TestCase):
+    """DATC H: TEST CASES, RETREATING"""
     def test_6_h_1(self):
         """ 6.H.1. TEST CASE, NO SUPPORTS DURING RETREAT
             Supports are not allowed in the retreat phase.

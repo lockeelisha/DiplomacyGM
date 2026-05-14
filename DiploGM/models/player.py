@@ -159,17 +159,20 @@ class Player:
         return PlayerClass.DUCHY
 
 class OrdersSubsetOption(Enum):
+    """Whether to show all orders, only submitted orders, or only missing orders."""
     FULL = auto()
     MISSING = auto()
     SUBMITTED = auto()
 
 class ForcedDisbandOption(Enum):
+    """Whether to mark dislodged units that must be disbanded, or even hide them entirely."""
     UNMARKED = auto()
     MARK_FORCED = auto()
     ONLY_FREE = auto()
 
 @dataclass
 class ViewOrdersTags:
+    """Tags for viewing orders with various options."""
     subset: OrdersSubsetOption
     blind: bool
     forced: ForcedDisbandOption
@@ -178,4 +181,5 @@ class ViewOrdersTags:
 
 @dataclass
 class ViewOpenCoresTags:
+    """Tags for viewing open cores with various options."""
     blind: bool

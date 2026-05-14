@@ -836,6 +836,7 @@ class _DatabaseConnection:
         self._connection.commit()
 
     def execute_arbitrary_sql(self, sql: str, args: tuple):
+        """Executes an arbitrary SQL command. Probably should be deprecated in the future."""
         # TODO - everywhere using this should just be made into a method probably? idk
         cursor = self._connection.cursor()
         cursor.execute(sql, args)
@@ -843,6 +844,7 @@ class _DatabaseConnection:
         self._connection.commit()
 
     def executemany_arbitrary_sql(self, sql: str, args: list[tuple]):
+        """Executes several arbitrary SQL commands. Probably should be deprecated in the future."""
         cursor = self._connection.cursor()
         cursor.executemany(sql, args)
         cursor.close()

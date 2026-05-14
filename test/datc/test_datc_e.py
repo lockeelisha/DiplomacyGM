@@ -1,12 +1,14 @@
+"""DATC E: TEST CASES, HEAD-TO-HEAD BATTLES AND BELEAGUERED GARRISON"""
 import unittest
 
 from test.utils import BoardBuilder
 
-# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with 
+# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with
 # https://github.com/diplomacy/diplomacy/blob/master/diplomacy/tests/test_datc.py being used as a reference as well.
 
 # 6.E. TEST CASES, HEAD-TO-HEAD BATTLES AND BELEAGUERED GARRISON
-class TestDATC_E(unittest.TestCase):
+class TestDatcE(unittest.TestCase):
+    """DATC E: TEST CASES, HEAD-TO-HEAD BATTLES AND BELEAGUERED GARRISON"""
     def test_6_e_1(self):
         """ 6.E.1. TEST CASE, DISLODGED UNIT HAS NO EFFECT ON ATTACKERS AREA
             An army can follow.

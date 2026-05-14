@@ -1,3 +1,4 @@
+"""DATC I: TEST CASES, BUILDING"""
 import unittest
 
 from test.utils import BoardBuilder
@@ -6,7 +7,8 @@ from test.utils import BoardBuilder
 # https://github.com/diplomacy/diplomacy/blob/master/diplomacy/tests/test_datc.py being used as a reference as well.
 
 # 6.I. TEST CASES, BUILDING
-class TestDATC_I(unittest.TestCase):
+class TestDatcI(unittest.TestCase):
+    """DATC I: TEST CASES, BUILDING"""
     # DEVIATES since currently build orders are unordered
     def test_6_i_1(self):
         """ 6.I.1. TEST CASE, TOO MANY BUILD ORDERS

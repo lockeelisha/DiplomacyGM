@@ -1,3 +1,5 @@
+"""Adjudicator for move phases. There's a lot going on here, so make sure all DATC tests pass if you
+modify this at all."""
 from __future__ import annotations
 
 import collections
@@ -25,6 +27,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 class MovesAdjudicator(Adjudicator):
+    """Adjudicator for move phases."""
     # Algorithm from https://diplom.org/Zine/S2009M/Kruijswijk/DipMath_Chp6.htm
     def __init__(self, board: Board):
         super().__init__(board)

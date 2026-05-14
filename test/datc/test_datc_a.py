@@ -1,3 +1,4 @@
+"""DATC A: TEST CASES, BASIC CHECKS"""
 import unittest
 
 from test.utils import BoardBuilder
@@ -6,8 +7,8 @@ from test.utils import BoardBuilder
 # https://github.com/diplomacy/diplomacy/blob/master/diplomacy/tests/test_datc.py being used as a reference as well.
 
 # 6.A. TEST CASES, BASIC CHECKS
-class TestDATC_A(unittest.TestCase):
-
+class TestDatcA(unittest.TestCase):
+    """DATC A: TEST CASES, BASIC CHECKS"""
     def test_6_a_1(self):
         """ 6.A.1 TEST CASE, MOVING TO AN AREA THAT IS NOT A NEIGHBOUR
             Check if an illegal move (without convoy) will fail.

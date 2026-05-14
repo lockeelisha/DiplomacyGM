@@ -279,9 +279,10 @@ class OrderDrawer:
             # If the supported move is a convoy, draw the support arrow from the last fleet instead
             if source in self.convoy_paths:
                 last_province = self.convoy_paths[source][0][-2]
+                assert last_province.unit is not None
                 source_coord = MapperUtils.loc_to_point(last_province,
-                                                       last_province.unit.unit_type, None, coordinate,
-                                                       self.board_svg_data["map_width"])
+                                                        last_province.unit.unit_type, None, coordinate,
+                                                        self.board_svg_data["map_width"])
         else:
             dest_coast = order.destination_coast
         dest_coord = MapperUtils.loc_to_point(order.destination,

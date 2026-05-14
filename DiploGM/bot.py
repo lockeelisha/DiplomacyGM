@@ -1,3 +1,4 @@
+"""Main bot class for DiploGM."""
 import asyncio
 import datetime
 import inspect
@@ -59,6 +60,7 @@ WELCOME_MESSAGES = [
 
 
 class DiploGM(commands.Bot):
+    """Main bot class for DiploGM."""
     def __init__(self, command_prefix, intents):
         super().__init__(command_prefix=command_prefix, intents=intents, help_command=HelpCommand())
         self.creation_time = datetime.datetime.now(datetime.timezone.utc)
@@ -91,12 +93,15 @@ class DiploGM(commands.Bot):
             logger.warning("Failed to sync commands: %s", e, exc_info=True)
 
     async def load_diplogm_extension(self, name: str, *, package: Optional[str] = None):
+        """Loads a DiploGM cog."""
         await self.load_extension(f"{_EXTENSION_PATH}{name}", package=package)
 
     async def unload_diplogm_extension(self, name: str, *, package: Optional[str] = None):
+        """Unloads a DiploGM cog."""
         await self.unload_extension(f"{_EXTENSION_PATH}{name}", package=package)
 
     async def reload_diplogm_extension(self, name: str, *, package: Optional[str] = None):
+        """Reloads a DiploGM cog. Will roll back to the previous version if it fails to load."""
         await self.reload_extension(f"{_EXTENSION_PATH}{name}", package=package)
 
     @staticmethod
@@ -192,7 +197,6 @@ class DiploGM(commands.Bot):
             message = random.choice(WELCOME_MESSAGES)
             await send_message_and_file(channel=channel, message=message, embed_colour=EMBED_STANDARD_COLOUR)
             await self._post_changelog(channel)
-            
 
         # Set bot's presence (optional)
         await self.change_presence(activity=discord.Game(name=GAME_PLAYING))
@@ -470,9 +474,11 @@ class DiploGM(commands.Bot):
         )
 
     async def on_guild_join(self, guild: discord.Guild):
-        channel = self.get_channel(HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID) or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID)
-        if channel is None:
-            logger.warning(f"Bot joined a Guild({guild.id}) but could not find a location to log to.")
+        """When the bot joins a new server, log it and report back to the hub server."""
+        channel = (self.get_channel(HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID)
+                   or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID))
+        if channel is None or not isinstance(channel, discord.abc.Messageable):
+            logger.warning("Bot joined a Guild(%s) but could not find a location to log to.", guild.id)
             return
 
         out = (
@@ -503,12 +509,17 @@ class DiploGM(commands.Bot):
         else:
             out += ("\n-- Inviter unidentified --")
 
-        await send_message_and_file(channel=channel, embed_colour="#00FF00", title="DiploGM joined a server", message=out)
+        await send_message_and_file(channel=channel,
+                                    embed_colour="#00FF00",
+                                    title="DiploGM joined a server",
+                                    message=out)
 
     async def on_guild_remove(self, guild: discord.Guild):
-        channel = self.get_channel(HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID) or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID)
-        if channel is None:
-            logger.warning(f"Bot was removed from Guild({guild.id}) but could not find a location to log to.")
+        """When the bot is removed from a server, log it and report back to the hub server."""
+        channel = (self.get_channel(HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID)
+                   or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID))
+        if channel is None or not isinstance(channel, discord.abc.Messageable):
+            logger.warning("Bot was removed from Guild(%s) but could not find a location to log to.", guild.id)
             return
 
         out = (

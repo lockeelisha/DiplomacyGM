@@ -1,12 +1,14 @@
+"""DATC F: TEST CASES, CONVOYS"""
 import unittest
 
 from test.utils import BoardBuilder
 
-# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with 
+# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with
 # https://github.com/diplomacy/diplomacy/blob/master/diplomacy/tests/test_datc.py being used as a reference as well.
 
 # 6.F. TEST CASES, CONVOYS
-class TestDATC_F(unittest.TestCase):
+class TestDatcF(unittest.TestCase):
+    """DATC F: TEST CASES, CONVOYS"""
     def test_6_f_1(self):
         """ 6.F.1. TEST CASE, NO CONVOY IN COASTAL AREAS
             A fleet in a coastal area may not convoy.
@@ -92,7 +94,7 @@ class TestDATC_F(unittest.TestCase):
         a_london = b.move(b.players["England"], "A", "London", "Holland")
         f_north_sea = b.convoy(b.players["England"], "North Sea", a_london, "Holland")
         f_english_channel = b.move(b.players["France"], "F", "English Channel", "North Sea")
-        b.support_move(b.players["France"], "F", "Belgium", f_english_channel, "North Sea")        
+        b.support_move(b.players["France"], "F", "Belgium", f_english_channel, "North Sea")
         f_skagerrak = b.move(b.players["Germany"], "F", "Skagerrak", "North Sea")
         b.support_move(b.players["Germany"], "F", "Denmark", f_skagerrak, "North Sea")
 

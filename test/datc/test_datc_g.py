@@ -1,12 +1,14 @@
+"""DATC G: TEST CASES, CONVOYING TO ADJACENT PROVINCES"""
 import unittest
 
 from test.utils import BoardBuilder
 
-# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with 
+# These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with
 # https://github.com/diplomacy/diplomacy/blob/master/diplomacy/tests/test_datc.py being used as a reference as well.
 
 # 6.G. TEST CASES, CONVOYING TO ADJACENT PROVINCES
-class TestDATC_G(unittest.TestCase):
+class TestDatcG(unittest.TestCase):
+    """DATC G: TEST CASES, CONVOYING TO ADJACENT PROVINCES"""
     def test_6_g_1(self):
         """ 6.G.1. TEST CASE, TWO UNITS CAN SWAP PLACES BY CONVOY
             The only way to swap two units, is by convoy.
@@ -278,7 +280,7 @@ class TestDATC_G(unittest.TestCase):
         f_denmark = b.support_move(b.players["England"], "F", "Denmark", a_norway, "Sweden")
         f_finland = b.support_move(b.players["England"], "F", "Finland", a_norway, "Sweden")
         f_skagerrak = b.convoy(b.players["Germany"], "Skagerrak", a_norway, "Sweden")
-        a_sweden = b.move(b.players["Russia"], "A", "Sweden", "Norway");
+        a_sweden = b.move(b.players["Russia"], "A", "Sweden", "Norway")
         b.support_move(b.players["Russia"], "F", "Barents Sea", a_sweden, "Norway")
         f_norwegian_sea = b.move(b.players["France"], "F", "Norwegian Sea", "Norway")
         b.support_move(b.players["France"], "F", "North Sea", f_norwegian_sea, "Norway")

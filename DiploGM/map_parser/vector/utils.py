@@ -1,3 +1,4 @@
+"""Utility functions for parsing SVGs."""
 import logging
 import re
 from typing import Callable
@@ -218,18 +219,13 @@ def initialize_province_resident_data(
         # found = False
         for resident_data in resident_dataset:
             point = get_coordinates(resident_data)
-
             if not point:
                 remove.add(resident_data)
                 continue
-
-            if province.geometry.contains(Point(point.real, point.imag)):
+            if province.geometry is not None and province.geometry.contains(Point(point.real, point.imag)):
                 # found = True
                 resident_data_callback(province, resident_data, None)
                 remove.add(resident_data)
-
-        # if not found:
-        #     print("Not found!")
 
         for resident_data in remove:
             resident_dataset.remove(resident_data)

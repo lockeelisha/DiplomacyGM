@@ -1,3 +1,4 @@
+"""Tests for the order parsing functions."""
 import unittest
 
 from test.utils import BoardBuilder
@@ -5,7 +6,9 @@ from DiploGM.models.order import ConvoyTransport, Hold, Move, Support
 from DiploGM.parse_order import parse_order, parse_remove_order
 
 class TestParseOrder(unittest.TestCase):
+    """Tests for the order parsing functions."""
     def test_order(self):
+        """Tests that orders are parsed correctly from a .order string."""
         b = BoardBuilder()
         f_black_sea = b.fleet("Black Sea", b.players["Russia"])
         a_sevastopol = b.army("Sevastopol", b.players["Russia"])
@@ -46,6 +49,7 @@ class TestParseOrder(unittest.TestCase):
         self.assertIsInstance(a_moscow.order, Hold, "Moscow army order not parsed correctly")
 
     def test_remove_order(self):
+        """Tests that orders can be removed via the .remove_order command."""
         b = BoardBuilder()
         a_berlin = b.move(b.players["Germany"], "A", "Berlin", "Kiel")
 

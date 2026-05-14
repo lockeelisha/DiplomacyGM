@@ -20,7 +20,7 @@ from DiploGM.errors import CommandPermissionError
 
 
 class PlayerCogTestCase(CogTestCase):
-    """Base class for PlayerCog tests — patches send and DB."""
+    """Base class for PlayerCog tests"""
 
     send_patch_targets = [
         "DiploGM.cogs.player.send_message_and_file",
@@ -52,6 +52,7 @@ class TestOrder(PlayerCogTestCase):
         self.builder.army("Par", self.players["France"])
 
     async def test_order_locked_as_player(self):
+        """Player cannot submit orders when orders are locked."""
         self.board.orders_enabled = False
         ctx = create_mock_player_context(message_content=".order Paris hold")
         await self.invoke(self.cog, "order", ctx, None)
@@ -59,12 +60,15 @@ class TestOrder(PlayerCogTestCase):
         self.assert_message_contains("Orders locked")
 
     async def test_order_success(self):
+        """Player can submit orders when orders are enabled."""
+        self.board.orders_enabled = True
         ctx = create_mock_player_context(message_content=".order Paris hold")
         await self.invoke(self.cog, "order", ctx, None)
         self.mock_send.assert_called()
         self.assert_message_contains("Orders validated successfully")
 
     async def test_order_invalid_order(self):
+        """Submitting an invalid order shows an error message."""
         ctx = create_mock_player_context(message_content=".order Paris - The Moon")
         await self.invoke(self.cog, "order", ctx, None)
         self.mock_send.assert_called()
@@ -72,12 +76,14 @@ class TestOrder(PlayerCogTestCase):
         self.assert_message_contains("does not match any known provinces")
 
     async def test_order_no_text(self):
+        """Submitting .order with no text shows an informational message."""
         ctx = create_mock_player_context(message_content=".order")
         await self.invoke(self.cog, "order", ctx, None)
         self.mock_send.assert_called()
         self.assert_message_contains("For information about entering orders")
 
     async def test_gm_can_order_when_locked(self):
+        """GM can submit orders even when orders are locked."""
         self.board.orders_enabled = False
         ctx = create_mock_gm_context(message_content=".order Paris hold")
         await self.invoke(self.cog, "order", ctx, None)
@@ -86,6 +92,7 @@ class TestOrder(PlayerCogTestCase):
         self.assert_message_contains("Orders validated successfully")
 
     async def test_order_from_gm_in_player_channel(self):
+        """GM can submit orders from a player channel."""
         channel = create_mock_channel("france-orders", category_name="orders")
         author = create_mock_member(roles=["GM Team"])
         ctx = create_mock_context(
@@ -99,6 +106,7 @@ class TestOrder(PlayerCogTestCase):
         self.assert_message_contains("Orders validated successfully")
 
     async def test_order_from_arbitrary_channel(self):
+        """GM cannot submit orders from an arbitrary channel."""
         author = create_mock_member(roles=["GM Team"])
         ctx = create_mock_context(author=author, message_content=".order Paris hold")
         with self.assertRaises(CommandPermissionError):
@@ -115,6 +123,7 @@ class TestRemoveOrder(PlayerCogTestCase):
         parse_order(".order\nParis hold", self.players["France"], self.board)
 
     async def test_remove_order_locked(self):
+        """Player cannot remove orders when orders are locked."""
         self.board.orders_enabled = False
         ctx = create_mock_player_context(message_content=".remove_order Paris")
         await self.invoke(self.cog, "remove_order", ctx, None)
@@ -123,6 +132,7 @@ class TestRemoveOrder(PlayerCogTestCase):
         self.assert_message_contains("Orders locked")
 
     async def test_remove_order_success(self):
+        """Player can remove orders when orders are enabled."""
         ctx = create_mock_player_context(message_content=".remove_order Paris")
         await self.invoke(self.cog, "remove_order", ctx, None)
 
@@ -130,6 +140,7 @@ class TestRemoveOrder(PlayerCogTestCase):
         self.assert_message_contains("Orders removed successfully")
 
     async def test_remove_order_invalid_province(self):
+        """Submitting .remove_order with an invalid province shows an error message."""
         ctx = create_mock_player_context(player_name="germany", message_content=".remove_order Paris")
         await self.invoke(self.cog, "remove_order", ctx, None)
 
