@@ -351,6 +351,7 @@ class GameManagementCog(commands.Cog):
         * delete_dislodged_unit <province_name>
         * delete_unit <province_name>
         * move_unit <province_name> <province_name>
+        * transform_unit <new_unit_type> <province_name>
         * dislodge_unit <province_name> <retreat_option1> <retreat_option2>...
         * make_units_claim_provinces {True|(False) - whether or not to claim SCs}
         * set_player_points <player_name> <integer>
@@ -359,6 +360,7 @@ class GameManagementCog(commands.Cog):
         * load_state <server_id> <spring, fall, winter}_{moves, retreats, builds> <year>
         * apocalypse {all OR army, fleet, core, province} !!! deletes everything specified !!!
         * bulk <command> {<player_name> | nothing if you're using delete_units} <list_of_province_names> {use with commands like set_total_owner to use it repeatedly}
+        * bulk transform_unit <new_unit_type> <list_of_province_names>
         * bulk_create_units <player_name> {A, F} <list_of_province_names>
         """,
     )

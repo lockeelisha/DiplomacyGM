@@ -54,6 +54,11 @@ class Unit:
         """Adds all valid retreat options based on unit type and current province."""
         if self.retreat_options is None:
             self.retreat_options = set()
+        if Terrain.LAND in self.unit_type.moves_on and Terrain.SEA in self.unit_type.moves_on:
+            for province in self.province.adjacencies.get_all():
+                if not province.is_impassable:
+                    self.retreat_options.add((province, None))
+            return
         for province in self.province.adjacencies.get_all(self.unit_type.moves_on - {Terrain.COAST}):
             if not province.is_impassable:
                 self.retreat_options.add((province, None))

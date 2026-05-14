@@ -141,12 +141,39 @@ def _move_unit(_, keywords: list[str], board: Board) -> None:
     if not unit:
         raise RuntimeError(f"No unit to move in {old_province}")
     new_province, new_coast = board.get_province_and_coast(keywords[1])
-    if new_province.adjacencies.coasts and new_coast not in new_province.adjacencies.coasts:
+    if Terrain.COAST not in unit.unit_type.moves_on:
+        new_coast = None
+    elif new_province.adjacencies.coasts and new_coast not in new_province.adjacencies.coasts:
         raise ValueError(f"Province '{new_province.name}' requires a valid coast.")
     if not new_province.adjacencies.coasts:
         new_coast = None
     board.move_unit(unit, new_province, new_coast)
 
+def _transform_unit(_, keywords: list[str], board: Board) -> None:
+    unit_types = {type.name: type for type in board.unit_types.values()}
+    unit_types.update({type.code: type for type in board.unit_types.values()})
+    unit_types.update({alias: type for type in board.unit_types.values() for alias in type.aliases})
+    if keywords[0] in unit_types:
+        new_unit_type = unit_types[keywords[0]]
+        province, coast = board.get_province_and_coast(keywords[1])
+    else:
+        new_unit_type = None
+        province, coast = board.get_province_and_coast(keywords[0])
+    unit = province.unit
+    if not unit:
+        raise RuntimeError(f"No unit to transform in {province}")
+    new_unit_type = new_unit_type or unit.unit_type.transforms_to
+    if not new_unit_type:
+        raise RuntimeError(f"Unit type {unit.unit_type} cannot transform to any other type")
+
+    if Terrain.COAST not in new_unit_type.moves_on:
+        coast = None
+    elif province.adjacencies.coasts and coast not in province.adjacencies.coasts:
+        raise ValueError(f"Province '{province.name}' requires a valid coast.")
+    if not province.adjacencies.coasts:
+        coast = None
+    unit.unit_type = new_unit_type
+    unit.coast = coast
 
 def _dislodge_unit(_, keywords: list[str], board: Board) -> None:
     if not board.turn.is_retreats():
@@ -261,6 +288,7 @@ function_list = {
     "delete unit": _delete_unit,
     "delete dislodged unit": _delete_unit,
     "move unit": _move_unit,
+    "transform unit": _transform_unit,
     "dislodge unit": _dislodge_unit,
     "make units claim provinces": _make_units_claim_provinces,
     "set vassal": _set_player_vassal,
@@ -276,6 +304,10 @@ def _bulk(_, keywords: list[str], board: Board) -> None:
     if keywords[0] in ["set core", "set half core", "set province owner", "set total owner", "delete unit"]:
         for i in keywords[2:]:
             function_list[keywords[0]](keywords[0], [i, player], board)
+        return
+    if keywords[0] == "transform unit":
+        for i in keywords[2:]:
+            function_list[keywords[0]](keywords[0], [keywords[1], i], board)
         return
 
     raise RuntimeError(

@@ -94,6 +94,8 @@ def _validate_move_order(province: Province, order: Move | RetreatMove,
     adjacency = province.adjacencies.get(destination_province)
     if adjacency is None:
         return OrderValidity.INVALID, f"{province} does not border {destination_province}"
+    if Terrain.LAND in unit.unit_type.moves_on and Terrain.SEA in unit.unit_type.moves_on:
+        return OrderValidity.VALID, None
     terrain_intersection = unit.unit_type.moves_on & adjacency.terrain
     if not terrain_intersection:
         return OrderValidity.INVALID, f"{unit.unit_type.name} cannot move from {province} to {destination_province}"
