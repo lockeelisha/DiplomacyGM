@@ -356,19 +356,20 @@ class OrderDrawer:
     def _draw_build(self, order: Build) -> None:
         element = self.moves_svg.getroot()
         assert element is not None
-        build_location = order.province.get_unit_coordinates(order.unit_type, order.coast)
-        drawn_order = MapperUtils.create_element(
-            "circle",
-            {
-                "cx": build_location.real,
-                "cy": build_location.imag,
-                "r": self.board_svg_data["unit_radius"],
-                "fill": "none",
-                "stroke": "green",
-                "stroke-width": self.board_svg_data["order_stroke_width"],
-            },
-        )
-        element.append(drawn_order)
+        build_locations = MapperUtils.get_unit_coordinates(order.province, order.unit_type, order.coast)
+        for build_location in build_locations:
+            drawn_order = MapperUtils.create_element(
+                "circle",
+                {
+                    "cx": build_location.real,
+                    "cy": build_location.imag,
+                    "r": self.board_svg_data["unit_radius"],
+                    "fill": "none",
+                    "stroke": "green",
+                    "stroke-width": self.board_svg_data["order_stroke_width"],
+                },
+            )
+            element.append(drawn_order)
 
     def _draw_disband(self, coordinate: complex, svg) -> None:
         element = svg.getroot()

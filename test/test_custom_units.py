@@ -18,7 +18,7 @@ def _add_wing(board) -> UnitType:
         can_convoy = True,
         can_be_convoyed = True,
         can_capture = False,
-        moves_on = {Terrain.LAND, Terrain.COAST, Terrain.SEA},
+        moves_on = {Terrain.LAND, Terrain.SEA},
         transforms_to = board.unit_types["F"],
     )
     board.unit_types["W"] = wing

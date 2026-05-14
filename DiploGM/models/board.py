@@ -174,6 +174,16 @@ class Board:
                                     -len(sort_player.centers),
                                     sort_player.get_name().lower()))
 
+    def fetch_unit_types(self) -> dict[str, UnitType]:
+        """Gets a dictionary of unit types, with keys being the unit code, name, and aliases."""
+        str_to_unit_type = {}
+        for unit_type in self.unit_types.values():
+            str_to_unit_type[unit_type.code.lower()] = unit_type
+            str_to_unit_type[unit_type.name.lower()] = unit_type
+            for alias in unit_type.aliases:
+                str_to_unit_type[alias.lower()] = unit_type
+        return str_to_unit_type
+
     def get_province(self, name: str) -> Province:
         """Gets a province by its name, ignoring coasts."""
         province, _ = self.get_province_and_coast(name)

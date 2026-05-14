@@ -261,6 +261,7 @@ class Mapper:
                 coast = province.unit.coast
             else:
                 unit_type = self.board.unit_types["F"] if province.type == ProvinceType.SEA else self.board.unit_types["A"]
+            # TODO: We should move to MapperUtils.get_unit_coordinates and remove the logic from Province
             locdict[province.name] = province.get_unit_coordinates(unit_type, coast)
             for coast in province.adjacencies.coasts:
                 locdict[province.get_name(coast)] = province.get_unit_coordinates(self.board.unit_types["F"], coast)

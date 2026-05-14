@@ -110,16 +110,15 @@ class TreeToOrder(Transformer):
         """Build order, of the form Build [Unit Type] [Province] or Build [Province] [Unit Type]."""
         if isinstance(a, tuple) and isinstance(b, str):
             province, coast = a
-            unit_type = b
+            unit_type_string = b.strip()
         elif isinstance(a, str) and isinstance(b, tuple):
             province, coast = b
-            unit_type = a
+            unit_type_string = a.strip()
         else:
             raise ValueError("Invalid build order format")
 
-        unit_type = self.board.unit_types.get(unit_type.strip().upper()[0])
-        if unit_type is None:
-            raise ValueError(f"{unit_type} isn't a valid unit type")
+        if (unit_type := self.board.fetch_unit_types().get(unit_type_string)) is None:
+            raise ValueError(f"{unit_type_string} isn't a valid unit type")
 
         if not province.has_supply_center:
             raise ValueError(f"{province} does not have a supply center.")
@@ -348,12 +347,10 @@ def _get_parser(board: Board) -> Lark:
     cache_key = f"{board.datafile}:{board.turn.phase}:{''.join(sorted(board.unit_types.keys()))}"
     if cache_key in parser_cache:
         return parser_cache[cache_key]
-    unit_strings = [unit_type.code.lower() for unit_type in board.unit_types.values()]
-    unit_codes = unit_strings.copy()
-    unit_codes.extend([c.upper() for c in unit_codes])
-    unit_strings.extend([unit_type.name for unit_type in board.unit_types.values()])
-    unit_strings.extend([alias for unit_type in board.unit_types.values() for alias in unit_type.aliases])
+    unit_strings = board.fetch_unit_types().keys()
     ebnf_with_units = ebnf.replace("{{UNIT_TYPE_STRINGS}}", "|".join(unit_strings))
+    unit_codes = [unit_type.code.lower() for unit_type in board.unit_types.values()]
+    unit_codes.extend([c.upper() for c in unit_codes])
     ebnf_with_units = ebnf_with_units.replace("{{UNIT_TYPE_CODES}}", "".join(unit_codes))
     start = "order" if board.turn.is_moves() else "retreat" if board.turn.is_retreats() else "build"
     parser = Lark(ebnf_with_units, start=start, parser="earley")
@@ -508,9 +505,7 @@ def _parse_remove_order(command: str, player_restriction: Player | None, board: 
     command = command.lower().strip()
     components = command.split(" ")
 
-    unit_types = set(board.unit_types.keys())
-    unit_types.update({unit_type.name.lower() for unit_type in board.unit_types.values()})
-    if components[0] in unit_types:
+    if components[0] in board.fetch_unit_types():
         command = " ".join(components[1:])
 
     province, _ = board.get_province_and_coast(command)
