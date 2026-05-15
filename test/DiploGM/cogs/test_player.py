@@ -391,12 +391,3 @@ class TestViewMap(PlayerCogTestCase):
         self.mock_send.assert_called()
         kwargs = self.get_sent_kwargs()
         self.assertFalse(kwargs["convert_svg"])
-
-    async def test_vm_svg_as_player_still_converts(self):
-        """Player passing 'svg' still gets convert_svg=True (only GM gets raw SVG)."""
-        ctx = create_mock_player_context(message_content=".vm svg")
-        await self.invoke(self.cog, "view_map", ctx, self.players["France"])
-
-        self.mock_send.assert_called()
-        kwargs = self.get_sent_kwargs()
-        self.assertTrue(kwargs["convert_svg"])

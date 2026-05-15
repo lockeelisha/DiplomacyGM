@@ -16,6 +16,7 @@ import discord
 from discord.ext import commands
 
 from DiploGM.events.base_listener import BaseListener
+from DiploGM.errors import NoGameError
 from DiploGM.config import (
     BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID,
     EMBED_STANDARD_COLOUR,
@@ -191,7 +192,7 @@ class DiploGM(commands.Bot):
 
         # Get the specific channel
         channel = self.get_channel(HUB_SERVER_BOT_STATUS_CHANNEL_ID)
-        if not channel or not isinstance(channel, discord.TextChannel):
+        if not channel or not isinstance(channel, discord.abc.Messageable):
             logger.warning("Cannot find Bot Status Channel [id=%s]", HUB_SERVER_BOT_STATUS_CHANNEL_ID)
         else:
             message = random.choice(WELCOME_MESSAGES)
@@ -201,9 +202,9 @@ class DiploGM(commands.Bot):
         # Set bot's presence (optional)
         await self.change_presence(activity=discord.Game(name=GAME_PLAYING))
 
-    async def _post_changelog(self, channel) -> None:
+    async def _post_changelog(self, channel: discord.abc.Messageable) -> None:
         def _get_recent_changelog(filepath: Path) -> tuple[str, str]:
-            with open(filepath) as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 lines = f.readlines()
 
             version = lines[0]
@@ -239,7 +240,9 @@ class DiploGM(commands.Bot):
 
         if changed:
             version, changes = _get_recent_changelog(changelog)
-            await send_message_and_file(channel=channel, embed_colour="#aabb00", title=f"Changelog Version: {version}\n___", message=changes)
+            await send_message_and_file(channel=channel,
+                                        embed_colour="#aabb00",
+                                        title=f"Changelog Version: {version}\n___", message=changes)
 
     async def close(self):
         logger.info("Shutting down gracefully.")
@@ -398,8 +401,15 @@ class DiploGM(commands.Bot):
             )
             return
 
-        # HACK: Seems really wrong to catch this here
-        # Just in the moment it seems like a lot of work to fix the RuntimeError raises throughout the project
+        if isinstance(original, NoGameError):
+            out = f"`{original}`\n"
+            await send_message_and_file(
+                channel=context.channel,
+                title="No game found",
+                message=out,
+            )
+            return
+
         if isinstance(original, RuntimeError):
             out = f"`{original}`\n"
             await send_message_and_file(
@@ -440,7 +450,7 @@ class DiploGM(commands.Bot):
 
         # Out to Bot Dev Server
         bot_error_channel = self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID)
-        if bot_error_channel and isinstance(bot_error_channel, discord.TextChannel):
+        if bot_error_channel and isinstance(bot_error_channel, discord.abc.Messageable):
             channel_category = (context.channel.category
                                 if isinstance(context.channel, (discord.TextChannel, discord.Thread))
                                 else context.channel.id)

@@ -183,15 +183,9 @@ class PlayerCog(commands.Cog):
             explain=any_alias_in_args(EXPLAIN)
         )
 
-        try:
-            board = manager.get_board(ctx.guild.id)
-            order_text = get_orders(board, player, ctx, tags=tags)
+        board = manager.get_board(ctx.guild.id)
+        order_text = get_orders(board, player, ctx, tags=tags)
 
-        except RuntimeError as err:
-            logger.error(err, exc_info=True)
-            log_command(logger, ctx, message="Failed for an unknown reason", level=logging.ERROR)
-            await send_error(ctx.channel, ErrorMessage.UNKNOWN_ERROR)
-            return
         log_command(
             logger,
             ctx,
@@ -218,15 +212,9 @@ class PlayerCog(commands.Cog):
             blind=any_alias_in_args(BLIND_ALIASES),
         )
 
-        try:
-            board = manager.get_board(ctx.guild.id)
-            message_text = get_open_core_text(ctx, board, player, tags)
+        board = manager.get_board(ctx.guild.id)
+        message_text = get_open_core_text(ctx, board, player, tags)
 
-        except RuntimeError as err:
-            logger.error(err, exc_info=True)
-            log_command(logger, ctx, message="Failed for an unknown reason", level=logging.ERROR)
-            await send_error(ctx.channel, ErrorMessage.UNKNOWN_ERROR)
-            return
         log_command(logger, ctx, message="Success - discovered open cores for " +
                                         f"{'all players' if player is None else player.name} - {board.turn}",
         )
@@ -237,9 +225,7 @@ class PlayerCog(commands.Cog):
     async def _fetch_maps(self, ctx: commands.Context, player: Player | None, show_moves: bool = False):
         assert ctx.guild is not None
         arguments = remove_prefix(ctx).lower().split()
-        convert_svg = (player is not None) or not (
-            {"true", "t", "svg", "s"} & set(arguments)
-        )
+        convert_svg = not ({"true", "t", "svg", "s"} & set(arguments))
         board = manager.get_board(ctx.guild.id)
         season = parse_season(arguments, board.turn)
 

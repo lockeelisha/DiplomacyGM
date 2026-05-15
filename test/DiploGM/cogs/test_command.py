@@ -7,7 +7,7 @@ from test.DiploGM.cogs.utils import CogTestCase, create_mock_context
 
 from discord.ext import commands
 from DiploGM.cogs.command import CommandCog
-from DiploGM.errors import CommandPermissionError
+from DiploGM.errors import CommandPermissionError, NoGameError
 
 
 class CommandCogTestCase(CogTestCase):
@@ -58,10 +58,8 @@ class TestScoreboard(CommandCogTestCase):
 
     async def test_scoreboard_no_game(self):
         ctx = create_mock_context(guild_id=99999, message_content=".scoreboard")
-        await self.invoke(self.cog, "scoreboard", ctx)
-
-        self.mock_send.assert_called_once()
-        self.assert_message_contains("no game")
+        with self.assertRaises(NoGameError):
+            await self.invoke(self.cog, "scoreboard", ctx)
 
     async def test_scoreboard(self):
         ctx = create_mock_context(message_content=".scoreboard")
@@ -113,10 +111,8 @@ class TestInfo(CommandCogTestCase):
     async def test_info_no_game(self):
         """When no game exists for the guild, should report that."""
         ctx = create_mock_context(guild_id=99999, message_content=".info")
-        await self.invoke(self.cog, "info", ctx)
-
-        self.mock_send.assert_called_once()
-        self.assert_message_contains("no game")
+        with self.assertRaises(NoGameError):
+            await self.invoke(self.cog, "info", ctx)
 
 class TestDev(CommandCogTestCase):
     """Tests for the .dev command."""
@@ -153,7 +149,7 @@ class TestProvinceInfo(CommandCogTestCase):
 
     async def test_province_info_no_game(self):
         ctx = create_mock_context(guild_id=99999, message_content=".province_info Paris")
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(NoGameError):
             await self.invoke(self.cog, "province_info", ctx)
 
     async def test_province_info_orders_locked(self):
@@ -188,7 +184,7 @@ class TestPlayerInfo(CommandCogTestCase):
 
     async def test_player_info_no_game(self):
         ctx = create_mock_context(guild_id=99999, message_content=".player_info France")
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(NoGameError):
             await self.invoke(self.cog, "player_info", ctx)
 
     async def test_player_info_orders_locked(self):
@@ -221,7 +217,7 @@ class TestAllProvinceData(CommandCogTestCase):
 
     async def test_all_province_data_no_game(self):
         ctx = create_mock_context(guild_id=99999, message_content=".all_province_data")
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(NoGameError):
             await self.invoke(self.cog, "all_province_data", ctx)
 
     async def test_all_province_data_orders_locked(self):

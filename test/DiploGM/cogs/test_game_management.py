@@ -248,11 +248,10 @@ class TestRenamePlayer(GMCogTestCase):
         ctx = create_mock_gm_context(message_content=".rename_player Atlantis NewName")
         ctx.guild.roles = []
         ctx.guild.text_channels = []
-        # board.get_player raises ValueError for unknown names,
-        # so the error-message path in rename_player is unreachable
-        # TODO: Fix this
-        with self.assertRaises(ValueError):
-            await self.invoke(self.cog, "rename_player", ctx, "Atlantis", "NewName")
+        await self.invoke(self.cog, "rename_player", ctx, "Atlantis", "NewName")
+
+        self.mock_send.assert_called_once()
+        self.assert_message_contains("Could not find a player")
 
 
 class TestAdjudicate(GMCogTestCase):

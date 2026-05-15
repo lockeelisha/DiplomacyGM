@@ -95,13 +95,13 @@ class Player:
         units = sorted(self.units, key=lambda u: (u.unit_type.code, u.province.get_name(u.coast)))
         centers = sorted(self.centers, key=lambda c: c.name)
 
-        if board.data["players"] == "chaos":
+        if board.is_chaos():
             units = ((bullet + bullet.join([unit.province.get_name(unit.coast) for unit in units]))
                     if len(units) > 0 else 'None')
             centers = ((bullet + bullet.join([center.name for center in centers]))
                       if len(centers) > 0 else 'None')
             out = (
-                f"Color: #{self.board.data['players'][self.name].get('custom_color', self.default_color)}\n"
+                f"Color: #{board.data['players'][self.name].get('custom_color', self.default_color)}\n"
                 + f"Points: {self.points}\n"
                 + f"Vassals: {', '.join(map(str,self.vassals))}\n"
                 + f"Liege: {self.liege if self.liege else 'None'}\n"
@@ -124,7 +124,7 @@ class Player:
         for unit in units:
             unit_str += f"{bullet}({unit.unit_type.code}) {unit.province.get_name(unit.coast)}"
 
-        color = (bullet + self.board.data['players'][self.name].get('custom_color', self.default_color) +
+        color = (bullet + board.data['players'][self.name].get('custom_color', self.default_color) +
                  (bullet + bullet.join([k + ': ' + v for k, v in self.color_dict.items()])
                   if self.color_dict is not None else ""))
         out = (

@@ -12,6 +12,7 @@ from discord.ext import commands
 from scipy.integrate import odeint
 
 from DiploGM.manager import Manager
+from DiploGM.errors import NoGameError
 from DiploGM import perms
 from DiploGM.config import is_bumble, temporary_bumbles, HUB_SERVER_ID
 from DiploGM.utils import log_command, send_message_and_file
@@ -513,7 +514,7 @@ class PartyCog(commands.Cog):
         raw_boards = tuple(map(lambda b: b[1], sorted_boards))
         try:
             this_board = manager.get_board(ctx.guild.id)
-        except RuntimeError:
+        except NoGameError:
             this_board = None
         sorted_boards = sorted_boards[:9]
         text = ""
