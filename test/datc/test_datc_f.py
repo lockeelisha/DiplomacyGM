@@ -700,3 +700,279 @@ class TestDatcF(unittest.TestCase):
         b.assert_not_dislodge(f_english_channel)
         b.assert_dislodge(f_north_sea)
         b.moves_adjudicate(self)
+
+    def test_6_f_25(self):
+        """ 6.F.25. TEST CASE, CUT SUPPORT LAST
+            For manual play the rule of thumb is, cut support first. However, in the example below the support of
+            Holland is some of the last orders to be adjudicated.
+            Germany: A Ruhr - Belgium
+            Germany: A Holland Supports A Ruhr - Belgium
+            Germany: A Denmark - Norway
+            Germany: F Skagerrak Convoys A Denmark - Norway
+            Germany: A Finland Supports A Denmark - Norway
+            England: A Yorkshire - Holland
+            England: F North Sea Convoys A Yorkshire - Holland
+            England: F Heligoland Bight Supports A Yorkshire - Holland
+            England: A Belgium Holds
+            Russia: F Norwegian Sea - North Sea
+            Russia: F Norway Supports F Norwegian Sea - North Sea
+            Russia: F Sweden - Skagerrak
+            The fleet in Sweden fails to disrupt the convoy in Skagerrak. The move from Denmark to Norway succeeds
+            and cuts the support of Norway. The fleet in the Norwegian Sea fails to disrupt the convoy in the North
+            Sea. The move from Yorkshire to Holland succeeds and cuts the support of Holland. The move from Ruhr
+            fails to dislodge the army in Belgium.
+        """
+        b = BoardBuilder()
+        a_ruhr = b.move(b.players["Germany"], "A", "Ruhr", "Belgium")
+        a_denmark = b.move(b.players["Germany"], "A", "Denmark", "Norway")
+        f_skagerrak = b.convoy(b.players["Germany"], "Skagerrak", a_denmark, "Norway")
+        a_finland = b.support_move(b.players["Germany"], "A", "Finland", a_denmark, "Norway")
+        a_yorkshire = b.move(b.players["England"], "A", "Yorkshire", "Holland")
+        f_north_sea = b.convoy(b.players["England"], "North Sea", a_yorkshire, "Holland")
+        f_heligoland_bight = b.support_move(b.players["England"], "F", "Heligoland Bight", a_yorkshire, "Holland")
+        a_belgium = b.hold(b.players["England"], "A", "Belgium")
+        a_holland = b.support_move(b.players["Germany"], "A", "Holland", a_ruhr, "Belgium")
+        f_norwegian_sea = b.move(b.players["Russia"], "F", "Norwegian Sea", "North Sea")
+        f_norway = b.support_move(b.players["Russia"], "F", "Norway", f_norwegian_sea, "North Sea")
+        f_sweden = b.move(b.players["Russia"], "F", "Sweden", "Skagerrak")
+
+        b.assert_success(a_yorkshire, a_denmark, f_skagerrak, a_finland, f_north_sea, f_heligoland_bight)
+        b.assert_fail(a_ruhr, f_norwegian_sea, f_sweden, a_holland, f_norway)
+        b.assert_dislodge(a_holland, f_norway)
+        b.assert_not_dislodge(f_skagerrak, f_north_sea, a_belgium)
+        b.moves_adjudicate(self)
+
+    def test_6_f_26(self):
+        """ 6.F.26. TEST CASE, CONVOY PARADOX WITH ADDITIONAL RELATED CONVOYS
+            The Szykman rule only affects the convoying fleets part of the paradox, even if other convoying fleets
+            have some relation with the situation.
+            England: F London Supports F Wales - English Channel
+            England: F Wales - English Channel
+            France: A Brest - London
+            France: F English Channel Convoys A Brest - London
+            Italy: A Gascony Supports A Spain - Brest
+            Italy: A Spain - Brest
+            Italy: F Mid-Atlantic Ocean Convoys A Spain - Brest
+            Russia: A Clyde - Wales
+            Russia: F North Atlantic Ocean Convoys A Clyde - Wales
+            Russia: F Irish Sea Convoys A Clyde - Wales
+            According to all rulebooks (including the Szykman rule which is preferred), the support of London is not
+            cut. The Szykman rule does not affect the fleets in Mid-Atlantic Ocean, North Atlantic Ocean and Irish
+            Sea.
+        """
+        b = BoardBuilder()
+        f_wales = b.move(b.players["England"], "F", "Wales", "English Channel")
+        f_london = b.support_move(b.players["England"], "F", "London", f_wales, "English Channel")
+        a_brest = b.move(b.players["France"], "A", "Brest", "London")
+        f_english_channel = b.convoy(b.players["France"], "English Channel", a_brest, "London")
+        a_spain = b.move(b.players["Italy"], "A", "Spain", "Brest")
+        a_gascony = b.support_move(b.players["Italy"], "A", "Gascony", a_spain, "Brest")
+        f_mid_atlantic_ocean = b.convoy(b.players["Italy"], "Mid-Atlantic Ocean", a_spain, "Brest")
+        a_clyde = b.move(b.players["Russia"], "A", "Clyde", "Wales")
+        f_north_atlantic_ocean = b.convoy(b.players["Russia"], "North Atlantic Ocean", a_clyde, "Wales")
+        f_irish_sea = b.convoy(b.players["Russia"], "Irish Sea", a_clyde, "Wales")
+
+        b.assert_success(f_wales, f_london, a_spain, a_gascony, f_mid_atlantic_ocean,
+                         a_clyde, f_north_atlantic_ocean, f_irish_sea)
+        b.assert_fail(a_brest)
+        b.assert_dislodge(f_english_channel, a_brest)
+        b.moves_adjudicate(self)
+
+    def test_6_f_27(self):
+        """ 6.F.27. TEST CASE, TWO INDEPENDENT PARADOXES
+            Can the adjudicator handle two paradoxes at the same time?
+            England: F North Sea Convoys A London - Belgium
+            England: A London - Belgium
+            England: F English Channel Supports A London - Belgium
+            France: F Belgium Supports F North Sea
+            Germany: F Heligoland Bight Supports F Skagerrak - North Sea
+            Germany: F Skagerrak - North Sea
+            Italy: A Tunis - Greece
+            Italy: F Ionian Sea Convoys A Tunis - Greece
+            Turkey: F Aegean Sea - Ionian Sea
+            Turkey: F Greece Supports F Aegean Sea - Ionian Sea
+            There are two independent paradoxes. The first (England/France/Germany) involves the North Sea convoy.
+            The second (Italy/Turkey) involves the Ionian Sea convoy. With the Szykman rule, both convoys are
+            disrupted.
+        """
+        b = BoardBuilder()
+        a_london = b.move(b.players["England"], "A", "London", "Belgium")
+        f_north_sea = b.convoy(b.players["England"], "North Sea", a_london, "Belgium")
+        f_english_channel = b.support_move(b.players["England"], "F", "English Channel", a_london, "Belgium")
+        f_belgium = b.support_hold(b.players["France"], "F", "Belgium", f_north_sea)
+        f_skagerrak = b.move(b.players["Germany"], "F", "Skagerrak", "North Sea")
+        f_heligoland_bight = b.support_move(b.players["Germany"], "F", "Heligoland Bight", f_skagerrak, "North Sea")
+        a_tunis = b.move(b.players["Italy"], "A", "Tunis", "Greece")
+        f_ionian_sea = b.convoy(b.players["Italy"], "Ionian Sea", a_tunis, "Greece")
+        f_aegean_sea = b.move(b.players["Turkey"], "F", "Aegean Sea", "Ionian Sea")
+        f_greece = b.support_move(b.players["Turkey"], "F", "Greece", f_aegean_sea, "Ionian Sea")
+
+        b.assert_fail(a_london, f_north_sea, f_skagerrak, a_tunis)
+        b.assert_success(f_heligoland_bight, f_aegean_sea, f_greece, f_english_channel, f_belgium)
+        b.assert_not_dislodge(f_north_sea)
+        b.assert_dislodge(f_ionian_sea)
+        b.moves_adjudicate(self)
+
+    def test_6_f_28(self):
+        """ 6.F.28. TEST CASE, SIXTH ORDER PARADOX
+            By John Fisher, Usenet group rec.games.diplomacy, 2nd of September, 2002.
+            Russia: F Finland - Gulf of Bothnia
+            Russia: F St Petersburg(sc) Supports F Finland - Gulf of Bothnia
+            Russia: F Prussia - Baltic Sea
+            Russia: F Sweden Supports F Prussia - Baltic Sea
+            Russia: F Skagerrak - North Sea
+            Russia: F Denmark Supports F Skagerrak - North Sea
+            Russia: F Norway - Norwegian Sea
+            Russia: F Clyde Supports F Norway - Norwegian Sea
+            Germany: A Livonia - Sweden
+            Germany: F Gulf of Bothnia Convoys A Livonia - Sweden
+            Germany: A Berlin - Denmark
+            Germany: F Baltic Sea Convoys A Berlin - Denmark
+            Germany: A Holland - London
+            Germany: F North Sea Convoys A Holland - London
+            Germany: A Belgium - Brest
+            Germany: F English Channel Convoys A Belgium - Brest
+            England: F Wales - English Channel
+            England: F London Supports F Wales - English Channel
+            England: A North Africa - Clyde
+            England: F Mid-Atlantic Ocean Convoys A North Africa - Clyde
+            England: F North Atlantic Ocean Convoys A North Africa - Clyde
+            England: A Edinburgh - St Petersburg
+            England: F Norwegian Sea Convoys A Edinburgh - St Petersburg
+            England: F Barents Sea Convoys A Edinburgh - St Petersburg
+            Under the 1982 rules or the Szykman rule (preferred) all attacked convoying fleets are dislodged.
+        """
+        b = BoardBuilder()
+        f_finland = b.move(b.players["Russia"], "F", "Finland", "Gulf of Bothnia")
+        b.support_move(b.players["Russia"], "F", "St Petersburg", f_finland, "Gulf of Bothnia")
+        f_prussia = b.move(b.players["Russia"], "F", "Prussia", "Baltic Sea")
+        b.support_move(b.players["Russia"], "F", "Sweden", f_prussia, "Baltic Sea")
+        f_skagerrak = b.move(b.players["Russia"], "F", "Skagerrak", "North Sea")
+        b.support_move(b.players["Russia"], "F", "Denmark", f_skagerrak, "North Sea")
+        f_norway = b.move(b.players["Russia"], "F", "Norway", "Norwegian Sea")
+        b.support_move(b.players["Russia"], "F", "Clyde", f_norway, "Norwegian Sea")
+
+        a_livonia = b.move(b.players["Germany"], "A", "Livonia", "Sweden")
+        f_gulf_of_bothnia = b.convoy(b.players["Germany"], "Gulf of Bothnia", a_livonia, "Sweden")
+        a_berlin = b.move(b.players["Germany"], "A", "Berlin", "Denmark")
+        f_baltic_sea = b.convoy(b.players["Germany"], "Baltic Sea", a_berlin, "Denmark")
+        a_holland = b.move(b.players["Germany"], "A", "Holland", "London")
+        f_north_sea = b.convoy(b.players["Germany"], "North Sea", a_holland, "London")
+        a_belgium = b.move(b.players["Germany"], "A", "Belgium", "Brest")
+        f_english_channel = b.convoy(b.players["Germany"], "English Channel", a_belgium, "Brest")
+
+        f_wales = b.move(b.players["England"], "F", "Wales", "English Channel")
+        f_london = b.support_move(b.players["England"], "F", "London", f_wales, "English Channel")
+        a_north_africa = b.move(b.players["England"], "A", "North Africa", "Clyde")
+        f_mid_atlantic_ocean = b.convoy(b.players["England"], "Mid-Atlantic Ocean", a_north_africa, "Clyde")
+        b.convoy(b.players["England"], "North Atlantic Ocean", a_north_africa, "Clyde")
+        a_edinburgh = b.move(b.players["England"], "A", "Edinburgh", "St Petersburg")
+        f_norwegian_sea = b.convoy(b.players["England"], "Norwegian Sea", a_edinburgh, "St Petersburg")
+        b.convoy(b.players["England"], "Barents Sea", a_edinburgh, "St Petersburg")
+
+        f_spain = b.move(b.players["France"], "F", "Spain nc", "Mid-Atlantic Ocean")
+        f_brest = b.support_move(b.players["France"], "F", "Brest", f_spain, "Mid-Atlantic Ocean")
+
+        b.assert_success(f_finland, f_prussia, f_skagerrak, f_norway, f_wales, f_london, f_spain, f_brest)
+        b.assert_fail(a_livonia, a_berlin, a_holland, a_belgium, a_north_africa, a_edinburgh)
+        b.assert_dislodge(f_gulf_of_bothnia, f_baltic_sea, f_north_sea, f_english_channel,
+                          f_mid_atlantic_ocean, f_norwegian_sea)
+        b.moves_adjudicate(self)
+
+    def test_6_f_29(self):
+        """ 6.F.29. TEST CASE, SIXTH ORDER BUTTERFLY EFFECT
+            The same as previous test case, but now there is a support in Portugal for the Mid-Atlantic Ocean.
+            This has effect as far as the Gulf of Bothnia.
+            Russia: F Finland - Gulf of Bothnia
+            Russia: F St Petersburg(sc) Supports F Finland - Gulf of Bothnia
+            Russia: F Prussia - Baltic Sea
+            Russia: F Sweden Supports F Prussia - Baltic Sea
+            Russia: F Skagerrak - North Sea
+            Russia: F Denmark Supports F Skagerrak - North Sea
+            Russia: F Norway - Norwegian Sea
+            Russia: F Clyde Supports F Norway - Norwegian Sea
+            Germany: A Livonia - Sweden
+            Germany: F Gulf of Bothnia Convoys A Livonia - Sweden
+            Germany: A Berlin - Denmark
+            Germany: F Baltic Sea Convoys A Berlin - Denmark
+            Germany: A Holland - London
+            Germany: F North Sea Convoys A Holland - London
+            Germany: A Belgium - Brest
+            Germany: F English Channel Convoys A Belgium - Brest
+            England: F Wales - English Channel
+            England: F London Supports F Wales - English Channel
+            England: A North Africa - Clyde
+            England: F Mid-Atlantic Ocean Convoys A North Africa - Clyde
+            England: F North Atlantic Ocean Convoys A North Africa - Clyde
+            England: A Edinburgh - St Petersburg
+            England: F Norwegian Sea Convoys A Edinburgh - St Petersburg
+            England: F Barents Sea Convoys A Edinburgh - St Petersburg
+            England: F Portugal Supports F Mid-Atlantic Ocean
+            France: F Spain(nc) - Mid-Atlantic Ocean
+            France: F Brest Supports F Spain(nc) - Mid-Atlantic Ocean
+            With the support of Portugal, the Mid-Atlantic Ocean cannot be dislodged. This means the convoy of North
+            Africa to Clyde is not paradoxical. The army cuts the support of Clyde. This cascades through the whole
+            chain — none of the Russian attacks succeed and none of the convoys are disrupted.
+        """
+        b = BoardBuilder()
+        f_finland = b.move(b.players["Russia"], "F", "Finland", "Gulf of Bothnia")
+        f_st_petersburg = b.support_move(b.players["Russia"], "F", "St Petersburg", f_finland, "Gulf of Bothnia")
+        f_prussia = b.move(b.players["Russia"], "F", "Prussia", "Baltic Sea")
+        f_sweden = b.support_move(b.players["Russia"], "F", "Sweden", f_prussia, "Baltic Sea")
+        f_skagerrak = b.move(b.players["Russia"], "F", "Skagerrak", "North Sea")
+        f_denmark = b.support_move(b.players["Russia"], "F", "Denmark", f_skagerrak, "North Sea")
+        f_norway = b.move(b.players["Russia"], "F", "Norway", "Norwegian Sea")
+        f_clyde = b.support_move(b.players["Russia"], "F", "Clyde", f_norway, "Norwegian Sea")
+
+        a_livonia = b.move(b.players["Germany"], "A", "Livonia", "Sweden")
+        f_gulf_of_bothnia = b.convoy(b.players["Germany"], "Gulf of Bothnia", a_livonia, "Sweden")
+        a_berlin = b.move(b.players["Germany"], "A", "Berlin", "Denmark")
+        f_baltic_sea = b.convoy(b.players["Germany"], "Baltic Sea", a_berlin, "Denmark")
+        a_holland = b.move(b.players["Germany"], "A", "Holland", "London")
+        f_north_sea = b.convoy(b.players["Germany"], "North Sea", a_holland, "London")
+        a_belgium = b.move(b.players["Germany"], "A", "Belgium", "Brest")
+        f_english_channel = b.convoy(b.players["Germany"], "English Channel", a_belgium, "Brest")
+
+        f_wales = b.move(b.players["England"], "F", "Wales", "English Channel")
+        f_london = b.support_move(b.players["England"], "F", "London", f_wales, "English Channel")
+        a_north_africa = b.move(b.players["England"], "A", "North Africa", "Clyde")
+        f_mid_atlantic_ocean = b.convoy(b.players["England"], "Mid-Atlantic Ocean", a_north_africa, "Clyde")
+        b.convoy(b.players["England"], "North Atlantic Ocean", a_north_africa, "Clyde")
+        a_edinburgh = b.move(b.players["England"], "A", "Edinburgh", "St Petersburg")
+        f_norwegian_sea = b.convoy(b.players["England"], "Norwegian Sea", a_edinburgh, "St Petersburg")
+        b.convoy(b.players["England"], "Barents Sea", a_edinburgh, "St Petersburg")
+        b.support_hold(b.players["England"], "F", "Portugal", f_mid_atlantic_ocean)
+
+        f_spain = b.move(b.players["France"], "F", "Spain", "Mid-Atlantic Ocean")
+        f_brest = b.support_move(b.players["France"], "F", "Brest", f_spain, "Mid-Atlantic Ocean")
+
+        b.assert_success(f_gulf_of_bothnia, f_baltic_sea, f_north_sea, f_english_channel, f_mid_atlantic_ocean, f_norwegian_sea)
+        b.assert_fail(f_finland, f_st_petersburg, f_prussia, f_sweden, f_skagerrak, f_denmark, f_norway, f_clyde,
+                      a_livonia, a_berlin, a_holland, a_belgium, f_wales, f_london, a_north_africa, a_edinburgh, f_spain, f_brest)
+        b.assert_not_dislodge(f_gulf_of_bothnia, f_baltic_sea, f_north_sea, f_english_channel, f_norwegian_sea, f_mid_atlantic_ocean)
+        b.moves_adjudicate(self)
+
+    def test_6_f_30(self):
+        """ 6.F.30. TEST CASE, THE ATTACK COMES FROM THE STARTING POSITION
+            Brannan's rule has not been adopted.
+            England: A London - Belgium
+            England: F English Channel Convoys A London - Belgium
+            England: F North Sea Supports A London - Belgium
+            France: F Belgium - English Channel
+            France: F Brest Supports F Belgium - English Channel
+            One could argue that there is a head-to-head battle between Belgium and English Channel with both units
+            having strength two resulting in a standoff. This is the interpretation under Brannan's rule.
+            Calhamer opposed Brannan's rule and the rule has not been adopted. The supported attacker just drives out
+            the convoying fleet; and since the fleet is dislodged, the convoy does not succeed.
+        """
+        b = BoardBuilder()
+        a_london = b.move(b.players["England"], "A", "London", "Belgium")
+        f_english_channel = b.convoy(b.players["England"], "English Channel", a_london, "Belgium")
+        f_north_sea = b.support_move(b.players["England"], "F", "North Sea", a_london, "Belgium")
+        f_belgium = b.move(b.players["France"], "F", "Belgium", "English Channel")
+        f_brest = b.support_move(b.players["France"], "F", "Brest", f_belgium, "English Channel")
+
+        b.assert_success(f_belgium, f_brest, f_north_sea)
+        b.assert_fail(a_london)
+        b.assert_dislodge(f_english_channel)
+        b.moves_adjudicate(self)

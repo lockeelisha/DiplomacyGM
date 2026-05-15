@@ -144,7 +144,7 @@ class TestDatcC(unittest.TestCase):
             France: A Belgium - London
             France: A Burgundy - Belgium
             None of the units will succeed to move.
-    """
+        """
         b = BoardBuilder()
         a_london = b.move(b.players["England"], "A", "London", "Belgium")
         f_north_sea = b.convoy(b.players["England"], "North Sea", a_london, "Belgium")
@@ -154,4 +154,50 @@ class TestDatcC(unittest.TestCase):
 
         b.assert_success(f_north_sea, f_english_channel)
         b.assert_fail(a_london, a_belgium, a_burgundy)
+        b.moves_adjudicate(self)
+
+    def test_6_c_8(self):
+        """ 6.C.8. TEST CASE, NO SELF DISLODGMENT IN DISRUPTED CIRCULAR MOVEMENT
+            Self dislodgment is prohibited as usual in circular movement.
+            Turkey:
+            F Constantinople - Black Sea fails
+            A Bulgaria - Constantinople fails
+            A Smyrna Supports A Bulgaria - Constantinople given
+            Russia:
+            F Black Sea - Bulgaria(ec) fails
+            Austria
+            A Serbia - Bulgaria fails
+        """
+        b = BoardBuilder()
+        f_constantinople = b.move(b.players["Turkey"], "F", "Constantinople", "Black Sea")
+        a_bulgaria = b.move(b.players["Turkey"], "A", "Bulgaria", "Constantinople")
+        a_smyrna = b.support_move(b.players["Turkey"], "A", "Smyrna", a_bulgaria, "Constantinople")
+        f_black_sea = b.move(b.players["Russia"], "F", "Black Sea", "Bulgaria")
+        a_serbia = b.move(b.players["Austria"], "A", "Serbia", "Bulgaria")
+
+        b.assert_fail(f_constantinople, a_bulgaria, f_black_sea, a_serbia)
+        b.assert_success(a_smyrna)
+        b.moves_adjudicate(self)
+
+    def test_6_c_9(self):
+        """ 6.C.9. TEST CASE, NO HELP IN DISLODGMENT OF OWN UNIT IN DISRUPTED CIRCULAR MOVEMENT
+            Helping to dislodge your own unit is prohibited as usual in circular movement.
+            Turkey:
+            F Constantinople - Black Sea fails
+            A Smyrna Supports A Bulgaria - Constantinople given
+            Russia:
+            F Black Sea - Bulgaria(ec) fails
+            Austria
+            A Serbia - Bulgaria fails
+            A Bulgaria - Constantinople fails
+        """
+        b = BoardBuilder()
+        f_constantinople = b.move(b.players["Turkey"], "F", "Constantinople", "Black Sea")
+        a_bulgaria = b.move(b.players["Austria"], "A", "Bulgaria", "Constantinople")
+        a_smyrna = b.support_move(b.players["Turkey"], "A", "Smyrna", a_bulgaria, "Constantinople")
+        f_black_sea = b.move(b.players["Russia"], "F", "Black Sea", "Bulgaria")
+        a_serbia = b.move(b.players["Austria"], "A", "Serbia", "Bulgaria")
+
+        b.assert_fail(f_constantinople, a_bulgaria, f_black_sea, a_serbia)
+        b.assert_success(a_smyrna)
         b.moves_adjudicate(self)

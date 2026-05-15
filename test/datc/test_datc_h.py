@@ -542,6 +542,38 @@ class TestDatcH(unittest.TestCase):
         b.assert_forced_disband(f_western_mediterranean)
         b.retreats_adjudicate(self)
 
+    def test_6_h_17(self):
+        """6.H.17. TEST CASE, CONTESTED FOR BOTH COASTS
+            If one of the coasts is contested, the other is not available for retreat.
+            France:
+            F Mid-Atlantic Ocean - Spain(nc) fails
+            F Gascony - Spain(nc) fails
+            F Western Mediterranean Holds dislodged
+            Italy:
+            F Tunis Supports F Tyrrhenian Sea - Western Mediterranean given
+            F Tyrrhenian Sea - Western Mediterranean succeeds
+            RETREATS
+            France:
+            F Western Mediterranean - Spain(sc) illegal
+        """
+        b = BoardBuilder()
+
+        b.move(b.players["France"], "F", "Mid-Atlantic Ocean", "Spain nc")
+        b.move(b.players["France"], "F", "Gascony", "Spain nc")
+        f_western_mediterranean = b.hold(b.players["France"], "F", "Western Mediterranean Sea")
+        f_tyrrhenian_sea = b.move(b.players["Italy"], "F", "Tyrrhenian Sea", "Western Mediterranean Sea")
+        b.support_move(b.players["Italy"], "F", "Tunis", f_tyrrhenian_sea, "Western Mediterranean Sea")
+
+        b.assert_forced_disband(f_western_mediterranean)
+        b.moves_adjudicate(self)
+        self.assertFalse(not f_western_mediterranean.retreat_options
+                         or b.board.get_province_and_coast("Spain sc") in f_western_mediterranean.retreat_options,
+                         "Spain should not be a retreat option")
+        b.retreat(f_western_mediterranean, "Spain sc")
+
+        b.assert_forced_disband(f_western_mediterranean)
+        b.retreats_adjudicate(self)
+
     def test_6_h_diplogm_1(self):
         """ 6.H.DIPLOGM.1. TEST CASE, INVALID MOVES DO NOT MAKE A PROVINCE CONTESTED
             If a move is invalid, it does not make the province contested.

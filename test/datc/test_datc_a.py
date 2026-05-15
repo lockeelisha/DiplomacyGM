@@ -81,6 +81,7 @@ class TestDatcA(unittest.TestCase):
         b.moves_adjudicate(self)
 
     # NOT APPLICABLE 6_a_6; TEST CASE, ORDERING A UNIT OF ANOTHER COUNTRY
+    # This is handled by the order parser instead
 
     def test_6_a_7(self):
         """ 6.A.7. TEST CASE, ONLY ARMIES CAN BE CONVOYED

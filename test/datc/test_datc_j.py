@@ -32,4 +32,3 @@ class TestDatcJ(unittest.TestCase):
         b.assert_build_count(-1)
 
     # NOT APPLICABLE; 6_j_2 through 6_j_11
-

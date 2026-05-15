@@ -783,3 +783,28 @@ class TestDatcD(unittest.TestCase):
         b.assert_fail(a_livonia)
         b.assert_dislodge(a_prussia)
         b.moves_adjudicate(self)
+
+    def test_6_d_35(self):
+        """ 6.D.35. TEST CASE, DISLODGMENT CUTS SUPPORTS ALLOWING ENEMY TO ADVANCE
+            Similar to test case 6.D.17, but now the army in Armenia successfully moves due to support.
+            Russia:
+            F Black Sea - Ankara fails
+            F Constantinople Supports F Black Sea - Ankara cut, dislodged
+            Turkey:
+            F Ankara - Constantinople succeeds
+            F Aegean Sea Supports F Ankara - Constantinople given
+            A Armenia - Ankara succeeds
+            A Smyrna Supports F Armenia - Ankara given
+        """
+        b = BoardBuilder()
+        f_black_sea = b.move(b.players["Russia"], "F", "Black Sea", "Ankara")
+        f_constantinople = b.support_move(b.players["Russia"], "F", "Constantinople", f_black_sea, "Ankara")
+        f_ankara = b.move(b.players["Turkey"], "F", "Ankara", "Constantinople")
+        f_aegean_sea = b.support_move(b.players["Turkey"], "F", "Aegean Sea", f_ankara, "Constantinople")
+        a_armenia = b.move(b.players["Turkey"], "A", "Armenia", "Ankara")
+        a_smyrna = b.support_move(b.players["Turkey"], "A", "Smyrna", a_armenia, "Ankara")
+
+        b.assert_dislodge(f_constantinople)
+        b.assert_fail(f_black_sea)
+        b.assert_success(f_ankara, f_aegean_sea, a_armenia, a_smyrna)
+        b.moves_adjudicate(self)
