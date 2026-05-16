@@ -364,8 +364,13 @@ def _check_for_warnings(unit: Unit) -> str | None:
         if (Terrain.COAST in unit.unit_type.moves_on
             and unit.order.destination.adjacencies.coasts
             and not unit.order.destination_coast):
-            return "Destination province has multiple coasts. " + \
-                   "This might cause your order to fail if the fleet can reach more than one."
+            reachable_coasts = unit.province.adjacencies.get_coasts(unit.order.destination, unit.coast)
+            if len(reachable_coasts) > 1:
+                return "Destination province has multiple reachable coasts, so this order will fail."
+            if reachable_coasts:
+                unit.order.destination_coast = reachable_coasts.pop()
+                return "Destination province has one reachable coast. " + \
+                      f"Assigning {unit.order.destination_coast} as the destination coast."
     if isinstance(unit.order, order.Support):
         if not unit.province.adjacencies.get(unit.order.destination):
             return "This support is not to an adjacent province and will fail."

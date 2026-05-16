@@ -150,9 +150,7 @@ def _move_unit(_, keywords: list[str], board: Board) -> None:
     board.move_unit(unit, new_province, new_coast)
 
 def _transform_unit(_, keywords: list[str], board: Board) -> None:
-    unit_types = {type.name: type for type in board.unit_types.values()}
-    unit_types.update({type.code: type for type in board.unit_types.values()})
-    unit_types.update({alias: type for type in board.unit_types.values() for alias in type.aliases})
+    unit_types = board.fetch_unit_types()
     if keywords[0] in unit_types:
         new_unit_type = unit_types[keywords[0]]
         province, coast = board.get_province_and_coast(keywords[1])

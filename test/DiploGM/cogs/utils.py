@@ -143,7 +143,7 @@ class CogTestCase(unittest.IsolatedAsyncioTestCase):
         calls = self.mock_send.call_args_list
         if not calls:
             raise AssertionError("send_message_and_file was never called")
-        return calls[call_index].kwargs
+        return dict(calls[call_index].kwargs)
 
     def get_sent_message(self, call_index: int = -1) -> str:
         """Return the 'message' kwarg from a send call."""

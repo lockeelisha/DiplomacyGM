@@ -405,7 +405,7 @@ class DiploGM(commands.Bot):
             out = f"`{original}`\n"
             await send_message_and_file(
                 channel=context.channel,
-                title="No game found",
+                title="A game does not exist in this server.",
                 message=out,
             )
             return

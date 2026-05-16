@@ -179,7 +179,7 @@ class PartyCog(commands.Cog):
             word_of_bumble = "elbmub nesohc eht era uoY"
 
         board = manager.get_board(ctx.guild.id)
-        board.set_data("fish", board.data["fish"] - 1)
+        board.set_data("fish", int(board.data["fish"]) - 1)
         await send_message_and_file(channel=ctx.channel, title=word_of_bumble)
 
     @commands.command(hidden=True)
@@ -382,6 +382,7 @@ class PartyCog(commands.Cog):
         await ctx.message.add_reaction("🐟")
 
         board = manager.get_board(ctx.guild.id)
+        board.data["fish"] = int(board.data.get("fish", 0))
         fish_num = random.randrange(0, 20)
 
         # overfishing model

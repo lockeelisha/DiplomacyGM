@@ -155,8 +155,8 @@ class Board:
         if self.data["victory_conditions"] == "classic":
             return len(player.centers) / int(self.data["victory_count"])
         if self.data["victory_conditions"] == "vscc":
-            if (centers:= len(player.centers)) > (iscc := int(self.data["players"][player.name]["iscc"])):
-                return (centers - iscc) / (int(self.data["players"][player.name]["vscc"]) - iscc)
+            if (centers:= len(player.centers)) > (iscc := int(self.data["players"][player.name].get("iscc", 1))):
+                return (centers - iscc) / (int(self.data["players"][player.name].get("vscc", self.data["victory_count"])) - iscc)
             return (centers / iscc) - 1
         raise ValueError("Unknown scoring system found")
 
