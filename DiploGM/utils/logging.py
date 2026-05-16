@@ -20,8 +20,8 @@ def log_command(
     log_command_no_ctx(
         remote_logger,
         ctx.message.content,
-        ctx.guild.name,
         ctx.channel,
+        ctx.guild.name,
         message,
         level=level,
     )

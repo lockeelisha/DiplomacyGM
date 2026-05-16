@@ -312,12 +312,15 @@ class Parser:
                 continue
             # Add/remove adjacencies and coasts
             for n in data.get("adjacencies", []):
-                province.adjacencies.add(self.name_to_province[n])
+                if (target := self.name_to_province.get(n)) is not None:
+                    province.adjacencies.add(target)
             for n in data.get("remove_adjacencies", []):
-                province.adjacencies.remove(self.name_to_province[n])
+                if (target := self.name_to_province.get(n)) is not None:
+                    province.adjacencies.remove(target)
             for n in data.get("difficult_adjacency", []):
-                if (adj := province.adjacencies.get(self.name_to_province[n])) is not None:
-                    adj.is_difficult = True
+                if (target := self.name_to_province.get(n)) is not None:
+                    if (adj := province.adjacencies.get(target)) is not None:
+                        adj.is_difficult = True
             if "coasts" in data:
                 for coast_name, coast_adjacent in data.get("coasts", {}).items():
                     for adjacent_name in coast_adjacent:
