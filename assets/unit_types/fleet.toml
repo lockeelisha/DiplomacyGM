@@ -2,6 +2,7 @@
 # Variants can use this as a template in the variants/<variant>/unit_types folder to make custom units
 name = "Fleet"
 code = "F"
+aliases = ["boat", "ship"]
 
 can_convoy = true
 can_be_convoyed = false

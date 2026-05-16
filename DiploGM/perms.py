@@ -42,9 +42,11 @@ def get_player_by_channel(
     """Given a Discord channel, tries to find a matching Player."""
     # thread -> main channel
     if isinstance(channel, discord.Thread):
-        assert isinstance(channel.parent, discord.TextChannel)
+        if not isinstance(channel.parent, discord.TextChannel):
+            return None
         channel = channel.parent
-    assert isinstance(channel, discord.TextChannel)
+    if not isinstance(channel, discord.TextChannel):
+        return None
 
     name = channel.name
     if (not ignore_category) and not is_player_category(channel.category):

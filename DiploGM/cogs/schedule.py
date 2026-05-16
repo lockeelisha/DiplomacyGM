@@ -437,8 +437,7 @@ class ScheduleCog(commands.Cog):
                 log_command_no_ctx(
                     logger,
                     task["full_command"],
-                    channel.guild.name,
-                    channel.name,
+                    channel,
                     user.name,
                     f"Executing command scheduled by '{task['invoking_user_name']}' at <t:{int(task['created_at'].timestamp())}:f>",
                 )

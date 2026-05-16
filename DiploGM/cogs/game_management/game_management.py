@@ -1,3 +1,5 @@
+"""Cog for managing games, including creation, editing, and adjudication.
+This has a lot of commands, so logic has been split into separate modules."""
 import logging
 from typing import Optional
 import discord
@@ -16,6 +18,7 @@ logger = logging.getLogger(__name__)
 manager = Manager()
 
 class GameManagementCog(commands.Cog):
+    """Cog for managing games, including creation, editing, and adjudication."""
     def __init__(self, bot):
         self.bot = bot
 
@@ -76,7 +79,38 @@ class GameManagementCog(commands.Cog):
     @commands.command(brief="lists all variants currently supported")
     @perms.gm_only("lists variants")
     async def list_variants(self, ctx: commands.Context) -> None:
+        """Lists all variants currently supported by the bot.
+        
+        Usage:
+            `.list_variants`
+        """
         await game_creation.list_variants(ctx)
+
+    @commands.command(brief="Creates channels and roles for a variant")
+    @perms.gm_only("create channels and roles")
+    async def setup_server(self, ctx: commands.Context) -> None:
+        """Creates channels and roles for a variant.
+
+        Usage:
+            `.setup_server <variant>`
+
+        Note:
+            Only one set of channels and roles per variant can be created.
+        """
+        await channel_management.setup_server(ctx)
+
+    @commands.command(hidden=True)
+    @perms.superuser_only("delete channels and roles")
+    async def reset_server(self, ctx: commands.Context) -> None:
+        """Deletes channels and roles for a variant.
+
+        Usage:
+            `.reset_server`
+
+        Note:
+            This command is very dangerous and should be used with caution.
+        """
+        await channel_management.reset_server(ctx)
 
     @commands.command(brief="Archives a comms category")
     @perms.gm_only("archive the category")
@@ -351,6 +385,7 @@ class GameManagementCog(commands.Cog):
         * delete_dislodged_unit <province_name>
         * delete_unit <province_name>
         * move_unit <province_name> <province_name>
+        * transform_unit <new_unit_type> <province_name>
         * dislodge_unit <province_name> <retreat_option1> <retreat_option2>...
         * make_units_claim_provinces {True|(False) - whether or not to claim SCs}
         * set_player_points <player_name> <integer>
@@ -359,6 +394,7 @@ class GameManagementCog(commands.Cog):
         * load_state <server_id> <spring, fall, winter}_{moves, retreats, builds> <year>
         * apocalypse {all OR army, fleet, core, province} !!! deletes everything specified !!!
         * bulk <command> {<player_name> | nothing if you're using delete_units} <list_of_province_names> {use with commands like set_total_owner to use it repeatedly}
+        * bulk transform_unit <new_unit_type> <list_of_province_names>
         * bulk_create_units <player_name> {A, F} <list_of_province_names>
         """,
     )

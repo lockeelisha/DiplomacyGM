@@ -78,6 +78,7 @@ class TestLockOrders(GMCogTestCase):
     """Tests for .lock_orders and .unlock_orders."""
 
     async def test_lock_orders(self):
+        """Ensures that .lock_orders locks orders"""
         self.assertTrue(self.board.orders_enabled)
         ctx = create_mock_gm_context(message_content=".lock_orders")
         await self.invoke(self.cog, "lock_orders", ctx)
@@ -86,6 +87,7 @@ class TestLockOrders(GMCogTestCase):
         self.assert_message_contains("Locked orders")
 
     async def test_unlock_orders(self):
+        """Ensures that .unlock_orders unlocks orders"""
         self.board.orders_enabled = False
         ctx = create_mock_gm_context(message_content=".unlock_orders")
         await self.invoke(self.cog, "unlock_orders", ctx)
@@ -98,6 +100,7 @@ class TestEdit(GMCogTestCase):
     """Tests for the .edit command."""
 
     async def test_successful_edit(self):
+        """Ensures that .edit successfully edits the game state."""
         ctx = create_mock_gm_context(
             message_content=".edit\ncreate_unit A France Paris"
         )
@@ -109,6 +112,7 @@ class TestEdit(GMCogTestCase):
         self.assertIsNotNone(paris.unit)
 
     async def test_invalid_edit_returns_error(self):
+        """Ensures that .edit returns an error message when given invalid commands.s"""
         ctx = create_mock_gm_context(
             message_content=".edit\nnonsense_command blah"
         )
@@ -123,6 +127,7 @@ class TestEditGame(GMCogTestCase):
     """Tests for the .edit_game command."""
 
     async def test_set_building_mode(self):
+        """Ensures that .edit_game successfully sets the building mode."""
         ctx = create_mock_gm_context(
             message_content=".edit_game\nbuilding cores"
         )
@@ -133,6 +138,7 @@ class TestEditGame(GMCogTestCase):
         self.assertEqual(self.board.data["build_options"], "cores")
 
     async def test_invalid_param(self):
+        """Ensures that .edit_game returns an error message when given invalid parameters."""
         ctx = create_mock_gm_context(
             message_content=".edit_game\nfake_param value"
         )
@@ -147,6 +153,7 @@ class TestSetDeadline(GMCogTestCase):
     """Tests for the .set_deadline command."""
 
     async def test_set_unix_timestamp(self):
+        """Ensures that .set_deadline successfully sets the deadline when given a unix timestamp."""
         ctx = create_mock_gm_context(message_content=".set_deadline 1700000000")
         await self.invoke(self.cog, "set_deadline", ctx)
 
@@ -155,6 +162,7 @@ class TestSetDeadline(GMCogTestCase):
         self.assert_message_contains("Set new deadline")
 
     async def test_cancel_deadline(self):
+        """Ensures that .set_deadline successfully cancels the deadline."""
         self.board.data["deadline"] = 1700000000
         ctx = create_mock_gm_context(message_content=".set_deadline cancel")
         await self.invoke(self.cog, "set_deadline", ctx)
@@ -164,6 +172,7 @@ class TestSetDeadline(GMCogTestCase):
         self.assert_message_contains("removed")
 
     async def test_adjust_deadline(self):
+        """Ensures that .set_deadline successfully adjusts the deadline."""
         self.board.data["deadline"] = 1700000000
         ctx = create_mock_gm_context(message_content=".set_deadline adjust 2h")
         await self.invoke(self.cog, "set_deadline", ctx)
@@ -173,6 +182,7 @@ class TestSetDeadline(GMCogTestCase):
         self.assert_message_contains("Adjusted")
 
     async def test_invalid_timestamp(self):
+        """Ensures that .set_deadline returns an error message when given an invalid timestamp."""
         ctx = create_mock_gm_context(message_content=".set_deadline notanumber")
         await self.invoke(self.cog, "set_deadline", ctx)
 
@@ -181,6 +191,7 @@ class TestSetDeadline(GMCogTestCase):
         self.assertIsNotNone(kwargs.get("embed_colour"))
 
     async def test_adjust_invalid_duration(self):
+        """Ensures that .set_deadline returns an error message when given an invalid duration."""
         ctx = create_mock_gm_context(message_content=".set_deadline adjust foo")
         await self.invoke(self.cog, "set_deadline", ctx)
 
@@ -193,6 +204,7 @@ class TestListVariants(GMCogTestCase):
     """Tests for the .list_variants command."""
 
     async def test_list_variants(self):
+        """Ensures that .list_variants successfully lists variants."""
         ctx = create_mock_gm_context(message_content=".list_variants")
         await self.invoke(self.cog, "list_variants", ctx)
 
@@ -203,6 +215,7 @@ class TestExportGame(GMCogTestCase):
     """Tests for the .export_game command."""
 
     async def test_export_returns_json_file(self):
+        """Ensures that .export_game successfully exports the game state as a JSON file."""
         ctx = create_mock_gm_context(message_content=".export_game")
         await self.invoke(self.cog, "export_game", ctx)
 
@@ -217,12 +230,11 @@ class TestRenamePlayer(GMCogTestCase):
 
     def setUp(self):
         super().setUp()
-        # Add mock roles to guild so find_discord_role can match
         self.france_role = create_mock_role("France")
         self.france_role.edit = AsyncMock()
-        # ctx.guild.roles needs to be set per-test via ctx
 
     async def test_rename_success(self):
+        """Ensures that .rename_player successfully renames a player and their role."""
         ctx = create_mock_gm_context(message_content=".rename_player France Gaul")
         ctx.guild.roles = [self.france_role]
         ctx.guild.text_channels = []
@@ -232,14 +244,14 @@ class TestRenamePlayer(GMCogTestCase):
         self.assert_message_contains("Renamed player France to Gaul")
 
     async def test_rename_unknown_player(self):
+        """Ensures that .rename_player returns an error message when given an unknown player."""
         ctx = create_mock_gm_context(message_content=".rename_player Atlantis NewName")
         ctx.guild.roles = []
         ctx.guild.text_channels = []
-        # board.get_player raises ValueError for unknown names,
-        # so the error-message path in rename_player is unreachable
-        # TODO: Fix this
-        with self.assertRaises(ValueError):
-            await self.invoke(self.cog, "rename_player", ctx, "Atlantis", "NewName")
+        await self.invoke(self.cog, "rename_player", ctx, "Atlantis", "NewName")
+
+        self.mock_send.assert_called_once()
+        self.assert_message_contains("Could not find a player")
 
 
 class TestAdjudicate(GMCogTestCase):

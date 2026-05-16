@@ -1,3 +1,5 @@
+"""Cog for player commands. Each commands contains a parameter determinging which player sent
+the command, or None if it was done by a GM."""
 import logging
 from typing import Callable, Iterable
 
@@ -27,6 +29,8 @@ OPEN_CORES_ALIASES = ["open-cores", "open", "cores", "core", "c"]
 EXPLAIN = ["explain"]
 
 class PlayerCog(commands.Cog):
+    """Cog for player commands. Each commands contains a parameter determinging which player sent
+    the command, or None if it was done by a GM."""
     def __init__(self, bot):
         self.bot = bot
 
@@ -146,7 +150,7 @@ class PlayerCog(commands.Cog):
         brief="Outputs your current submitted orders.",
         description=f"""Outputs your current submitted orders.
         Use .view_map to view a sample moves map of your orders. 
-        Use the '{MISSING_ALIASES[0]}' or '{SUBMITTED_ALIASES[0]}' argument to view only units without orders or only submitted orders. 
+        Use the '{MISSING_ALIASES[0]}' or '{SUBMITTED_ALIASES[0]}' argument to view only units without orders or only submitted orders.
         \tAliases: {MISSING_ALIASES}; {SUBMITTED_ALIASES}
         Use the '{BLIND_ALIASES[0]}' argument to view only the number of orders submitted.
         \tAliases: {BLIND_ALIASES}
@@ -179,31 +183,16 @@ class PlayerCog(commands.Cog):
             explain=any_alias_in_args(EXPLAIN)
         )
 
-        try:
-            board = manager.get_board(ctx.guild.id)
-            order_text = get_orders(board, player, ctx, tags=tags)
+        board = manager.get_board(ctx.guild.id)
+        order_text = get_orders(board, player, ctx, tags=tags)
 
-        except RuntimeError as err:
-            logger.error(err, exc_info=True)
-            log_command(
-                logger,
-                ctx,
-                message="Failed for an unknown reason",
-                level=logging.ERROR,
-            )
-            await send_error(ctx.channel, ErrorMessage.UNKNOWN_ERROR)
-            return
         log_command(
             logger,
             ctx,
             message=f"Success - generated orders for {board.turn}",
         )
         assert isinstance(order_text, str)
-        await send_message_and_file(
-            channel=ctx.channel,
-            title=f"{board.turn}",
-            message=order_text,
-        )
+        await send_message_and_file(channel=ctx.channel, title=f"{board.turn}", message=order_text)
 
     @commands.command(
         brief="Outputs a list of your open cores.",
@@ -213,14 +202,9 @@ class PlayerCog(commands.Cog):
         aliases=["voc", "open-cores", "opencores", "view-open-cores"],
     )
     @perms.player(description="view open cores")
-    async def view_open_cores(
-        self,
-        ctx: commands.Context,
-        player: Player | None,
-    ) -> None:
+    async def view_open_cores(self, ctx: commands.Context, player: Player | None) -> None:
         assert ctx.guild is not None
 
-        
         arguments = remove_prefix(ctx).lower().split()
         any_alias_in_args: Callable[[Iterable[str]], bool] = lambda aliases: 0 < len(set(arguments).intersection(set(aliases)))
 
@@ -228,39 +212,20 @@ class PlayerCog(commands.Cog):
             blind=any_alias_in_args(BLIND_ALIASES),
         )
 
-        try: 
-            board = manager.get_board(ctx.guild.id)
-            message_text = get_open_core_text(ctx, board, player, tags)
+        board = manager.get_board(ctx.guild.id)
+        message_text = get_open_core_text(ctx, board, player, tags)
 
-        except RuntimeError as err:
-            logger.error(err, exc_info=True)
-            log_command(
-                logger,
-                ctx,
-                message="Failed for an unknown reason",
-                level=logging.ERROR,
-            )
-            await send_error(ctx.channel, ErrorMessage.UNKNOWN_ERROR)
-            return
-        log_command(
-            logger,
-            ctx,
-            message=f"Success - discovered open cores for {'all players' if player is None else player.name} - {board.turn}",
+        log_command(logger, ctx, message="Success - discovered open cores for " +
+                                        f"{'all players' if player is None else player.name} - {board.turn}",
         )
 
-        await send_message_and_file(
-            channel=ctx.channel,
-            title=f"{board.turn} Open Cores",
-            message=message_text,
-        )
-        
+        await send_message_and_file(channel=ctx.channel, title=f"{board.turn} Open Cores", message=message_text)
+
 
     async def _fetch_maps(self, ctx: commands.Context, player: Player | None, show_moves: bool = False):
         assert ctx.guild is not None
         arguments = remove_prefix(ctx).lower().split()
-        convert_svg = (player is not None) or not (
-            {"true", "t", "svg", "s"} & set(arguments)
-        )   
+        convert_svg = not ({"true", "t", "svg", "s"} & set(arguments))
         board = manager.get_board(ctx.guild.id)
         season = parse_season(arguments, board.turn)
 

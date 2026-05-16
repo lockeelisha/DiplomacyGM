@@ -1,3 +1,5 @@
+"""Adjudicator for move phases. There's a lot going on here, so make sure all DATC tests pass if you
+modify this at all."""
 from __future__ import annotations
 
 import collections
@@ -25,6 +27,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 class MovesAdjudicator(Adjudicator):
+    """Adjudicator for move phases."""
     # Algorithm from https://diplom.org/Zine/S2009M/Kruijswijk/DipMath_Chp6.htm
     def __init__(self, board: Board):
         super().__init__(board)
@@ -88,7 +91,6 @@ class MovesAdjudicator(Adjudicator):
         if isinstance(unit.order, Core) and self.parameters.get("supportable_cores"):
             unit.order.is_support_holdable = True
 
-        # TODO clean up mapper info
         valid, reason = order_is_valid(unit.province, unit.order)
         if not is_valid_result(valid):
             logger.debug("Order for %s is invalid because %s", unit, reason)
@@ -196,9 +198,9 @@ class MovesAdjudicator(Adjudicator):
             unit.order = None
             if unit.retreat_options is not None:
                 unit.remove_many_retreat_options(contested)
-
-            # Update provinces again to capture SCs in fall where units held
-            self._board.change_owner(unit.province, unit.player)
+            else:
+                # Update provinces to capture SCs in fall where units held
+                self._board.change_owner(unit.province, unit.player)
 
     def _find_contested_areas(self):
         bounces_and_occupied = set()

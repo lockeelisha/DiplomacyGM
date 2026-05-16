@@ -233,35 +233,32 @@ class OrderDrawer:
         valid_convoys = self.convoy_paths.get(unit.province, [[unit.province, order.destination]])
         latest_paths = []
         for path in valid_convoys:
-            p = [coordinate]
+            points = [coordinate]
             start = coordinate
             for loc in path[1:]:
-                p += [MapperUtils.loc_to_point(loc, unit.unit_type, order.destination_coast, start, self.board_svg_data["map_width"])]
-                start = p[-1]
+                points += [MapperUtils.loc_to_point(loc, unit.unit_type, order.destination_coast,
+                                                    start, self.board_svg_data["map_width"])]
+                start = points[-1]
 
             if path[-1].unit:
-                p[-1] = MapperUtils.pull_coordinate(p[-2], p[-1], 1.5 * self.board_svg_data["unit_radius"])
+                points[-1] = MapperUtils.pull_coordinate(points[-2], points[-1],
+                                                         1.5 * self.board_svg_data["unit_radius"])
 
-            p = np.array(p)
-
-            # given surrounding points, generate a control point
-            def g(point: np.ndarray) -> complex:
-                centered = point[::2] - point[1]
-
-                # TODO: possible div / 0 if the two convoyed points are in a straight line with the convoyer on one side
-                vec = centered[0] - centered[1] / abs(centered[1])
-                return vec / abs(vec) * 30 + point[1]
+            points = np.array(points)
 
             # this is a bit weird, because the loop is in-between two values
             # (S LO)(OP LO)(OP E)
-            s = f"M {f(p[0])} C {f(p[1])}, "
-            for x in range(1, len(p) - 1):
-                s += f"{f(g(p[x-1:x+2]))}, {f(p[x])} S "
+            stroke = f"M {f(points[0])} C {f(points[1])}, "
+            for x in range(1, len(points) - 1):
+                vectors = (points[x-1] - points[x], points[x+1] - points[x])
+                control_point = vectors[0] / abs(vectors[0]) - vectors[1] / abs(vectors[1])
+                control_point = points[x] if control_point == 0 else points[x] + control_point / abs(control_point) * 30
+                stroke += f"{f(control_point)}, {f(points[x])} S "
 
-            s += f"{f(p[-2])}, {f(p[-1])}"
+            stroke += f"{f(points[-2])}, {f(points[-1])}"
             stroke_color = "red" if has_failed else "black"
             marker_color = "redarrow" if has_failed else "arrow"
-            latest_paths.append(self._draw_path(s, marker_end = marker_color, stroke_color = stroke_color))
+            latest_paths.append(self._draw_path(stroke, marker_end = marker_color, stroke_color = stroke_color))
         return latest_paths
 
     def _draw_support(self,
@@ -282,9 +279,10 @@ class OrderDrawer:
             # If the supported move is a convoy, draw the support arrow from the last fleet instead
             if source in self.convoy_paths:
                 last_province = self.convoy_paths[source][0][-2]
+                assert last_province.unit is not None
                 source_coord = MapperUtils.loc_to_point(last_province,
-                                                       last_province.unit.unit_type, None, coordinate,
-                                                       self.board_svg_data["map_width"])
+                                                        last_province.unit.unit_type, None, coordinate,
+                                                        self.board_svg_data["map_width"])
         else:
             dest_coast = order.destination_coast
         dest_coord = MapperUtils.loc_to_point(order.destination,
@@ -293,10 +291,11 @@ class OrderDrawer:
                                               source_coord,
                                               self.board_svg_data["map_width"])
         marker_start = ""
+        marker_end = f"url(#{'red' if has_failed else ''}{'ball' if order.is_support_hold() else 'arrow'})"
         if order.destination.unit:
             dest_coord = MapperUtils.pull_coordinate(coordinate if order.is_support_hold() else source_coord,
                                                      dest_coord,
-                                                     1.5*self.board_svg_data["unit_radius"])
+                                                     self.board_svg_data["unit_radius"])
             # Draw hold around unit that can be support-held
             if (order.is_support_hold()
                 and isinstance(source.unit.order, (ConvoyTransport, Support))
@@ -314,15 +313,12 @@ class OrderDrawer:
                 and (self.player_restriction is None
                      or order.destination.unit.player.name == self.player_restriction)
             ):
-                # This check is so we only do it once, so it doesn't overlay
-                # it doesn't matter which one is the origin & which is the dest
-                if id(order.destination.unit) < id(unit):
-                    return []
-                marker_start = f"url(#{'red' if has_failed else ''}ball)"
+                marker_end = f"url(#{'red' if has_failed else ''}ball)"
                 # doesn't matter that v3 has been pulled, as it's still collinear
-                coordinate = source_coord = MapperUtils.pull_coordinate(
+                source_coord = MapperUtils.pull_coordinate(
                     dest_coord, coordinate, self.board_svg_data["unit_radius"]
                 )
+                coordinate = source_coord = (source_coord + dest_coord) / 2
 
         dasharray_size = 2.5 * self.board_svg_data["order_stroke_width"]
         drawn_order = MapperUtils.create_element(
@@ -337,7 +333,7 @@ class OrderDrawer:
                 "stroke-width": self.board_svg_data["order_stroke_width"],
                 "stroke-linecap": "round",
                 "marker-start": marker_start,
-                "marker-end": f"url(#{'red' if has_failed else ''}{'ball' if order.is_support_hold() else 'arrow'})",
+                "marker-end": marker_end,
             },
         )
         return [drawn_order]
@@ -361,19 +357,20 @@ class OrderDrawer:
     def _draw_build(self, order: Build) -> None:
         element = self.moves_svg.getroot()
         assert element is not None
-        build_location = order.province.get_unit_coordinates(order.unit_type, order.coast)
-        drawn_order = MapperUtils.create_element(
-            "circle",
-            {
-                "cx": build_location.real,
-                "cy": build_location.imag,
-                "r": self.board_svg_data["unit_radius"],
-                "fill": "none",
-                "stroke": "green",
-                "stroke-width": self.board_svg_data["order_stroke_width"],
-            },
-        )
-        element.append(drawn_order)
+        build_locations = MapperUtils.get_unit_coordinates(order.province, order.unit_type, order.coast)
+        for build_location in build_locations:
+            drawn_order = MapperUtils.create_element(
+                "circle",
+                {
+                    "cx": build_location.real,
+                    "cy": build_location.imag,
+                    "r": self.board_svg_data["unit_radius"],
+                    "fill": "none",
+                    "stroke": "green",
+                    "stroke-width": self.board_svg_data["order_stroke_width"],
+                },
+            )
+            element.append(drawn_order)
 
     def _draw_disband(self, coordinate: complex, svg) -> None:
         element = svg.getroot()

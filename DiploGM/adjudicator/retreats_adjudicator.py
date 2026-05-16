@@ -1,3 +1,5 @@
+"""Adjudicator for retreat phases. A lot of the validation logic comes from retreat options generated
+by the moves adjudcator in the previous phase."""
 from __future__ import annotations
 
 import logging
@@ -15,6 +17,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 class RetreatsAdjudicator(Adjudicator):
+    """Adjudicator for retreat phases."""
     def __init__(self, board: Board):
         super().__init__(board)
 

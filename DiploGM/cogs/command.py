@@ -160,15 +160,7 @@ class CommandCog(commands.Cog):
         csv = "csv" in arguments
         alphabetical = len({"a", "alpha", "alphabetical"} & set(arguments)) > 0
 
-        # TODO: We should combine these, since this will be done a lot
-        try:
-            board = manager.get_board(ctx.guild.id)
-        except RuntimeError:
-            log_command(logger, ctx, message="No game this this server.")
-            await send_message_and_file(
-                channel=ctx.channel, title="There is no game this this server."
-            )
-            return
+        board = manager.get_board(ctx.guild.id)
 
         if board.data.get("fow", "disabled") == "enabled":
             perms.assert_gm_only(ctx, "get scoreboard")
@@ -196,14 +188,7 @@ class CommandCog(commands.Cog):
     async def info(self, ctx: commands.Context) -> None:
         """Outputs information about the current game."""
         assert ctx.guild is not None
-        try:
-            board = manager.get_board(ctx.guild.id)
-        except RuntimeError:
-            log_command(logger, ctx, message="No game this this server.")
-            await send_message_and_file(
-                channel=ctx.channel, title="There is no game this this server."
-            )
-            return
+        board = manager.get_board(ctx.guild.id)
         log_command(
             logger,
             ctx,

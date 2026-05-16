@@ -10,7 +10,7 @@ from xml.etree.ElementTree import Element, tostring
 
 import shapely
 from deepmerge.merger import Merger
-from lxml import etree
+import lxml.etree as etree
 
 from DiploGM.map_parser.vector.transform import TransGL3
 from DiploGM.map_parser.vector.utils import (
@@ -41,7 +41,7 @@ class Parser:
         # Loads the config files for the variant
         # We get the variant-wide config, and then apply any version-specific changes, if applicible
         self.data = self._load_config(data)
-        self.unit_types = self._load_unit_types(self.data)
+        self.unit_types = self._load_unit_types()
 
         svg_root = etree.parse(self.data["file"])
 
@@ -91,7 +91,7 @@ class Parser:
         data["file"] = f"{parse_variant_path(variant_name)}/{data['file']}"
         return data
 
-    def _load_unit_types(self, data: dict) -> dict[str, UnitType]:
+    def _load_unit_types(self) -> dict[str, UnitType]:
         unit_files = ["assets/unit_types/army.toml", "assets/unit_types/fleet.toml"]
         for folder in [parse_variant_path(self.datafile, return_parent=True), parse_variant_path(self.datafile)]:
             if os.path.isdir(f"{folder}/units"):
@@ -100,26 +100,27 @@ class Parser:
         transforms: dict[str, str] = {}
         for unit_file in unit_files:
             with open(unit_file, "rb") as f:
-                data = tomllib.load(f)
-                unit_code = data.get("code", data["name"][0].upper())
+                unit_data = tomllib.load(f)
+                unit_code = unit_data.get("code", unit_data["name"][0].upper())
                 unit_types[unit_code] = UnitType(
-                    name = data["name"],
+                    name = unit_data["name"],
                     code = unit_code,
-                    can_convoy = data.get("can_convoy", False),
-                    can_be_convoyed = data.get("can_be_convoyed", False),
-                    can_capture = data.get("can_capture", True),
-                    moves_on = {Terrain[terrain.upper()] for terrain in data.get("moves_on", ["Land"])},
+                    aliases = set(unit_data.get("aliases", [])),
+                    can_convoy = unit_data.get("can_convoy", False),
+                    can_be_convoyed = unit_data.get("can_be_convoyed", False),
+                    can_capture = unit_data.get("can_capture", True),
+                    moves_on = {Terrain[terrain.upper()] for terrain in unit_data.get("moves_on", ["Land"])},
                     transforms_to = None
                 )
-                if data.get("transforms_to"):
-                    transforms[unit_code] = data["transforms_to"]
+                if unit_data.get("transforms_to"):
+                    transforms[unit_code] = unit_data["transforms_to"]
         for unit_code, transform_code in transforms.items():
             unit_types[unit_code].transforms_to = unit_types[transform_code]
         return unit_types
 
     def _create_retreat_layer(self, svg_root: etree._ElementTree, layer_name: str, config_data: dict) -> Element:
         """If a retreat layer is not found, we create one by copying the normal unit layer."""
-        move_layer_name = "army" if layer_name == "retreat_army" else "fleet"
+        move_layer_name = layer_name.replace("retreat_", "")
         print(f"Retreat layer {layer_name} not found. Creating one by copying {move_layer_name} layer.")
         move_layer = find_svg_element(svg_root, move_layer_name, config_data)
         if move_layer is None:
@@ -168,7 +169,7 @@ class Parser:
             for element in layer:
                 name = element.get(INKSCAPE_LABEL)
                 if not name:
-                    error = f"[{layer_name}] Element has no name: {etree.tostring(element, encoding='unicode')[:120]}"
+                    error = f"[{layer_name}] Element has no name: {element.get('id')}"
                     logger.error(error)
                     errors.append(error)
                     continue
@@ -187,7 +188,7 @@ class Parser:
             for element in layer:
                 name = element.get(INKSCAPE_LABEL)
                 if not name:
-                    error = f"[{layer_name}] Element has no name: {etree.tostring(element, encoding='unicode')[:120]}"
+                    error = f"[{layer_name}] Element has no name: {element.get('id')}"
                     logger.error(error)
                     errors.append(error)
                     continue
@@ -310,7 +311,6 @@ class Parser:
                 logger.debug("Province %s in overrides not found in map, skipping...", name)
                 continue
             # Add/remove adjacencies and coasts
-            # TODO: Some way to specify whether or not to clear other adjacencies?
             for n in data.get("adjacencies", []):
                 province.adjacencies.add(self.name_to_province[n])
             for n in data.get("remove_adjacencies", []):
@@ -333,8 +333,8 @@ class Parser:
                 retreat_coord = retreat_locs[index] if index < len(retreat_locs) else coordinate
                 retreat = complex(*retreat_coord) + offset
                 loc = UnitLocation(primary, retreat)
-                province.all_coordinates.setdefault("fleet", set()).add(loc)
-                province.unit_coordinates["fleet"] = loc
+                province.all_coordinates.setdefault("Fleet", set()).add(loc)
+                province.unit_coordinates["Fleet"] = loc
         return provinces
 
     def _remove_unit_adjacencies(self, provinces: set[Province]) -> set[Province]:
@@ -465,7 +465,7 @@ class Parser:
 
     # Sets province names given the names layer
     def _initialize_province_names(self, provinces: set[Province]) -> None:
-        def set_province_name(province: Province, name_data: Element, _: str | None) -> None:
+        def set_province_name(province: Province, name_data: etree.Element, _: str | None) -> None:
             if province.name != "":
                 raise RuntimeError(f"Province already has name: {province.name}")
             new_name = name_data.findall(".//svg:tspan", namespaces=NAMESPACE)[0].text
@@ -542,7 +542,7 @@ class Parser:
 
     # Sets province unit values
     def _initialize_units(self, provinces: set[Province]) -> None:
-        def get_coordinates(unit_data: Element) -> complex:
+        def get_coordinates(unit_data: etree.Element) -> complex:
             path = unit_data.findall(".//svg:path", namespaces=NAMESPACE)[0]
             points = parse_path(path.get("d"), TransGL3(unit_data))
             return points[0][0]
@@ -553,12 +553,14 @@ class Parser:
                                           self._set_province_unit)
 
     def _set_phantom_unit_coordinates(self) -> None:
-        layers = [("army", self.unit_types["A"], False),
-                  ("retreat_army", self.unit_types["A"], True),
-                  ("fleet", self.unit_types["F"], False),
-                  ("retreat_fleet", self.unit_types["F"], True)]
+        layers = []
+        for unit_type in self.unit_types.values():
+            layers.append((unit_type.name.lower(), unit_type, False))
+            layers.append((f"retreat_{unit_type.name.lower()}", unit_type, True))
+
         for layer_name, unit_type, is_retreat in layers:
-            layer = self.layer_data[layer_name]
+            if (layer := self.layer_data.get(layer_name)) is None:
+                continue
             layer_translation = TransGL3(layer)
             for unit_data in list(layer):
                 unit_translation = TransGL3(unit_data)
@@ -659,7 +661,7 @@ class Parser:
 parsers = {}
 
 
-def get_parser(name: str, force_refresh: bool=False) -> Parser:
+def get_parser(name: str, force_refresh: bool=False) -> Parser | str:
     """Gets the Parser for the given variant,
     creating a new one if it doesn't already exist or if force_refresh is True."""
     name = parse_variant_path(name, as_filename=False)
@@ -670,5 +672,6 @@ def get_parser(name: str, force_refresh: bool=False) -> Parser:
         if not errors:
             parsers[name] = new_parser
         else:
-            raise ValueError(f"SVG verification failed for {name}:\n* {'\n* '.join(errors)}")
+            logger.error("SVG verification failed for %s:\n* %s", name, "\n* ".join(errors))
+            return f"SVG verification failed for {name}:" + "\n* " + "\n* ".join(errors)
     return parsers[name]

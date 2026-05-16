@@ -1,3 +1,39 @@
+1.10.1
+=====
+
+Contributors:
+- Golden Kumquat
+
+# New Features
+- `.setup_server <variant>`, which can be done to create channels and roles in a server for a specific variant.
+  - If a role/channel exists, the bot won't try to make a duplicate
+  - This requires someone in a "GM Team"/Admin/Moderator role in a GM channel to prevent abuse, as it will create a bunch of channels and roles
+- Implemented `.edit transform_unit <province>` to change an army to a fleet or vice-versa
+  - `.edit transform_unit <unit_type> <province>` will transform that province's unit to a specific unit type
+  - `.edit bulk transform_unit <unit_type> <province1> <province2>...` can transform many units at once to the specified unit type
+
+# Quality of Life
+- Players can now do `.vm svg` to get an SVG version of the map
+- Added support for aliases in unit types (e.g. "cannon" for armies)
+- Added some more SVG support for custom unit types
+- If two units support hold each other, and one unit's support is cut, the dashed arrow will be split between red and black to show that one has succeeded and one has failed
+- Custom units are now recognised by the order parser (e.g. `Wing London - English Channel` or `B W Paris` would now be successfully parsed)
+- If you order a fleet to a province with multiple coasts, but only one that is reachable, the bot will grumble at you but change the destination coast to match (e.g. `Mar - Spa` will get interpreted as `F Marseilles - Spain sc`)
+
+# Developer Changes
+- Added a new NoGameError exception to properly handle when someone tries running a command where there's no game
+- SVG validation errors are now properly reported
+- DiploGM/map_parser/vector/layers.md now has more description of SVG layers
+- Added missing DATC tests and added comments for cases where the bot diverges from DATC
+  - Namely, the bot does allow for convoy kidnapping, and it does not implement the "via convoy" modification to move orders
+
+# Bugfixes
+- Units being dislodged can no longer claim provinces
+- Various bugfixes for Land/Sea/Coast adjacencies along sea/land borders
+- Fixes for some commands not properly working in threads
+- Scoreboards properly flip between VSCC and classic victory conditions based on the game type
+- Fixed a really old bug where convoy paths weren't quite drawn properly
+
 1.10.0
 =====
 

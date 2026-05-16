@@ -88,8 +88,11 @@ class PanelDrawer:
             value = value.replace("__name__", player.get_name())
             value = value.replace("__score__", str(len(player.centers)))
             value = value.replace("__iscc__", str(player_data["iscc"]))
-            value = value.replace("__vscc__", str(player_data["vscc"]))
-            power_element[i][0].text = value
+            if self.board.data.get("victory_conditions", "classic") == "classic":
+                value = value.replace("__vscc__", str(self.board.data["victory_count"]))
+            else:
+                value = value.replace("__vscc__", str(player_data["vscc"]))
+            power_element[int(i)][0].text = value
         return True
 
     def _draw_side_panel_scoreboard(self, svg: ElementTree) -> None:

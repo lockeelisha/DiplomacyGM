@@ -71,8 +71,8 @@ class Mapper:
 
         # Load cached unit symbols if they exist, which we can copy over for fancy units
         self.cached_symbols: dict[str, etree.Element] = {}
-        for element in self.cached_elements["symbol_templates"] or []:
-            label = element.get(f"{NAMESPACE['inkscape']}label")
+        for element in self.cached_elements.get("symbol_templates") or []:
+            label = element.get(f"{NAMESPACE['inkscape']}label", " ")
             if (unit_type := board.unit_types.get(label[0])) is not None and unit_type.name == label:
                 self.cached_symbols[unit_type.code] = {}
                 for child in element:
@@ -261,6 +261,7 @@ class Mapper:
                 coast = province.unit.coast
             else:
                 unit_type = self.board.unit_types["F"] if province.type == ProvinceType.SEA else self.board.unit_types["A"]
+            # TODO: We should move to MapperUtils.get_unit_coordinates and remove the logic from Province
             locdict[province.name] = province.get_unit_coordinates(unit_type, coast)
             for coast in province.adjacencies.coasts:
                 locdict[province.get_name(coast)] = province.get_unit_coordinates(self.board.unit_types["F"], coast)

@@ -66,7 +66,11 @@ async def rename_player(ctx: commands.Context, old_name: str, new_name: str) -> 
     assert ctx.guild is not None
     message = ""
     board = manager.get_board(ctx.guild.id)
-    if not (player := board.get_player(old_name)):
+    try:
+        player = board.get_player(old_name)
+        if player is None:
+            raise ValueError("Player not found")
+    except ValueError:
         await send_message_and_file(
             channel=ctx.channel,
             message=f"Could not find a player with the name {old_name}",

@@ -72,8 +72,8 @@ async def send_message_and_file(
     **_,
 ) -> Message:
 
-    if not isinstance(channel, (discord.TextChannel, discord.Thread)):
-        raise ValueError("Can only send messages to text channels")
+    if not isinstance(channel, Messageable):
+        raise ValueError("Trying to send a message in a non-messageable channel")
     if embed_colour is None:
         embed_colour = config.EMBED_STANDARD_COLOUR
     assert embed_colour is not None
@@ -163,8 +163,7 @@ async def send_message_and_file(
             log_command_no_ctx(
                 logger,
                 "?",
-                channel.guild.name,
-                channel.name,
+                channel,
                 "?",
                 f"png is too big ({len(file)}); converting to jpg",
             )
@@ -174,8 +173,7 @@ async def send_message_and_file(
                 log_command_no_ctx(
                     logger,
                     "?",
-                    channel.guild.name,
-                    channel.name,
+                    channel,
                     "?",
                     f"png to jpeg conversion errors: {error}",
                 )
@@ -183,8 +181,7 @@ async def send_message_and_file(
                 log_command_no_ctx(
                     logger,
                     "?",
-                    channel.guild.name,
-                    channel.name,
+                    channel,
                     "?",
                     f"jpg is too big ({len(file)})",
                 )

@@ -110,16 +110,15 @@ class TreeToOrder(Transformer):
         """Build order, of the form Build [Unit Type] [Province] or Build [Province] [Unit Type]."""
         if isinstance(a, tuple) and isinstance(b, str):
             province, coast = a
-            unit_type = b
+            unit_type_string = b.strip()
         elif isinstance(a, str) and isinstance(b, tuple):
             province, coast = b
-            unit_type = a
+            unit_type_string = a.strip()
         else:
             raise ValueError("Invalid build order format")
 
-        unit_type = self.board.unit_types.get(unit_type.strip().upper()[0])
-        if unit_type is None:
-            raise ValueError(f"{unit_type} isn't a valid unit type")
+        if (unit_type := self.board.fetch_unit_types().get(unit_type_string)) is None:
+            raise ValueError(f"{unit_type_string} isn't a valid unit type")
 
         if not province.has_supply_center:
             raise ValueError(f"{province} does not have a supply center.")
@@ -340,13 +339,23 @@ class TreeToOrder(Transformer):
         return unit
 
 generator = TreeToOrder()
-
+parser_cache: dict[str, Lark] = {}
 with open("DiploGM/orders.ebnf", "r", encoding="utf-8") as f:
     ebnf = f.read()
 
-movement_parser = Lark(ebnf, start="order", parser="earley")
-retreats_parser = Lark(ebnf, start="retreat", parser="earley")
-builds_parser   = Lark(ebnf, start="build", parser="earley")
+def _get_parser(board: Board) -> Lark:
+    cache_key = f"{board.datafile}:{board.turn.phase}:{''.join(sorted(board.unit_types.keys()))}"
+    if cache_key in parser_cache:
+        return parser_cache[cache_key]
+    unit_strings = board.fetch_unit_types().keys()
+    ebnf_with_units = ebnf.replace("{{UNIT_TYPE_STRINGS}}", "|".join(unit_strings))
+    unit_codes = [unit_type.code.lower() for unit_type in board.unit_types.values()]
+    unit_codes.extend([c.upper() for c in unit_codes])
+    ebnf_with_units = ebnf_with_units.replace("{{UNIT_TYPE_CODES}}", "".join(unit_codes))
+    start = "order" if board.turn.is_moves() else "retreat" if board.turn.is_retreats() else "build"
+    parser = Lark(ebnf_with_units, start=start, parser="earley")
+    parser_cache[cache_key] = parser
+    return parser
 
 def _check_for_warnings(unit: Unit) -> str | None:
     if isinstance(unit.order, (order.Move, order.RetreatMove)):
@@ -355,8 +364,13 @@ def _check_for_warnings(unit: Unit) -> str | None:
         if (Terrain.COAST in unit.unit_type.moves_on
             and unit.order.destination.adjacencies.coasts
             and not unit.order.destination_coast):
-            return "Destination province has multiple coasts. " + \
-                   "This might cause your order to fail if the fleet can reach more than one."
+            reachable_coasts = unit.province.adjacencies.get_coasts(unit.order.destination, unit.coast)
+            if len(reachable_coasts) > 1:
+                return "Destination province has multiple reachable coasts, so this order will fail."
+            if reachable_coasts:
+                unit.order.destination_coast = reachable_coasts.pop()
+                return "Destination province has one reachable coast. " + \
+                      f"Assigning {unit.order.destination_coast} as the destination coast."
     if isinstance(unit.order, order.Support):
         if not unit.province.adjacencies.get(unit.order.destination):
             return "This support is not to an adjacent province and will fail."
@@ -406,19 +420,7 @@ def parse_order(message: str, player_restriction: Player | None, board: Board) -
     orderoutput = []
     warnings = []
     errors = []
-    if board.turn.is_moves():
-        parser = movement_parser
-    elif board.turn.is_retreats():
-        parser = retreats_parser
-    elif board.turn.is_builds():
-        parser = builds_parser
-    else:
-        return {
-            "message": "The game is in an unknown phase. "
-                       "Something has gone very wrong with the bot. "
-                       "Please report this to a gm",
-            "embed_colour": ERROR_COLOUR,
-        }
+    parser = _get_parser(board)
 
     generator.set_state(board, player_restriction)
     for current_order in orderlist:
@@ -507,7 +509,8 @@ def parse_remove_order(message: str, player_restriction: Player | None, board: B
 def _parse_remove_order(command: str, player_restriction: Player | None, board: Board) -> Player | Unit | str:
     command = command.lower().strip()
     components = command.split(" ")
-    if components[0] in ["a", "f", "army", "fleet"]:
+
+    if components[0] in board.fetch_unit_types():
         command = " ".join(components[1:])
 
     province, _ = board.get_province_and_coast(command)

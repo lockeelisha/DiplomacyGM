@@ -6,6 +6,7 @@ from typing import Optional
 from discord import Member, User
 
 from DiploGM.utils.singleton import SingletonMeta
+from DiploGM.errors import NoGameError
 from DiploGM.adjudicator.make_adjudicator import make_adjudicator
 from DiploGM.adjudicator.defs import Resolution
 from DiploGM.mapper.mapper import Mapper
@@ -58,7 +59,10 @@ class Manager(metaclass=SingletonMeta):
             return False, f"Game {gametype} does not exist."
 
         logger.info("Creating new game in server %s", server_id)
-        self._boards[server_id] = get_parser(gametype).parse()
+        parser_result = get_parser(gametype)
+        if isinstance(parser_result, str):
+            return False, parser_result
+        self._boards[server_id] = parser_result.parse()
         self._boards[server_id].board_id = server_id
         self._database.save_board(server_id, self._boards[server_id])
 
@@ -106,7 +110,7 @@ class Manager(metaclass=SingletonMeta):
             # board = self._database.get_latest_board(server_id)
 
         if not board:
-            raise RuntimeError("There is no existing game this this server.")
+            raise NoGameError("There is no existing game in this server.")
         return board
 
     def get_board_from_db(self, server_id: int, turn: Turn) -> Board:
@@ -114,7 +118,7 @@ class Manager(metaclass=SingletonMeta):
         cur_board = self.get_board(server_id)
         board = self._database.get_board(cur_board.board_id, turn, cur_board.datafile)
         if board is None:
-            raise RuntimeError(f"There is no {turn} board for this server")
+            raise NoGameError(f"There is no {turn} board for this server")
         return board
 
     def apply_adjudication_results(self, server_id: int, board: Board) -> None:
@@ -160,7 +164,7 @@ class Manager(metaclass=SingletonMeta):
                 cur_board.datafile,
             )
             if board is None:
-                raise RuntimeError(
+                raise NoGameError(
                     f"There is no {turn} board for this server"
                 )
             if (
@@ -311,7 +315,7 @@ class Manager(metaclass=SingletonMeta):
             return None
         try:
             players = self.get_board(member.guild.id).players
-        except RuntimeError:
+        except NoGameError:
             return None
         for role in member.roles:
             for player in players:

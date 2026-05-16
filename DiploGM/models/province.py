@@ -160,24 +160,24 @@ class Province():
         """After all provinces have been initialised, set sea and island fleet adjacencies.
         This should only be called once all province adjacencies have been set."""
 
-        if self.type in (ProvinceType.SEA, ProvinceType.ISLAND):
-            for province in self.adjacencies.get_all():
-                self.adjacencies.add_terrain(province, Terrain.SEA)
-            return
-
         for province in self.adjacencies.get_all():
-            if province.type in (ProvinceType.SEA, ProvinceType.ISLAND):
+            if (self.type in (ProvinceType.SEA, ProvinceType.ISLAND)
+                and province.type in (ProvinceType.SEA, ProvinceType.ISLAND)):
                 self.adjacencies.add_terrain(province, Terrain.SEA)
+            if not (self.type == province.type == ProvinceType.LAND or self.type == province.type == ProvinceType.SEA):
+                self.adjacencies.add_terrain(province, Terrain.COAST)
 
     def set_adjacent_coasts(self):
         """Once sea and island adjacencies have been set, set land adjacencies"""
         # Multi-coast provinces are currently manually set
-        # TODO: (BETA) this will generate false positives (e.g. mini province keeping 2 big province coasts apart)
         for province2, adjacency in self.adjacencies.adjacencies.items():
-            if self.type != ProvinceType.LAND or province2.type != ProvinceType.LAND:
+            if self.type != ProvinceType.LAND and province2.type != ProvinceType.LAND:
                 self.adjacencies.add_terrain(province2, Terrain.SEA)
+            elif self.type != ProvinceType.LAND or province2.type != ProvinceType.LAND:
+                self.adjacencies.add_terrain(province2, Terrain.COAST)
             elif Province.detect_coastal_connection(self, province2):
                 self.adjacencies.add_terrain(province2, Terrain.COAST)
+                self.adjacencies.add_terrain(province2, Terrain.LAND)
 
             if ProvinceType.SEA not in (self.type, province2.type):
                 self.adjacencies.add_terrain(province2, Terrain.LAND)
@@ -193,7 +193,7 @@ class Province():
         # multiple possible tripoints could happen if there was a scenario
         # where two canals were blocked from connecting on one side by a land province but not the other
         # or by multiple rainbow-shaped seas
-        possible_tripoints = p1.adjacencies.get_all(Terrain.SEA) & p2.adjacencies.get_all(Terrain.SEA)
+        possible_tripoints = p1.adjacencies.get_all(Terrain.COAST) & p2.adjacencies.get_all(Terrain.COAST)
         for possible_tripoint in possible_tripoints:
             if possible_tripoint.type == ProvinceType.LAND:
                 continue

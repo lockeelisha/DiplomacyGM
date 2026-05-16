@@ -43,7 +43,7 @@ toml_errors, all_config = merge_toml(_toml, _default_toml)
 DISCORD_TOKEN = all_config["bot"]["discord_token"]
 LOGGING_LEVEL = all_config["bot"]["log_level"]
 COMMAND_PREFIX = all_config["bot"]["command_prefix"]
-GAME_PLAYING = all_config["bot"]["game_playing"]
+GAME_PLAYING: str = all_config["bot"]["game_playing"]
 
 
 # ARCHIVE WEBSITE

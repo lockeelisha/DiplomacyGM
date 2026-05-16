@@ -291,7 +291,11 @@ class _DatabaseConnection:
         logger.info("Loading board with ID %s", board_id)
         # TODO - we should eventually store things like coords, adjacencies, etc
         #  so we don't have to reparse the whole board each time
-        board = get_parser(data_file).parse()
+        parser_result = get_parser(data_file)
+        if isinstance(parser_result, str):
+            logger.error("Failed to load board %s: %s", board_id, parser_result)
+            raise ValueError(f"Failed to load board {board_id}: {parser_result}")
+        board = parser_result.parse()
         board.turn = turn
         board.board_id = board_id
 
@@ -832,6 +836,7 @@ class _DatabaseConnection:
         self._connection.commit()
 
     def execute_arbitrary_sql(self, sql: str, args: tuple):
+        """Executes an arbitrary SQL command. Probably should be deprecated in the future."""
         # TODO - everywhere using this should just be made into a method probably? idk
         cursor = self._connection.cursor()
         cursor.execute(sql, args)
@@ -839,6 +844,7 @@ class _DatabaseConnection:
         self._connection.commit()
 
     def executemany_arbitrary_sql(self, sql: str, args: list[tuple]):
+        """Executes several arbitrary SQL commands. Probably should be deprecated in the future."""
         cursor = self._connection.cursor()
         cursor.executemany(sql, args)
         cursor.close()
