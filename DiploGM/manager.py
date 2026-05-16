@@ -207,7 +207,7 @@ class Manager(metaclass=SingletonMeta):
         logger.info("manager.draw_map_for_board took %ss", elapsed)
         return svg, file_name
 
-    def adjudicate(self, server_id: int, test: bool = False) -> Board:
+    def adjudicate(self, server_id: int, test: bool = False) -> tuple[str | None, Board]:
         """Adjudicates the game for a given board, and saves the result if it's not a test adjudication."""
         start = time.time()
 
@@ -224,7 +224,9 @@ class Manager(metaclass=SingletonMeta):
         }
         self.last_dp_orders[server_id] = getattr(adjudicator, 'dp_order_strings', {})
         new_board.turn = new_board.turn.get_next_turn()
-        new_board.run_variant_scripts()
+        message = new_board.run_variant_scripts()
+        if message:
+            logger.info("Variant script result: %s", message)
         logger.info("Adjudicator ran successfully")
         if not test:
             self._boards[new_board.board_id] = new_board
@@ -232,7 +234,7 @@ class Manager(metaclass=SingletonMeta):
 
         elapsed = time.time() - start
         logger.info("manager.adjudicate.%s.%ss", server_id, elapsed)
-        return new_board
+        return message, new_board
 
     def draw_gui_map(
         self,

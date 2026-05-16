@@ -312,7 +312,13 @@ async def adjudicate(ctx: commands.Context) -> None:
         await lock_orders(ctx)
 
     old_turn = board.turn
-    new_board = manager.adjudicate(guild.id, test=args["test"])
+    message, new_board = manager.adjudicate(guild.id, test=args["test"])
+    if message:
+        await send_message_and_file(
+            channel=ctx.channel,
+            title=f"Additional adjudication information",
+            message=message,
+        )
 
     log_command(
         logger,
