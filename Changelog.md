@@ -11,6 +11,7 @@ Contributors:
 - Implemented `.edit transform_unit <province>` to change an army to a fleet or vice-versa
   - `.edit transform_unit <unit_type> <province>` will transform that province's unit to a specific unit type
   - `.edit bulk transform_unit <unit_type> <province1> <province2>...` can transform many units at once to the specified unit type
+- Custom variant scripts can return messages that can be sent to `#gm-bot-commands` after adjudication
 
 # Quality of Life
 - Players can now do `.vm svg` to get an SVG version of the map
