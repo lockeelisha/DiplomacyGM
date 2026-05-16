@@ -81,8 +81,9 @@ class Board:
         if "vscc" not in self.data["players"][name]:
             self.set_data(["players", name, "vscc"], self.data["victory_count"])
 
-    def run_variant_scripts(self):
-        """Runs the variant's scripts.py if it exists, in a sandboxed environment."""
+    def run_variant_scripts(self) -> str | None:
+        """Runs the variant's scripts.py if it exists, in a sandboxed environment.
+        The script can set a 'message' variable to return a string as desired."""
         variant_path = parse_variant_path(self.datafile)
         scripts_path = os.path.join(variant_path, "scripts.py")
         if os.path.isfile(scripts_path):
@@ -90,6 +91,10 @@ class Board:
                 script_code = f.read()
             allowed_globals = {"__builtins__": __builtins__, "board": self}
             exec(compile(script_code, scripts_path, "exec"), allowed_globals)
+            message = allowed_globals.get("message")
+            if isinstance(message, str):
+                return message
+        return None
 
     def update_players(self):
         """Goes through the datafile and adds any missing players/nicknames."""
