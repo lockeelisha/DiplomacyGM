@@ -294,8 +294,7 @@ class OrderDrawer:
         marker_end = f"url(#{'red' if has_failed else ''}{'ball' if order.is_support_hold() else 'arrow'})"
         if order.destination.unit:
             dest_coord = MapperUtils.pull_coordinate(coordinate if order.is_support_hold() else source_coord,
-                                                     dest_coord,
-                                                     self.board_svg_data["unit_radius"])
+                         dest_coord, (1 if order.is_support_hold() else 1.5) * self.board_svg_data["unit_radius"])
             # Draw hold around unit that can be support-held
             if (order.is_support_hold()
                 and isinstance(source.unit.order, (ConvoyTransport, Support))

@@ -6,9 +6,9 @@ After=network.target
 WantedBy=multi-user.target
 
 [Service]
-type=simple
+Type=simple
 WorkingDirectory=/opt/DiplomacyGM
-ExecStart=/opt/DiplomacyGM/botvm/bin/python3.11 /opt/DiplomacyGM/main.py
-SyslogIndentifier=%n
+ExecStart=/opt/DiplomacyGM/botvm/bin/python3 /opt/DiplomacyGM/main.py
+SyslogIdentifier=%n
 Restart=always
 RestartSec=5
