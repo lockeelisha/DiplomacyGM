@@ -37,9 +37,6 @@ class FogOfWarCog(commands.Cog):
 
     @commands.command(
         brief="Sends fog of war maps",
-        description="""
-        * publish_fow_moves {Country|(None) - whether or not to send for a specific country}
-        """,
     )
     @perms.gm_only("publish fow moves")
     async def publish_fow_moves(
@@ -65,9 +62,6 @@ class FogOfWarCog(commands.Cog):
 
     @commands.command(
         brief="Sends fog of war orders",
-        description="""
-        * publish_fow_orders {Country|(None) - whether or not to send for a specific country}
-        """,
     )
     @perms.gm_only("send fow order logs")
     async def publish_fow_order_logs(self, ctx: commands.Context):

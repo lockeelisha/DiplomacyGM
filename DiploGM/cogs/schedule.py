@@ -202,7 +202,6 @@ class ScheduleCog(commands.Cog):
     @commands.command(
         name="unschedule",
         brief="Unschedule a scheduled command",
-        description="Task IDs can be found from calling .view_schedule",
         aliases=["us", "unsched"],
         help="""
     Usage:
@@ -215,7 +214,7 @@ class ScheduleCog(commands.Cog):
         """Unschedule a currently scheduled command execution
 
         Usage: 
-            Used as `.schedule <task_id>`
+            Used as `.unschedule <task_id>`
 
         Note:
 
