@@ -36,13 +36,6 @@ class PlayerCog(commands.Cog):
 
     @commands.command(
         brief="Submits orders; there must be one and only one order per line.",
-        description="""Submits orders:
-    There must be one and only one order per line.
-    A variety of keywords are supported: e.g. '-', '->', 'move', and 'm' are all supported for a move command.
-    Supplying the unit type is fine but not required: e.g. 'A Ghent -> Normandy' and 'Ghent -> Normandy' are the same
-    If anything in the command errors, we recommend resubmitting the whole order message.
-    *During Build phases only*, you have to specify multi-word provinces with underscores; e.g. Somali Basin would be Somali_Basin (we use a different parser during build phases)
-    If you would like to use something that is not currently supported please inform your GM and we can add it.""",
         aliases=["o", "orders"],
     )
     @perms.player("order")
@@ -80,8 +73,6 @@ class PlayerCog(commands.Cog):
 
     @commands.command(
         brief="Removes orders for given units.",
-        description="Removes orders for given units (required for removing builds/disbands). "
-        "There must be one and only one order per line.",
         aliases=["remove", "rm", "removeorders"],
     )
     @perms.player("remove orders")
@@ -109,26 +100,7 @@ class PlayerCog(commands.Cog):
     @commands.command(brief="Clears all players orders.")
     @perms.player("remove all orders")
     async def remove_all(self, ctx: commands.Context, player: Player | None) -> None:
-        """Remove all currently submitted orders from the board
-
-        Usage: 
-            Used as `.remove_all`
-
-        Note: 
-            Removes first from the board object and then from the database
-            Use in a GM Channel will remove all orders globally
-            Use in a Player Channel will remove all orders for that player
-
-        Args:
-            ctx (commands.Context): Context from discord regarding command invocation
-
-        Returns:
-            None
-
-        Raises:
-            None:
-            Messages:
-        """
+        """Remove all currently submitted orders from the board"""
 
         assert ctx.guild is not None
 
@@ -148,19 +120,6 @@ class PlayerCog(commands.Cog):
 
     @commands.command(
         brief="Outputs your current submitted orders.",
-        description=f"""Outputs your current submitted orders.
-        Use .view_map to view a sample moves map of your orders. 
-        Use the '{MISSING_ALIASES[0]}' or '{SUBMITTED_ALIASES[0]}' argument to view only units without orders or only submitted orders.
-        \tAliases: {MISSING_ALIASES}; {SUBMITTED_ALIASES}
-        Use the '{BLIND_ALIASES[0]}' argument to view only the number of orders submitted.
-        \tAliases: {BLIND_ALIASES}
-        Use the '{FORCED_RETREAT_ALIASES[0]}' argument to view how many dislodged units have no valid retreat locations and must disband. (Only in retreat phases)
-        \t Aliases: {FORCED_RETREAT_ALIASES}
-        Alternatively, use the '{FREE_RETREAT_ALIASES[0]}' argument to view only dislodged units which are able to retreat. (Only in retreat phases)
-        \tAliases: {FREE_RETREAT_ALIASES}
-        Use the '{OPEN_CORES_ALIASES[0]}' argument to view the number of cores have no occupying unit and can be built in. (Only in winter phases)
-        \tAliases: {OPEN_CORES_ALIASES}
-        Use the '{EXPLAIN[0]}' argument to augment the output with explanations of each column.""",
         aliases=["v", "view", "vieworders", "view-orders"],
     )
     @perms.player("view orders")
@@ -196,13 +155,11 @@ class PlayerCog(commands.Cog):
 
     @commands.command(
         brief="Outputs a list of your open cores.",
-        description=f"""Outputs a list of your open cores (cores which contain no units, and so can be built in).
-        Use the '{BLIND_ALIASES[0]}' argument to view only the number of open cores.
-        \tAliases: {BLIND_ALIASES}""",
         aliases=["voc", "open-cores", "opencores", "view-open-cores"],
     )
     @perms.player(description="view open cores")
     async def view_open_cores(self, ctx: commands.Context, player: Player | None) -> None:
+        """Outputs a list of your open cores."""
         assert ctx.guild is not None
 
         arguments = remove_prefix(ctx).lower().split()
@@ -220,7 +177,6 @@ class PlayerCog(commands.Cog):
         )
 
         await send_message_and_file(channel=ctx.channel, title=f"{board.turn} Open Cores", message=message_text)
-
 
     async def _fetch_maps(self, ctx: commands.Context, player: Player | None, show_moves: bool = False):
         assert ctx.guild is not None
@@ -279,15 +235,6 @@ class PlayerCog(commands.Cog):
 
     @commands.command(
         brief="Outputs the current map with submitted orders.",
-        description="""
-        For GMs, all submitted orders are displayed. For a player, only their own orders are displayed.
-        GMs may append true as an argument to this to instead get the svg.
-        * view_map {arguments}
-        Arguments: 
-        * pass true|t|svg|s to return an svg
-        * pass standard, dark, blue, or pink for different color modes if present, or custom for manually configured colours
-        * pass season and optionally year for older maps
-        """,
         aliases=["viewmap", "vm"],
     )
     @perms.player("view map")
@@ -297,12 +244,6 @@ class PlayerCog(commands.Cog):
 
     @commands.command(
         brief="Outputs the current map without any orders.",
-        description="""
-        * view_current {arguments}
-        Arguments: 
-        * pass true|t|svg|s to return an svg
-        * pass standard, dark, blue, or pink for different color modes if present
-        """,
         aliases=["viewcurrent", "vc"],
     )
     @perms.player("view current")
@@ -381,14 +322,7 @@ class PlayerCog(commands.Cog):
             channel=ctx.channel, message=", ".join([p.name for p in visible_provinces])
         )
 
-    @commands.command(brief="creates a new private press channel",
-        description="""
-        * create_press_channel {category} {name} {@country1} {@country2} ...
-        Arguments: 
-        * category: the category to create the channel in (#comms-1, #comms-2, etc.)
-        * name: the name of the channel to create (e.g. england-france)
-        * @country1, @country2, ... : the roles of the other countries that should have access to the channel
-        """,)
+    @commands.command(brief="creates a new private press channel")
     @perms.player("create a private press channel")
     async def create_press_channel(self, ctx: commands.Context, player: Player | None) -> None:
         """Creates a new private press channel."""
@@ -471,43 +405,41 @@ class PlayerCog(commands.Cog):
         board = manager.get_board(ctx.guild.id)
         power_roles = set(map(lambda p: find_discord_role(p, guild.roles), board.get_players()))
 
-        if player is None:
-            if "global" in arguments:
-                for player in board.get_players():
-                    order_channel_name = player.get_name().lower().replace(" ", "-") + config.PLAYER_CHANNEL_SUFFIX
-
-                    order_channel = discord.utils.find(lambda c: c.name == order_channel_name, ctx.guild.text_channels)
-                    if order_channel:
-                        await self._player_press_directory(ctx,
-                                                           channel=order_channel,
-                                                           player=player,
-                                                           power_roles=power_roles)
-
-                await send_message_and_file(channel=ctx.channel, message="Created press directories for all players")
-                return
-            elif len(ctx.message.role_mentions) > 0:
-                for player in board.get_players():
-                    role = find_discord_role(player, guild.roles)
-                    if role is None or role not in ctx.message.role_mentions:
-                        continue
-
-                    await self._player_press_directory(ctx,
-                                                       channel=ctx.channel,
-                                                       player=player,
-                                                       power_roles=power_roles)
-
-                out = " ".join(map(lambda r: r.mention, ctx.message.role_mentions))
-                await send_message_and_file(channel=ctx.channel, message=f"Created press directories for players: {out}")
-                return
-
-            await send_message_and_file(channel=ctx.channel,
-                                        message=f"Please provide a GM argument: {gm_arguments}",
-                                        embed_colour=config.PARTIAL_ERROR_COLOUR)
-            return
-
         if player is not None:
             await self._player_press_directory(ctx, channel=ctx.channel, player=player, power_roles=power_roles)
+            return
 
+        if "global" in arguments:
+            for player in board.get_players():
+                order_channel_name = player.get_name().lower().replace(" ", "-") + config.PLAYER_CHANNEL_SUFFIX
+
+                order_channel = discord.utils.find(lambda c: c.name == order_channel_name, ctx.guild.text_channels)
+                if order_channel:
+                    await self._player_press_directory(ctx,
+                                                        channel=order_channel,
+                                                        player=player,
+                                                        power_roles=power_roles)
+
+            await send_message_and_file(channel=ctx.channel, message="Created press directories for all players")
+            return
+        if len(ctx.message.role_mentions) > 0:
+            for player in board.get_players():
+                role = find_discord_role(player, guild.roles)
+                if role is None or role not in ctx.message.role_mentions:
+                    continue
+
+                await self._player_press_directory(ctx,
+                                                    channel=ctx.channel,
+                                                    player=player,
+                                                    power_roles=power_roles)
+
+            out = " ".join(map(lambda r: r.mention, ctx.message.role_mentions))
+            await send_message_and_file(channel=ctx.channel, message=f"Created press directories for players: {out}")
+            return
+
+        await send_message_and_file(channel=ctx.channel,
+                                    message=f"Please provide a GM argument: {gm_arguments}",
+                                    embed_colour=config.PARTIAL_ERROR_COLOUR)
 
     async def _player_press_directory(self, ctx: commands.Context, *, channel, player, power_roles):
         assert ctx.guild is not None

@@ -282,15 +282,7 @@ class AdminCog(commands.Cog):
         await upload_map_to_archive(ctx, server_id, board, file, season)
 
     @commands.command(
-        brief="Execute Arbitrary Python",
-        description="Execute a python snippet on the current board state.\n" + \
-            "WARNING: Changes made to the board state are saved to the database.",
-        help="""Example:
-        ```python
-        for player in board.players:
-            print(player.name)
-        ```
-    """,
+        brief="Execute Arbitrary Python"
     )
     @perms.superuser_only("Execute arbitrary python code")
     async def exec_py(self, ctx: commands.Context) -> None:
