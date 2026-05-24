@@ -332,7 +332,7 @@ class Mapper:
                 color = player.color_dict[color_mode]
             elif color_mode == "custom":
                 color = self.board.data["players"][player.name].get("custom_color", player.default_color)
-            elif color_mode == "$vdx":
+            elif color_mode == "random":
                 color = f"{random.randint(0, 16777215):#x}"[2:]
             else:
                 color = player.default_color
