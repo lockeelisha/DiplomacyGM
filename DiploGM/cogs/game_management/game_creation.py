@@ -95,9 +95,13 @@ async def import_game(ctx: commands.Context) -> None:
 async def delete_game(ctx: commands.Context) -> None:
     """Completely deletes the game in the server. Cannot be undone."""
     assert ctx.guild is not None
-    manager.total_delete(ctx.guild.id)
-    log_command(logger, ctx, message="Deleted game")
-    await send_message_and_file(channel=ctx.channel, title="Deleted game")
+    try:
+        manager.total_delete(ctx.guild.id)
+        log_command(logger, ctx, message="Deleted game")
+        await send_message_and_file(channel=ctx.channel, title="Deleted game")
+    except:
+        log_command(logger, ctx, message="Failed to delete game, no existing game in server.")
+        await send_message_and_file(channel=ctx.channel, message="Failed to delete game, no existing game in server.", embed_colour=config.ERROR_COLOUR)
 
 async def list_variants(ctx: commands.Context) -> None:
     """Lists all variants currently loaded into the bot."""
