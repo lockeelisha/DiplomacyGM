@@ -142,6 +142,7 @@ description = "Draws and outputs a map of the board."
 turn = "Year and/or season of the map to view. Default is the current season."
 svg = "Outputs the map as an editable SVG."
 color = "Outputs the map in the specified color schema."
+oil = "Outputs the map and colours sea provinces with ownership."
 
 [view_gui]
 description = """
@@ -157,6 +158,7 @@ description = "Draws and outputs a map of the board with submitted orders."
 turn = "Year and/or season of the map to view. Default is the current season."
 svg = "Outputs the map as an editable SVG."
 color = "Outputs the map in the specified color schema."
+oil = "Outputs the map and colours sea provinces with ownership."
 
 [view_open_cores]
 description = "Outputs the list of supply centers that can be built in that do not have an occupying unit."

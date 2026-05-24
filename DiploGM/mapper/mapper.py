@@ -35,7 +35,7 @@ from DiploGM.map_parser.vector.vector import Parser
 
 class Mapper:
     """The main Mapper class."""
-    def __init__(self, board: Board, restriction: Player | None = None, color_mode: str | None = None):
+    def __init__(self, board: Board, restriction: Player | None = None, color_mode: str | None = None, oil_spill_mode: bool=False):
         register_namespace('', "http://www.w3.org/2000/svg")
         register_namespace('inkscape', "http://www.inkscape.org/namespaces/inkscape")
         register_namespace('sodipodi', "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd")
@@ -53,6 +53,14 @@ class Mapper:
         self.load_colors(color_mode)
         if color_mode is not None:
             self.replace_colors(color_mode)
+
+        # enable sea adjacency layer (oil spills)
+        logger.critical(f"OIL MODE: {oil_spill_mode}")
+        self.oil_spill_mode = oil_spill_mode
+        if self.oil_spill_mode:
+            layer = find_svg_element(self.board_svg, "sea_borders", self.board_svg_data)
+            if layer:
+                MapperUtils.set_element_visibility(layer, visible=True)
 
         self.panel_drawer = PanelDrawer(self.board_svg, self.board, self.player_colors, restriction)
         MapperUtils.add_arrow_definition_to_svg(self.board_svg, self.board, self.player_colors)
@@ -449,14 +457,14 @@ class Mapper:
                 continue
 
             visited_provinces.add(province.name)
+            color = self.player_colors[province.owner.name] if province.owner else self.neutral_color
             if province.is_impassable:
                 color = self.impassable_color
             elif province.name not in self.adjacent_provinces:
                 color = self.board_svg_data.get("unknown", "808080")
             elif province_element in sea_elements:
-                color = self.clear_seas_color
-            else:
-                color = self.player_colors[province.owner.name] if province.owner else self.neutral_color
+                if not self.oil_spill_mode or province.owner is None:
+                    color = self.clear_seas_color
 
             MapperUtils.color_element(province_element, color)
 

@@ -174,6 +174,7 @@ def is_player_category(category: CategoryChannel | None) -> bool:
 # Channel suffix for player orders channels.
 # E.g. if the player is "france" and the suffix is "-orders", the channel is "france-orders"
 PLAYER_CHANNEL_SUFFIX: str = "-orders"
+PLAYER_VOID_CHANNEL_SUFFIX: str = "-void"
 
 # Temporary bumbleship holds until the server restarts or until you fish too much
 temporary_bumbles: set[str] = set()
