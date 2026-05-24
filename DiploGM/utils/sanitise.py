@@ -155,6 +155,8 @@ def get_colour_option(board, args) -> str | None:
     """Gets the colour option from the arguments, defaulting to None."""
     color_options: list[str] = board.data["svg config"].get("color_options", ["standard"])
     color_options.append("custom")
+    color_options.append("$vdx")
+    print(color_options, args)
     if (color_arguments := list(set(color_options) & set(args))):
         return color_arguments[0]
     return None

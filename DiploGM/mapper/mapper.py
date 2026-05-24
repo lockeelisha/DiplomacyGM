@@ -2,6 +2,7 @@
 import copy
 import itertools
 import sys
+import random
 from xml.etree.ElementTree import ElementTree, Element, register_namespace
 from xml.etree.ElementTree import tostring as elementToString
 
@@ -325,13 +326,17 @@ class Mapper:
             "None": "ffffff",
             "Neutral": self.board_svg_data.get("neutral", "ffffff")
         }
+        print(color_mode)
         for player in self.board.players:
             if color_mode is not None and player.color_dict and color_mode in player.color_dict:
                 color = player.color_dict[color_mode]
             elif color_mode == "custom":
                 color = self.board.data["players"][player.name].get("custom_color", player.default_color)
+            elif color_mode == "$vdx":
+                color = f"{random.randint(0, 16777215):#x}"[2:]
             else:
                 color = player.default_color
+            print(f"{color} type {type(color)}")
             self.player_colors[player.name] = color
         neutral_color = self.board_svg_data.get("neutral", "ffffff")
         if isinstance(neutral_color, dict):
