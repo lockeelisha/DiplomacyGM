@@ -182,6 +182,7 @@ class PlayerCog(commands.Cog):
         assert ctx.guild is not None
         arguments = remove_prefix(ctx).lower().split()
         convert_svg = not ({"true", "t", "svg", "s"} & set(arguments))
+        oil_spills = "oil" in set(arguments)
         board = manager.get_board(ctx.guild.id)
         season = parse_season(arguments, board.turn)
 
@@ -196,6 +197,7 @@ class PlayerCog(commands.Cog):
                 draw_moves=show_moves,
                 player_restriction=player,
                 color_mode=get_colour_option(board, arguments),
+                oil_spill_mode=oil_spills,
                 movement_only="movement" in arguments,
                 turn=season,
                 is_severance=ctx.guild.id in [SEVERENCE_A_ID, SEVERENCE_B_ID],
@@ -390,20 +392,37 @@ class PlayerCog(commands.Cog):
         await send_message_and_file(channel=ctx.channel, message=message)
 
     @commands.command(name="press_directory", brief="outputs a list of press channels")
-    @perms.player("generate a press directory")
-    async def press_directory(self, ctx: commands.Context, player: Player | None) -> None:
+    async def press_directory(self, ctx: commands.Context) -> None:
         """Outputs a list of press channels."""
         assert ctx.guild is not None
         guild = ctx.guild
         gm_arguments = {"global"}
         arguments = remove_prefix(ctx).lower().split()
 
+        board = manager.get_board(ctx.guild.id)
+        power_roles = set(map(lambda p: find_discord_role(p, guild.roles), board.get_players()))
 
         if len(set(arguments).intersection(gm_arguments)) != 0:
             perms.assert_gm_only(ctx, "use a gm argument for .press_directory")
+            player = None
+        else:
+            channel_name: str = ctx.channel.name
+            if not channel_name.endswith(config.PLAYER_CHANNEL_SUFFIX) and not channel_name.endswith(config.PLAYER_VOID_CHANNEL_SUFFIX):
+                await send_message_and_file(channel=ctx.channel,
+                                            message="You may not create a press directory here.",
+                                            embed_colour=config.ERROR_COLOUR)
+                return
 
-        board = manager.get_board(ctx.guild.id)
-        power_roles = set(map(lambda p: find_discord_role(p, guild.roles), board.get_players()))
+            player_name = channel_name.removesuffix(config.PLAYER_CHANNEL_SUFFIX)
+            player_name = player_name.removesuffix(config.PLAYER_VOID_CHANNEL_SUFFIX)
+
+            try:
+                player = board.get_player(player_name)
+            except ValueError:
+                await send_message_and_file(channel=ctx.channel,
+                                            message="No player in this game is attached to this channel.",
+                                            embed_colour=config.ERROR_COLOUR)
+                return
 
         if player is not None:
             await self._player_press_directory(ctx, channel=ctx.channel, player=player, power_roles=power_roles)

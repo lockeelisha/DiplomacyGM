@@ -214,3 +214,18 @@ def color_element(element: Element, color: str, key="fill") -> None:
         assert style is not None
         style = re.sub(key + r":#[0-9a-fA-F]{6}", f"{key}:{color}", style)
         element.set("style", style)
+
+def set_element_visibility(element: Element, visible: bool = False, key="display") -> None:
+    """Colors a specific element with a given color."""
+    if visible:
+        display = "inline"
+    else:
+        display = "none"
+
+    if element.get(key) is not None:
+        element.set(key, display)
+    if element.get("style") is not None and key in (element.get("style") or ""):
+        style = element.get("style")
+        assert style is not None
+        style = re.sub(key + r":\w+", f"{key}:{display}", style)
+        element.set("style", style)

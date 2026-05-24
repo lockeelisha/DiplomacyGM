@@ -193,7 +193,7 @@ class Manager(metaclass=SingletonMeta):
     ) -> tuple[bytes, str]:
         """Gets the current map for a board."""
         start = time.time()
-        mapper = Mapper(board, restriction=kwargs.get("fow_player"), color_mode=kwargs.get("color_mode"))
+        mapper = Mapper(board, restriction=kwargs.get("fow_player"), color_mode=kwargs.get("color_mode"), oil_spill_mode=kwargs.get("oil_spill_mode", False))
 
         if draw_moves:
             svg, file_name = mapper.draw_moves_map(board.turn,
