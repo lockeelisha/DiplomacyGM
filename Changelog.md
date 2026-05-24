@@ -1,3 +1,24 @@
+1.10.2
+======
+
+Contributors:
+- aahoughton
+- ianic
+
+# Variant Changes
+- Added Forgotten Realms Diplomacy (made by **willowx**) under the title `faerundip`
+
+# Quality of Life
+- Clean handling of error when deleting a game that does not exist
+- Made `.press_directory` available to voids
+
+# Map Changes
+- Added colour mode `.vm random` that randomises power colours
+- Added map mode `.vm oil` that colours sea/island provinces according to ownership
+
+# Developer Changes
+- Created new `MapperUtils` method `set_element_visibility` that can, well, set the visibility of elements
+
 1.10.1
 =====
 
