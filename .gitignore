@@ -14,6 +14,8 @@ __pycache__
 *.svg
 !variants/**/*.svg
 *.sqlite
+*.sqlite-shm
+*.sqlite-wal
 *.out.sql
 *.zip
 pyproject.toml
