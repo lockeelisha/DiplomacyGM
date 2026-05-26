@@ -22,9 +22,8 @@ def _add_color_options(guild_id: int) -> str:
     except NoGameError:
         return ""
     color_options: list[str] = board.data.get("svg config", {}).get("color_options", ["standard"])
-    color_options.append("custom")
     description = " The following color modes are supported:"
-    for color in color_options:
+    for color in [*color_options, "custom"]:
         credit = board.data.get("svg config", {}).get("color_credits", {}).get(color)
         suffix = f" (by {credit})" if credit else ""
         description += f"\n      {color}{suffix}"
