@@ -1,13 +1,14 @@
 """Cog to handle variant development and management."""
+import asyncio
 import logging
 import os
+from subprocess import PIPE
 
 from discord.ext import commands
 
 from DiploGM import perms
 from DiploGM.map_parser.adjacencies import verify_adjacencies
 from DiploGM.map_parser.vector.vector import get_parser
-from DiploGM.models.board import Board
 from DiploGM.utils import log_command, send_message_and_file
 from DiploGM.manager import Manager
 from DiploGM.utils.sanitise import parse_variant_path
@@ -55,6 +56,40 @@ class VariantDevelopmentCog(commands.Cog):
         log_command(logger, ctx, message=message)
         await send_message_and_file(channel=ctx.channel, message=message)
 
+    @commands.command(brief="Pulls changes from the Git repository.")
+    @perms.superuser_only("Pulls changes from the Git repository.")
+    async def update_variant(self, ctx: commands.Context, variant: str, branch: str = "main") -> None:
+        """Pulls changes from the Git repository."""
+        assert ctx.guild is not None
+
+        try:
+            variant_dir = parse_variant_path(variant, return_parent=True)
+        except ValueError as e:
+            message = str(e)
+            log_command(logger, ctx, message=message)
+            await send_message_and_file(channel=ctx.channel, message=message)
+            return
+
+        async def run_command(*args) -> bool:
+            process = await asyncio.create_subprocess_exec("git", *args, stdout=PIPE, stderr=PIPE, cwd=variant_dir)
+            _, err = await process.communicate()
+            if process.returncode == 0:
+                return True
+            message = f"git {' '.join(args)} failed: {err.decode().strip()}"
+            log_command(logger, ctx, message=message)
+            await send_message_and_file(channel=ctx.channel, message=message)
+            return False
+
+        if not await run_command("fetch"):
+            return
+        if not await run_command("checkout", branch):
+            return
+        if not await run_command("pull"):
+            return
+
+        message = f"Updated `{variant}` on branch `{branch}`"
+        log_command(logger, ctx, message=message)
+        await send_message_and_file(channel=ctx.channel, message=message)
 
 async def setup(bot):
     cog = VariantDevelopmentCog(bot)
