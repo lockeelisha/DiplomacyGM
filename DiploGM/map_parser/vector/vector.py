@@ -15,7 +15,7 @@ import lxml.etree as etree
 from DiploGM.map_parser.vector.transform import TransGL3
 from DiploGM.map_parser.vector.utils import (
     get_coordinates, find_svg_element, get_element_color, get_sc_coordinates,
-    get_unit_coordinates, parse_path, initialize_province_resident_data,
+    get_unit_coordinates, parse_path, initialize_province_resident_data, weighted_random_color,
     LAYER_DICTIONARY, NAMESPACE, SVG_CONFIG_KEY
 )
 from DiploGM.models.adjacency import Terrain
@@ -60,7 +60,7 @@ class Parser:
         self.cache_adjacencies: set[tuple[str, str]] | None = None
 
         self.players: set[Player] = set()
-        self.autodetect_players = False
+        self.is_chaos = False
 
     def _load_config(self, variant_name: str) -> dict:
         config_merger = Merger(
@@ -201,7 +201,7 @@ class Parser:
 
         return errors
 
-    def parse(self) -> Board:
+    def parse(self, **kwargs) -> Board:
         """Parses the SVG and config data to create a Board with the initial state."""
         logger.debug("map_parser.vector.parse.start")
         start = time.time()
@@ -211,8 +211,9 @@ class Parser:
         self.name_to_province = {}
 
         # Get the players and their colors from the config, provided it's not a chaos game.
-        self.autodetect_players = self.data["players"] == "chaos"
-        if not self.autodetect_players:
+        self.is_chaos = kwargs.get("chaos", False)
+        self.is_chaos |= isinstance(self.data["players"], str)
+        if not self.is_chaos:
             for name, data in self.data["players"].items():
                 color = data["color"]
                 player = Player(name, color, set(), set())
@@ -239,7 +240,7 @@ class Parser:
 
         self.data["year"] = self.data.get("year", 1901)
         initial_turn = Turn(self.data["year"], PhaseName.SPRING_MOVES, self.data["year"])
-        if self.data.get("first_season", "spring").lower() == "winter":
+        if self.data.get("first_season", "spring").lower() == "winter" or self.is_chaos:
             initial_turn = initial_turn.get_previous_turn()
 
         if "victory_count" not in self.data:
@@ -247,10 +248,10 @@ class Parser:
 
         # Creates a deepcopy of the game data, and then loads player names and ISCC/VSCC values if needed
         game_data = copy.deepcopy(self.data)
-        if (is_chaos := self.data["players"] == "chaos"):
+        if self.is_chaos:
             game_data["players"] = {}
         for player in self.players:
-            if is_chaos or player.name not in game_data["players"]:
+            if self.is_chaos or player.name not in game_data["players"]:
                 game_data["players"][player.name] = {}
             if "iscc" not in game_data["players"][player.name]:
                 game_data["players"][player.name]["iscc"] = \
@@ -314,6 +315,9 @@ class Parser:
             for n in data.get("adjacencies", []):
                 if (target := self.name_to_province.get(n)) is not None:
                     province.adjacencies.add(target)
+            for n in data.get("coastal_adjacencies", []):
+                if (target := self.name_to_province.get(n)) is not None:
+                    province.adjacencies.add_terrain(target, Terrain.COAST)
             for n in data.get("remove_adjacencies", []):
                 if (target := self.name_to_province.get(n)) is not None:
                     province.adjacencies.remove(target)
@@ -374,21 +378,12 @@ class Parser:
             province.set_adjacent_coasts()
         provinces = self._remove_unit_adjacencies(provinces)
 
-        self._initialize_province_owners(self.layer_data.get("land_layer"))
-        self._initialize_province_owners(self.layer_data.get("island_fill_layer"))
-
-        # set supply centers
-        if self.layers["center_labels"]:
-            self._initialize_supply_centers_assisted()
-        else:
-            self._initialize_supply_centers(provinces)
+        self._initialize_supply_centers()
+        self._initialize_province_owners()
 
         # set units
-        if "starting_units" in self.layer_data:
-            if self.layers["unit_labels"]:
-                self._initialize_units_assisted()
-            else:
-                self._initialize_units(provinces)
+        if "starting_units" in self.layer_data and not self.is_chaos:
+            self._initialize_units()
 
         # set phantom unit coordinates for optimal unit placements
         self._set_phantom_unit_coordinates()
@@ -401,6 +396,12 @@ class Parser:
                                                                 retreat_coordinate=center)
             for unit in province.unit_coordinates.keys():
                 province.all_coordinates.setdefault(unit, set()).add(province.unit_coordinates[unit])
+
+            # For Chaos games, remove ownership of non-SC provinces
+            if self.is_chaos and not province.has_supply_center:
+                province.owner = None
+            if province.owner and province.has_supply_center:
+                province.owner.centers.add(province)
 
         return provinces
 
@@ -432,7 +433,7 @@ class Parser:
         if not path_string:
             print(tostring(province_data))
             raise RuntimeError("Province path data not found")
-        translation = layer_transformation * TransGL3(province_data)
+        translation = TransGL3(province_data) * layer_transformation
 
         province_coordinates = parse_path(path_string, translation)
         if len(province_coordinates) <= 1:
@@ -457,10 +458,12 @@ class Parser:
 
         return province
 
-    def _initialize_province_owners(self, provinces_layer: Element | None) -> None:
-        if provinces_layer is None:
-            return
-        for province_data in provinces_layer:
+    def _initialize_province_owners(self) -> None:
+        land = self.layer_data.get("land_layer")
+        layers: list[Element] = list(land) if land is not None else []
+        if (islands := self.layer_data.get("island_fill_layer")) is not None:
+            layers.extend(islands)
+        for province_data in layers:
             name = self.get_province_name(province_data)
             if self.name_to_province[name].is_impassable:
                 continue
@@ -480,12 +483,12 @@ class Parser:
                                           get_coordinates,
                                           set_province_name)
 
-    def _initialize_supply_centers_assisted(self) -> None:
+    def _initialize_supply_centers(self) -> None:
         sc_layer_transformation = TransGL3(self.layer_data["supply_center_icons"])
         for center_data in self.layer_data["supply_center_icons"]:
             name = self.get_province_name(center_data)
             province = self.name_to_province[name]
-            supply_center_coords = sc_layer_transformation.transform(get_sc_coordinates(center_data))
+            supply_center_coords = sc_layer_transformation.transform(TransGL3(center_data).transform(get_sc_coordinates(center_data)))
             supply_center_point = shapely.Point(supply_center_coords.real, supply_center_coords.imag)
             if not shapely.dwithin(supply_center_point, province.geometry, self.data[SVG_CONFIG_KEY].get("unit_radius", 10)):
                 logger.warning(f"{self.datafile}: Supply center icon for '{name}' is not within its province")
@@ -494,31 +497,11 @@ class Parser:
                 raise RuntimeError(f"{name} already has a supply center")
             province.has_supply_center = True
 
-            owner = province.owner
-            if owner:
-                owner.centers.add(province)
-
-            # TODO: (BETA): we cheat assume core = owner if exists because capital center symbols work different
-            core = province.owner
-            if not core:
+            if not self.is_chaos:
                 sc_circles = center_data.findall(".//svg:circle", namespaces=NAMESPACE)
-                if len(sc_circles) > 0:
-                    core = self._get_element_player(sc_circles[-1], province_name=province.name)
-                else:
-                    core = self._get_element_player(center_data, province_name=province.name)
-            province.core_data.core = core
-
-    # Sets province supply center values
-    def _initialize_supply_centers(self, provinces: set[Province]) -> None:
-        def set_province_supply_center(province: Province, _element: Element, _coast: str | None) -> None:
-            if province.has_supply_center:
-                raise RuntimeError(f"{province.name} already has a supply center")
-            province.has_supply_center = True
-
-        initialize_province_resident_data(provinces,
-                                          self.layer_data["supply_center_icons"],
-                                          get_sc_coordinates,
-                                          set_province_supply_center)
+                element = sc_circles[-1] if len(sc_circles) > 0 else center_data
+                core = self._get_element_player(element, province_name=province.name)
+                province.core_data.core = core
 
     def _set_province_unit(self, province: Province, unit_data: Element, coast: str | None = None) -> None:
         if province.unit:
@@ -535,25 +518,13 @@ class Parser:
         if unit.player is not None:
             unit.player.units.add(unit)
 
-    def _initialize_units_assisted(self) -> None:
+    def _initialize_units(self) -> None:
         for unit_data in self.layer_data["starting_units"]:
             province_name = self.get_province_name(unit_data)
             if self.data[SVG_CONFIG_KEY]["unit_type_labeled"]:
                 province_name = province_name[1:]
             province, coast = self._get_province_and_coast(province_name)
             self._set_province_unit(province, unit_data, coast)
-
-    # Sets province unit values
-    def _initialize_units(self, provinces: set[Province]) -> None:
-        def get_coordinates(unit_data: etree.Element) -> complex:
-            path = unit_data.findall(".//svg:path", namespaces=NAMESPACE)[0]
-            points = parse_path(path.get("d"), TransGL3(unit_data))
-            return points[0][0]
-
-        initialize_province_resident_data(provinces,
-                                          self.layer_data["starting_units"],
-                                          get_coordinates,
-                                          self._set_province_unit)
 
     def _set_phantom_unit_coordinates(self) -> None:
         layers = []
@@ -617,9 +588,11 @@ class Parser:
         if isinstance(neutral_color, dict):
             neutral_color = neutral_color["standard"]
         #FIXME: only works if there's one person per province
-        if self.autodetect_players:
-            if color is None or color == neutral_color or color == self.impassable_color:
+        if self.is_chaos:
+            if color is None or color == self.impassable_color or not self.name_to_province[province_name].has_supply_center:
                 return None
+            if color == neutral_color or color in self.color_to_player:
+                color = weighted_random_color(province_name)
             player = Player(province_name, color, set(), set())
             self.players.add(player)
             self.color_to_player[color] = player

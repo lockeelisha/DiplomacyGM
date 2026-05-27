@@ -25,10 +25,9 @@ def get_player_by_context(ctx: commands.Context) -> Player | None:
     # FIXME cleaner way of doing this
     board = manager.get_board(ctx.guild.id)
     # return if in order channel
-    weak_channel_checking = "weak channel checking" in board.data.get("flags", [])
-    if board.data.get("fow", "disabled") == "enabled" or weak_channel_checking:
+    if board.data.get("fow", "disabled") == "enabled" or board.is_chaos():
         return get_player_by_channel(
-            board, ctx.channel, ignore_category=weak_channel_checking
+            board, ctx.channel, ignore_category=board.is_chaos()
         )
     if not isinstance(ctx.author, discord.Member):
         return None
@@ -83,10 +82,9 @@ def require_player_by_context(ctx: commands.Context, description: str) -> Player
     # FIXME cleaner way of doing this
     board = manager.get_board(ctx.guild.id)
     # return if in order channel
-    weak_channel_checking = "weak channel checking" in board.data.get("flags", [])
-    if board.data.get("fow", "disabled") == "enabled" or weak_channel_checking:
+    if board.data.get("fow", "disabled") == "enabled" or board.is_chaos():
         player = get_player_by_channel(
-            board, ctx.channel, ignore_category=weak_channel_checking
+            board, ctx.channel, ignore_category=board.is_chaos()
         )
         if player:
             return player

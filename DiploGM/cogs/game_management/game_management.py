@@ -26,7 +26,7 @@ class GameManagementCog(commands.Cog):
         brief="Creates a new Diplomacy game.",
     )
     @perms.gm_only("create a game")
-    async def create_game(self, ctx: commands.Context) -> None:
+    async def create_game(self, ctx: commands.Context, *args) -> None:
         """Create a new game for the server.
 
         Usage: 
@@ -39,7 +39,7 @@ class GameManagementCog(commands.Cog):
             If a version is not provided, will default to the latest-numbered version.
             Available variants can be found by running .list_variants
         """
-        await game_creation.create_game(ctx)
+        await game_creation.create_game(ctx, *args)
 
     @commands.command(brief="Exports the current game state as JSON")
     @perms.gm_only("export the game")

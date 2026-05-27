@@ -1,5 +1,7 @@
 """Utility functions for parsing SVGs."""
+import colorsys
 import logging
+import random
 import re
 from typing import Callable
 from xml.etree.ElementTree import Element, ElementTree
@@ -17,7 +19,7 @@ LAYER_DICTIONARY = {
     "sea_borders": {"Sea Adjacencies", "Sea Provinces"},
     "province_names": {"Titles", "Region Names"},
     "supply_center_icons": {"Supply Centers", "SC Markers", "SC markers"},
-    "titles": {"Titles", "Labels", "Region Names"},
+    "titles": {"Titles", "Labels", "Region Names", "Province Names"},
     "symbol_templates": {"Symbol Templates"},
     "army": {"Army Locations"},
     "retreat_army": {"Army Retreat Locations", "Army Locations (Retreats)"},
@@ -115,8 +117,7 @@ def get_sc_coordinates(supply_center_data: Element) -> complex:
     if cx is None or cy is None:
         return get_unit_coordinates(supply_center_data)
     base_coordinates = complex(float(cx), float(cy))
-    trans = TransGL3(supply_center_data) * TransGL3(circle)
-    return trans.transform(base_coordinates)
+    return TransGL3(circle).transform(base_coordinates)
 
 # returns:
 # new base_coordinate (= base_coordinate if not applicable),
@@ -229,3 +230,13 @@ def initialize_province_resident_data(
 
         for resident_data in remove:
             resident_dataset.remove(resident_data)
+
+def weighted_random_color(seed: str | None = None) -> str:
+    """Generates a random color, avoiding colors too close to black or white.
+    If a seed is provided, the same color will be generated for the same seed."""
+    rng = random if seed is None else random.Random(seed)
+    hue = rng.random()
+    sat = rng.uniform(0.15, 1)
+    lit = rng.uniform(0.30, 0.70)
+    r, g, b = colorsys.hls_to_rgb(hue, lit, sat)
+    return f"{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
