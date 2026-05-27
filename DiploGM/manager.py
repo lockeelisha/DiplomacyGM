@@ -47,7 +47,7 @@ class Manager(metaclass=SingletonMeta):
         """Gets a list of server ids that have games."""
         return set(self._boards.keys())
 
-    def create_game(self, server_id: int, gametype: str = "classic") -> tuple[bool, str]:
+    def create_game(self, server_id: int, gametype: str = "classic", **kwargs) -> tuple[bool, str]:
         """Creates a new game in the specified server and of the specified variant."""
         if self._boards.get(server_id):
             return False, "A game already exists in this server."
@@ -62,8 +62,12 @@ class Manager(metaclass=SingletonMeta):
         parser_result = get_parser(gametype)
         if isinstance(parser_result, str):
             return False, parser_result
-        self._boards[server_id] = parser_result.parse()
+        self._boards[server_id] = parser_result.parse(**kwargs)
         self._boards[server_id].board_id = server_id
+        if kwargs.get("fow"):
+            self._boards[server_id].set_data("fow", "enabled")
+        if kwargs.get("chaos"):
+            self._boards[server_id].set_data("chaos", "enabled")
         self._database.save_board(server_id, self._boards[server_id])
 
         return True, f"{self._boards[server_id].data['name']} game created"

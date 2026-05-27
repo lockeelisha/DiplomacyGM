@@ -55,7 +55,6 @@ class Mapper:
             self.replace_colors(color_mode)
 
         # enable sea adjacency layer (oil spills)
-        logger.critical(f"OIL MODE: {oil_spill_mode}")
         self.oil_spill_mode = oil_spill_mode
         if self.oil_spill_mode:
             layer = find_svg_element(self.board_svg, "sea_borders", self.board_svg_data)

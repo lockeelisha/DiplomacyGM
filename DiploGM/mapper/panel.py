@@ -85,8 +85,10 @@ class PanelDrawer:
                 style = re.sub(r"font-size:[0-9.]+px", "font-size:42.6667px", style)
                 power_element[i].set("style", style)
 
+            score = str(len(player.centers)) if self.board.data.get("fow", "disabled") != "enabled" else "?"
             value = value.replace("__name__", player.get_name())
-            value = value.replace("__score__", str(len(player.centers)))
+            value = value.replace("__score__", score)
+            value = value.replace("__pct__", "{:.0f}%".format(self.board.get_score(player) * 100))
             value = value.replace("__iscc__", str(player_data["iscc"]))
             if self.board.data.get("victory_conditions", "classic") == "classic":
                 value = value.replace("__vscc__", str(self.board.data["victory_count"]))
@@ -112,7 +114,7 @@ class PanelDrawer:
                                   self.board.is_player_hidden(hidden_player))
 
         high_player_count = (len(self.board.get_players()) > len(self.scoreboard_power_locations)
-                             or self.board.data.get("vassals") == "enabled")
+                             or self.board.is_chaos())
         for i, player in enumerate(self.board.get_players_sorted_by_score()):
             if i >= len(self.scoreboard_power_locations):
                 break

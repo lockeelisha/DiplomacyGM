@@ -295,7 +295,12 @@ class _DatabaseConnection:
         if isinstance(parser_result, str):
             logger.error("Failed to load board %s: %s", board_id, parser_result)
             raise ValueError(f"Failed to load board {board_id}: {parser_result}")
-        board = parser_result.parse()
+
+        chaos_query = cursor.execute(
+            "SELECT parameter_value FROM board_parameters WHERE board_id=? AND parameter_key=?",
+            (board_id, "chaos"),
+        ).fetchone()
+        board = parser_result.parse(chaos=chaos_query[0] == "enabled" if chaos_query else False)
         board.turn = turn
         board.board_id = board_id
 
@@ -308,7 +313,7 @@ class _DatabaseConnection:
         for key, value in board_params:
             board.set_data(key.split("/"), value)
 
-        if board.data["players"] != "chaos":
+        if not board.is_chaos():
             board.update_players()
 
         player_data = cursor.execute(

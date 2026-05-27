@@ -460,7 +460,7 @@ class Board:
 
     def is_chaos(self) -> bool:
         """Checks to see if this is a Chaos game."""
-        return self.data["players"] == "chaos"
+        return self.data["players"] == "chaos" or self.data.get("chaos") == "enabled"
 
     def parse_order(self, order_type: str, destination: Optional[str], source: Optional[str]) -> Optional[UnitOrder]:
         """Given an order type and source/destination strings, attempts to parse it into an Order object."""
