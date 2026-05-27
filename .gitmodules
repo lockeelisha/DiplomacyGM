@@ -22,3 +22,7 @@
 	path = variants/faerunfip
 	url = https://github.com/Imperial-Diplomacy/FaerunDip-variants.git
 	branch = main
+[submodule "variants/seismicimpdip"]
+	path = variants/seismicimpdip
+	url = https://github.com/Imperial-Diplomacy/SeismicImpDip.git
+	branch = main
