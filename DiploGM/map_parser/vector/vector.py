@@ -220,15 +220,15 @@ class Parser:
                 self.players.add(player)
                 if isinstance(color, dict):
                     color = color["standard"]
-                self.color_to_player[color] = player
+                self.color_to_player[color.lower()] = player
                 player.is_active = data.get("active", "true").lower() == "true"
 
             neutral_colors = self.data[SVG_CONFIG_KEY]["neutral"]
             if isinstance(neutral_colors, dict):
-                self.color_to_player[neutral_colors["standard"]] = None
+                self.color_to_player[neutral_colors["standard"].lower()] = None
             else:
-                self.color_to_player[neutral_colors] = None
-            self.color_to_player[self.data[SVG_CONFIG_KEY]["neutral_sc"]] = None
+                self.color_to_player[neutral_colors.lower()] = None
+            self.color_to_player[self.data[SVG_CONFIG_KEY]["neutral_sc"].lower()] = None
 
         provinces, adjacencies = self._read_map()
         provinces = self._get_provinces(provinces, adjacencies)
@@ -501,7 +501,7 @@ class Parser:
                 sc_circles = center_data.findall(".//svg:circle", namespaces=NAMESPACE)
                 sc_circles.extend(center_data.findall(".//svg:path", namespaces=NAMESPACE))
                 if len(sc_circles) > 0:
-                    element = next((c for c in sc_circles if get_element_color(c) not in (None, "000000")), sc_circles[-1])
+                    element = next((c for c in sc_circles if get_element_color(c) not in (None, "none", "000000")), sc_circles[-1])
                 else:
                     element = center_data
                 core = self._get_element_player(element, province_name=province.name)
@@ -588,9 +588,12 @@ class Parser:
 
     def _get_element_player(self, element: Element, province_name: str="") -> Player | None:
         color = get_element_color(element)
+        if color is not None:
+            color = color.lower()
         neutral_color = self.data[SVG_CONFIG_KEY]["neutral"]
         if isinstance(neutral_color, dict):
             neutral_color = neutral_color["standard"]
+        neutral_color = neutral_color.lower()
         #FIXME: only works if there's one person per province
         if self.is_chaos:
             if color is None or color == self.impassable_color or not self.name_to_province[province_name].has_supply_center:
