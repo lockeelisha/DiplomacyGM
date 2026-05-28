@@ -499,7 +499,11 @@ class Parser:
 
             if not self.is_chaos:
                 sc_circles = center_data.findall(".//svg:circle", namespaces=NAMESPACE)
-                element = sc_circles[-1] if len(sc_circles) > 0 else center_data
+                sc_circles.extend(center_data.findall(".//svg:path", namespaces=NAMESPACE))
+                if len(sc_circles) > 0:
+                    element = next((c for c in sc_circles if get_element_color(c) not in (None, "000000")), sc_circles[-1])
+                else:
+                    element = center_data
                 core = self._get_element_player(element, province_name=province.name)
                 province.core_data.core = core
 
