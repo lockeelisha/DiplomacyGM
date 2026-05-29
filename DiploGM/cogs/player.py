@@ -182,7 +182,7 @@ class PlayerCog(commands.Cog):
         assert ctx.guild is not None
         arguments = remove_prefix(ctx).lower().split()
         convert_svg = not ({"true", "t", "svg", "s"} & set(arguments))
-        oil_spills = "oil" in set(arguments)
+        oil_spills = "oil" in set(arguments) or "$vdx" in set(arguments)
         board = manager.get_board(ctx.guild.id)
         season = parse_season(arguments, board.turn)
 

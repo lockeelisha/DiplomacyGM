@@ -156,6 +156,7 @@ def get_colour_option(board, args) -> str | None:
     color_options: list[str] = board.data["svg config"].get("color_options", ["standard"])
     color_options.append("custom")
     color_options.append("random")
+    color_options.append("$vdx")
     if (color_arguments := list(set(color_options) & set(args))):
         return color_arguments[0]
     return None

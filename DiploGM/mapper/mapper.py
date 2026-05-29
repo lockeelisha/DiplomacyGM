@@ -27,6 +27,8 @@ from DiploGM.models.player import Player
 from DiploGM.models.province import ProvinceType, Province
 from DiploGM.models.unit import Unit, UnitType
 
+from DiploGM.utils.random_color import oklab_random
+
 from DiploGM.map_parser.vector.transform import TransGL3
 from DiploGM.map_parser.vector.vector import Parser
 
@@ -338,8 +340,10 @@ class Mapper:
                 color = player.color_dict[color_mode]
             elif color_mode == "custom":
                 color = self.board.data["players"][player.name].get("custom_color", player.default_color)
-            elif color_mode == "random":
+            elif color_mode == "$vdx":
                 color = f"{random.randint(0, 16777215):#x}"[2:]
+            elif color_mode == "random":
+                color = oklab_random()
             else:
                 color = player.default_color
             self.player_colors[player.name] = color
