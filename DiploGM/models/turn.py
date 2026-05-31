@@ -99,7 +99,9 @@ class Turn:
         return "Fall" in self.phase_names[self.phase]
 
     def is_later(self, other: Turn) -> bool:
-        if other.year < self.year:
+        year_diff = abs(self.year - self.start_year)
+        other_year_diff = abs(other.year - other.start_year)
+        if other_year_diff < year_diff:
             return True
         if other.phase.value < self.phase.value:
             return True
