@@ -555,12 +555,19 @@ class Parser:
 
     def _get_province_and_coast(self, province_name: str) -> tuple[Province, str | None]:
         coast_suffix: str | None = None
+        coast_names = {" nc", " ec", " sc", " wc"}
         province_name = province_name.replace("(", "").replace(")", "")
 
-        if re.match(r" [nesw]+c$", province_name):
-            components = province_name.split(" ")
-            province_name = " ".join(components[:-1])
-            coast_suffix = components[-1]
+        for coast_name in coast_names:
+            if province_name.endswith(coast_name):
+                province_name = province_name[:-3]
+                coast_suffix = coast_name[1:]
+                break
+            elif re.match(r" [nesw]+c$", province_name):
+                components = province_name.split(" ")
+                province_name = " ".join(components[:-1])
+                coast_suffix = components[-1]
+                break
 
         province = self.name_to_province[province_name]
         return province, coast_suffix
