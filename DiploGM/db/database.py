@@ -56,11 +56,12 @@ class _DatabaseConnection:
 
         if board_ids is not None:
             placeholders = ",".join("?" for _ in board_ids)
-            sql = f"SELECT * FROM boards WHERE board_id IN ({placeholders})"
+            sql = f"SELECT * FROM boards WHERE board_id IN ({placeholders}) ORDER BY phase DESC"
             board_data = cursor.execute(sql, board_ids).fetchall()
         else:
-            board_data = cursor.execute("SELECT * FROM boards").fetchall()
+            board_data = cursor.execute("SELECT * FROM boards ORDER BY phase DESC").fetchall()
 
+        board_turns: dict[int, Turn] = {}
         board_keys = [(row[0], row[1]) for row in board_data]
         logger.info("Loading %s boards from DB", len(board_data))
         boards: dict[int, Board] = {}
@@ -73,11 +74,15 @@ class _DatabaseConnection:
                 continue
             if (board_id, str(current_turn.get_next_turn())) in board_keys:
                 continue
+            if board_id in board_turns and board_turns[board_id].is_later(current_turn):
+                continue
+                
 
             board = self._get_board(board_id, current_turn, data_file, cursor)
             board.turn = Turn(board.data["year"] + board.turn.year, board.turn.phase, board.data["year"])
 
             boards[board_id] = board
+            board_turns[board_id] = board.turn
 
         cursor.close()
         logger.info("Successfully loaded")

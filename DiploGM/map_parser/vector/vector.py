@@ -193,7 +193,7 @@ class Parser:
                     errors.append(error)
                     continue
 
-                name = re.sub(r" \(?[ensw]c\)?$", "", name)  # Remove coast names
+                name = re.sub(r" \(?[ensw]+c\)?$", "", name)  # Remove coast names
                 if name not in seen_names:
                     error = f"[{layer_name}] Name '{name}' not found in any province layer"
                     logger.error(error)
