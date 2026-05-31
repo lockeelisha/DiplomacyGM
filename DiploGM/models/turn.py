@@ -98,6 +98,14 @@ class Turn:
         """Checks to see if it's Fall and if SC ownership should change."""
         return "Fall" in self.phase_names[self.phase]
 
+    def is_later(self, other: Turn) -> bool:
+        if other.year < self.year:
+            return True
+        if other.phase.value < self.phase.value:
+            return True
+
+        return False
+
     @staticmethod
     def turn_from_string(turn_str: str) -> Turn | None:
         """Creates a Turn object from a string representation."""
