@@ -203,17 +203,6 @@ def _make_units_claim_provinces(_, keywords: list[str], board: Board) -> None:
         if claim_centers or not unit.province.has_supply_center:
             board.change_owner(unit.province, unit.player, force_change=True)
 
-
-def _set_player_points(_, keywords: list[str], board: Board) -> None:
-    player = board.get_player(keywords[0])
-    if not player:
-        raise ValueError("Unknown player specified")
-    points = int(keywords[1])
-    if points < 0:
-        raise ValueError("Can't have a negative number of points!")
-
-    player.points = points
-
 def _set_game_name(_, parameter_str: str, board: Board) -> None:
     raise NotImplementedError("set_game_name has been moved to `.edit_game`.")
 
@@ -272,8 +261,7 @@ function_list = {
     "make units claim provinces": _make_units_claim_provinces,
     "set game name": _set_game_name,
     "bulk create units": _bulk_create_units,
-    "apocalypse": _apocalypse,
-    "set player points": _set_player_points
+    "apocalypse": _apocalypse
 }
 
 def _bulk(_, keywords: list[str], board: Board) -> None:

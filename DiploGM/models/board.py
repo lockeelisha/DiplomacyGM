@@ -172,13 +172,6 @@ class Board:
                                     -self.get_score(sort_player),
                                     sort_player.get_name().lower()))
 
-    def get_players_sorted_by_points(self) -> list[Player]:
-        """Gets a list of players sorted by their points."""
-        return sorted(self.get_players(),
-            key=lambda sort_player: (-sort_player.points,
-                                    -len(sort_player.centers),
-                                    sort_player.get_name().lower()))
-
     def fetch_unit_types(self) -> dict[str, UnitType]:
         """Gets a dictionary of unit types, with keys being the unit code, name, and aliases."""
         str_to_unit_type = {}

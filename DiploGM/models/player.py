@@ -40,7 +40,6 @@ class Player:
         self.build_orders: set[order.PlayerOrder] = set()
         self.waived_orders: int = 0
 
-        self.points: int = 0
         self._dp_max: int | None = None
         self.is_active: bool = is_active
 
@@ -81,7 +80,6 @@ class Player:
                       if len(centers) > 0 else 'None')
             out = (
                 f"Color: #{board.data['players'][self.name].get('custom_color', self.default_color)}\n"
-                + f"Points: {self.points}\n"
                 + f"Units ({len(units)}): {units}\n"
                 + f"Centers ({len(centers)}): {centers}\n"
             )

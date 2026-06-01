@@ -158,9 +158,7 @@ class _DatabaseConnection:
         else:
             owner_player = board.get_player(owner)
             if owner_player is None:
-                logger.warning(
-                    f"Couldn't find corresponding player for {owner} in DB"
-                )
+                logger.warning(f"Couldn't find corresponding player for %s in DB", owner)
             else:
                 province.owner = owner_player
 
@@ -180,6 +178,7 @@ class _DatabaseConnection:
         province.core_data.half_core = half_core_player
         province.unit = None
         province.dislodged_unit = None
+        province.geometry = None
 
     def _load_unit(self, board: Board, board_id: int, unit_info: tuple, cursor):
         (
@@ -193,26 +192,21 @@ class _DatabaseConnection:
             has_failed,
         ) = unit_info
         province, coast = board.get_province_and_coast(location)
-        owner_player = None
-        if owner is not None and (owner_player := board.get_player(owner)) is None:
+        if (owner_player := board.get_player(owner)) is None and owner is not None:
             logger.warning("Couldn't find corresponding player for %s in DB", owner)
             return
+        unit = Unit(board.unit_types[unit_type], owner_player, province, coast)
+
         if is_dislodged:
+            province.dislodged_unit = unit
             retreat_ops = cursor.execute(
                 "SELECT retreat_loc FROM retreat_options WHERE board_id=? and phase=? and origin=?",
                 (board_id, format(board.turn, "%I %S"), location),
             )
-            retreat_options = set(
-                map(board.get_province_and_coast, set().union(*retreat_ops))
-            )
-        else:
-            retreat_options = None
-        unit = Unit(board.unit_types[unit_type], owner_player, province, coast)
-        if is_dislodged:
-            province.dislodged_unit = unit
-            unit.retreat_options = retreat_options
+            unit.retreat_options = set(map(board.get_province_and_coast, set().union(*retreat_ops)))
         else:
             province.unit = unit
+
         if owner_player is not None:
             owner_player.units.add(unit)
         board.units.add(unit)
@@ -220,10 +214,9 @@ class _DatabaseConnection:
         if order_type is None:
             return
         try:
-            order = board.parse_order(order_type, order_destination, order_source)
-            if order is not None:
-                order.has_failed = has_failed
-            unit.order = order
+            unit.order = board.parse_order(order_type, order_destination, order_source)
+            if unit.order is not None:
+                unit.order.has_failed = has_failed
         except ValueError:
             logger.warning("BAD UNIT INFO: replacing with hold")
 
@@ -273,7 +266,6 @@ class _DatabaseConnection:
             "SELECT parameter_key, parameter_value FROM board_parameters WHERE board_id=?",
             (board_id,),
         ).fetchall()
-
         # Turning a key deliniated with slashes into a nested dict
         for key, value in board_params:
             board.set_data(key.split("/"), value)
@@ -281,26 +273,7 @@ class _DatabaseConnection:
         if not board.is_chaos():
             board.update_players()
 
-        player_data = cursor.execute(
-            "SELECT player_name, color, liege, points FROM players WHERE board_id=?",
-            (board_id,),
-        ).fetchall()
-        player_info_by_name = {
-            player_name: (color, points)
-            for player_name, color, points in player_data
-        }
-        name_to_player = {player.name: player for player in board.players}
         for player in board.players:
-            if player.name not in player_info_by_name:
-                logger.warning("Couldn't find player %s in DB", player.name)
-                continue
-            color, points = player_info_by_name[player.name]
-            # TODO: Remove once board_params have been updated
-            board.set_data(["players", player.name, "custom_color"], color)
-            cursor.execute("INSERT OR IGNORE INTO board_parameters (board_id, parameter_key, parameter_value) VALUES (?, ?, ?)",
-                           (board_id, f"players/{player.name}/custom_color", color))
-
-            player.points = points
             player.units = set()
             player.centers = set()
         if board.turn.is_builds():
@@ -338,9 +311,6 @@ class _DatabaseConnection:
         ).fetchall()
         for dp_info in dp_data:
             self._load_dp_orders(board, dp_info)
-
-        for province in board.provinces:
-            province.geometry = None
 
         return board
 
@@ -380,7 +350,7 @@ class _DatabaseConnection:
                     player.name,
                     board.data["players"][player.name].get("custom_color", player.default_color),
                     None,
-                    player.points,
+                    0,
                 )
                 for player in board.players
             ],
@@ -505,19 +475,6 @@ class _DatabaseConnection:
         # We delete and re-create units and retreat options, since some might be removed via command
         cursor.execute("DELETE FROM retreat_options WHERE board_id=? AND phase=?", (board_id, phase))
         cursor.execute("DELETE FROM units WHERE board_id=? AND phase=?", (board_id, phase))
-
-        cursor.executemany(
-            "UPDATE players SET color=?, points=? WHERE board_id=? AND player_name=?",
-            [
-                (
-                    board.data["players"][player.name].get("custom_color", player.default_color),
-                    player.points,
-                    board_id,
-                    player.name,
-                )
-                for player in board.players
-            ],
-        )
 
         cursor.executemany(
             "UPDATE provinces SET owner=?, core=?, half_core=? "

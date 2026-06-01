@@ -71,42 +71,6 @@ class CommandCog(commands.Cog):
             version = f.readline()
         await send_message_and_file(channel=ctx.channel, message=f"DiploGM Version: {version}")
 
-    def _generate_chaos_scoreboard(self, board: Board, ctx) -> str:
-        response = ""
-        the_player = perms.get_player_by_context(ctx)
-        scoreboard_rows = []
-
-        latest_index = -1
-        latest_points = float("inf")
-
-        for i, player in enumerate(board.get_players_sorted_by_points()):
-            points = player.points
-
-            if points < latest_points:
-                latest_index = i
-                latest_points = points
-
-            if i <= 25 or player == the_player:
-                scoreboard_rows.append((latest_index + 1, player))
-            elif the_player is None:
-                break
-            elif the_player == player:
-                scoreboard_rows.append((latest_index + 1, player))
-                break
-
-        index_length = len(str(scoreboard_rows[-1][0]))
-        points_length = len(str(scoreboard_rows[0][1]))
-
-        for index, player in scoreboard_rows:
-            if board.is_player_hidden(player):
-                continue
-            response += (
-                f"\n\\#{index: >{index_length}} | {player.points: <{points_length}} | **{player.get_name()}**: "
-                f"{len(player.centers)} ({'+' if len(player.centers) - len(player.units) >= 0 else ''}"
-                f"{len(player.centers) - len(player.units)})"
-            )
-        return response
-
     def _generate_scoreboard(self, board: Board, ctx: commands.Context, alphabetical: bool) -> str:
         assert ctx.guild is not None
         response = ""
@@ -149,7 +113,6 @@ class CommandCog(commands.Cog):
     @commands.command(
         brief="Outputs the scoreboard.",
         description="""Outputs the scoreboard.
-        In Chaos, is shortened and sorted by points, unless "standard" is an argument
         * Use `csv` to obtain a raw list of sc counts (in alphabetical order)""",
         aliases=["leaderboard", "sb"],
     )
@@ -172,10 +135,7 @@ class CommandCog(commands.Cog):
             await ctx.send(counts)
             return
 
-        if board.is_chaos() and "standard" not in ctx.message.content:
-            response = self._generate_chaos_scoreboard(board, ctx)
-        else:
-            response = self._generate_scoreboard(board, ctx, alphabetical)
+        response = self._generate_scoreboard(board, ctx, alphabetical)
 
         log_command(logger, ctx, message="Generated scoreboard")
         await send_message_and_file(
