@@ -50,43 +50,40 @@ class _DatabaseConnection:
             cursor.executescript(sql_file.read())
             cursor.close()
 
-    def get_boards(self, board_ids:Optional[list[int]] = None) -> dict[int, Board]:
-        """Gets all boards from the database, or a subset if board_ids is provided."""
+    def get_active_board_ids(self) -> set[int]:
+        """Gets all board IDs that have games in the database, without loading full board state."""
+        cursor = self._connection.cursor()
+        rows = cursor.execute("SELECT DISTINCT board_id FROM boards").fetchall()
+        cursor.close()
+        return {row[0] for row in rows}
+
+    def load_board(self, board_id: int) -> Board | None:
+        """Gets a specific board from the database."""
         cursor = self._connection.cursor()
 
-        if board_ids is not None:
-            placeholders = ",".join("?" for _ in board_ids)
-            sql = f"SELECT * FROM boards WHERE board_id IN ({placeholders}) ORDER BY phase DESC"
-            board_data = cursor.execute(sql, board_ids).fetchall()
-        else:
-            board_data = cursor.execute("SELECT * FROM boards ORDER BY phase DESC").fetchall()
+        board_data = cursor.execute("SELECT * FROM boards  WHERE board_id=?", (board_id,)).fetchall()
 
-        board_turns: dict[int, Turn] = {}
-        board_keys = [(row[0], row[1]) for row in board_data]
+        board_phases = [row[1] for row in board_data]
         logger.info("Loading %s boards from DB", len(board_data))
-        boards: dict[int, Board] = {}
+        board = None
         for board_row in board_data:
-            board_id, phase_string, data_file, _, _ = board_row
+            _, phase_string, data_file, _, _ = board_row
 
             current_turn = Turn.turn_from_string(phase_string)
             if current_turn is None:
                 logger.warning("Could not parse turn string '%s' for board %s", phase_string, board_id)
                 continue
-            if (board_id, str(current_turn.get_next_turn())) in board_keys:
+            if str(current_turn.get_next_turn()) in board_phases:
                 continue
-            if board_id in board_turns and board_turns[board_id].is_later(current_turn):
+            if board is not None and board.turn.is_later(current_turn):
                 continue
-                
 
             board = self._get_board(board_id, current_turn, data_file, cursor)
             board.turn = Turn(board.data["year"] + board.turn.year, board.turn.phase, board.data["year"])
 
-            boards[board_id] = board
-            board_turns[board_id] = board.turn
-
         cursor.close()
         logger.info("Successfully loaded")
-        return boards
+        return board
 
     def get_old_board(self, board: Board, turn: Turn) -> Board | None:
         """Finds an older board from that same game"""
@@ -188,7 +185,8 @@ class _DatabaseConnection:
 
     def _load_province(self, board: Board, province: Province, province_info_by_name: dict):
         if province.name not in province_info_by_name:
-            logger.warning(f"Couldn't find province {province.name} in DB")
+            if not province.is_impassable:
+                logger.warning("Couldn't find province %s in DB", province.name)
             return
 
         owner, core, half_core = province_info_by_name[province.name]
@@ -828,20 +826,20 @@ class _DatabaseConnection:
         cursor.close()
         self._connection.commit()
 
-    def total_delete(self, board: Board):
-        """Deletes a board and all associated data, regardless of phase."""
+    def total_delete(self, board_id: int):
+        """Deletes a board and all associated data by board_id, regardless of phase."""
         cursor = self._connection.cursor()
-        cursor.execute("DELETE FROM boards WHERE board_id=?", (board.board_id,))
-        cursor.execute("DELETE FROM board_parameters WHERE board_id=?", (board.board_id,))
-        cursor.execute("DELETE FROM provinces WHERE board_id=?", (board.board_id,))
-        cursor.execute("DELETE FROM units WHERE board_id=?", (board.board_id,))
-        cursor.execute("DELETE FROM dp_orders WHERE board_id=?", (board.board_id,))
-        cursor.execute("DELETE FROM builds WHERE board_id=?", (board.board_id,))
+        cursor.execute("DELETE FROM boards WHERE board_id=?", (board_id,))
+        cursor.execute("DELETE FROM board_parameters WHERE board_id=?", (board_id,))
+        cursor.execute("DELETE FROM provinces WHERE board_id=?", (board_id,))
+        cursor.execute("DELETE FROM units WHERE board_id=?", (board_id,))
+        cursor.execute("DELETE FROM dp_orders WHERE board_id=?", (board_id,))
+        cursor.execute("DELETE FROM builds WHERE board_id=?", (board_id,))
         cursor.execute(
-            "DELETE FROM retreat_options WHERE board_id=?", (board.board_id,)
+            "DELETE FROM retreat_options WHERE board_id=?", (board_id,)
         )
-        cursor.execute("DELETE FROM players WHERE board_id=?", (board.board_id,))
-        cursor.execute("DELETE FROM spec_requests WHERE server_id=?", (board.board_id,))
+        cursor.execute("DELETE FROM players WHERE board_id=?", (board_id,))
+        cursor.execute("DELETE FROM spec_requests WHERE server_id=?", (board_id,))
         cursor.close()
         self._connection.commit()
 
