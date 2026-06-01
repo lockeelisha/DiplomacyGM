@@ -525,7 +525,7 @@ class Mapper:
                 MapperUtils.color_element(center_element, element_color)
             if province.name in capital_provinces and capital_marker is not None:
                 capital_copy = copy.deepcopy(capital_marker)
-                translation = get_sc_coordinates(center_element) - get_sc_coordinates(capital_copy)
+                translation = TransGL3(center_element).transform(get_sc_coordinates(center_element)) - get_sc_coordinates(capital_copy)
                 capital_copy.set("transform", f"translate({translation.real}, {translation.imag})")
                 for elem in capital_copy:
                     if get_element_color(elem) != "000000":

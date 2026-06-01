@@ -28,7 +28,7 @@ import lxml.etree as etree
 from DiploGM.map_parser.vector.vector import Parser
 from DiploGM.map_parser.vector.transform import TransGL3
 from DiploGM.map_parser.vector.utils import (
-    find_svg_element, get_coordinates, get_unit_coordinates, NAMESPACE, SVG_CONFIG_KEY
+    find_svg_element, get_coordinates, get_element_unit_coordinates, NAMESPACE, SVG_CONFIG_KEY
 )
 from DiploGM.models.province import Province, ProvinceType
 
@@ -72,7 +72,7 @@ def generate_layers(parser: Parser, unit_types: list[str]) -> bytes:
         if layer_name == "titles":
             coordinate = get_coordinates(sample_element)
         else:
-            coordinate = get_unit_coordinates(sample_element)
+            coordinate = get_element_unit_coordinates(sample_element)
         layers[layer_name] = {"layer": layer, "sample_element": sample_element, "coordinate": coordinate}
         existing_objects[layer_name] = set()
         for element in layer:
