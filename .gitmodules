@@ -18,11 +18,11 @@
 	path = variants/helladip
 	url = https://github.com/Imperial-Diplomacy/HellaDip-variants.git
 	branch = main
-[submodule "variants/faerundip"]
-	path = variants/faerunfip
-	url = https://github.com/Imperial-Diplomacy/FaerunDip-variants.git
-	branch = main
 [submodule "variants/seismicimpdip"]
 	path = variants/seismicimpdip
 	url = https://github.com/Imperial-Diplomacy/SeismicImpDip.git
+	branch = main
+[submodule "variants/faerundip"]
+	path = variants/faerundip
+	url = https://github.com/Imperial-Diplomacy/FaerunDip-Variants.git
 	branch = main
