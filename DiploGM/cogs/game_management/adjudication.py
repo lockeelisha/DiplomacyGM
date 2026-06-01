@@ -21,7 +21,7 @@ from DiploGM.utils.image import svg_to_png
 
 from DiploGM.models.order import Disband, Build
 from DiploGM.models.player import ForcedDisbandOption, OrdersSubsetOption, ViewOrdersTags
-from DiploGM.manager import Manager, SEVERENCE_A_ID, SEVERENCE_B_ID
+from DiploGM.manager import Manager
 from DiploGM.utils.sanitise import get_colour_option, remove_prefix
 from DiploGM.utils.send_message import ErrorMessage, send_error
 
@@ -177,7 +177,7 @@ async def publish_orders(ctx: commands.Context, *args) -> None:
         return
     log_url = await _post_orders(ctx, board)
 
-    if "silent" not in arguments and guild.id not in [SEVERENCE_A_ID, SEVERENCE_B_ID]:
+    if "silent" not in arguments:
         _ = asyncio.create_task(_ping_phase_change(guild, board, log_url))
 
     if config.MAP_ARCHIVE_SAS_TOKEN:
@@ -249,22 +249,6 @@ async def _adjudication_utils(ctx: commands.Context,
                               guild: discord.Guild,
                               new_board: Board,
                               test_adjudicate: bool) -> None:
-    # NOTE: Temporary for Meme's Severence Diplomacy Event
-    if guild.id in [SEVERENCE_A_ID, SEVERENCE_B_ID]:
-        seva = ctx.bot.get_guild(SEVERENCE_A_ID)
-        sevb = ctx.bot.get_guild(SEVERENCE_B_ID)
-
-        aperms = discord.utils.find(lambda r: r.name == "Player", seva.roles).permissions
-        bperms = discord.utils.find(lambda r: r.name == "Player", sevb.roles).permissions
-
-        a_allowed = ("Spring" in format(new_board.turn, "%S")
-                    or ("Winter" in format(new_board.turn, "%S")
-                        and random.choice([0, 1]) == 0))
-        await send_message_and_file(channel=ctx.channel,
-                                    message=f"Game {'A' if a_allowed else 'B'} is permitted to play.")
-        aperms.update(send_messages = a_allowed)
-        bperms.update(send_messages = not a_allowed)
-
     # AUTOMATIC SCOREBOARD OUTPUT FOR DATA SPREADSHEET
     if (new_board.turn.is_builds()
         and (guild.id != config.BOT_DEV_SERVER_ID and guild.name.startswith("Imperial Diplomacy"))

@@ -13,7 +13,7 @@ from DiploGM.utils import (
     send_message_and_file,
     log_command,
 )
-from DiploGM.manager import Manager, SEVERENCE_A_ID, SEVERENCE_B_ID
+from DiploGM.manager import Manager
 from DiploGM.models.player import Player
 from DiploGM.models.province import ProvinceType
 from DiploGM.utils.sanitise import find_discord_role, parse_season, remove_prefix
@@ -282,15 +282,6 @@ class CommandCog(commands.Cog):
             )
             return
 
-        # NOTE: Temporary for Meme's Severance event
-        if ctx.guild.id in [SEVERENCE_A_ID, SEVERENCE_B_ID]:
-            await send_message_and_file(
-                channel=ctx.channel,
-                title="Can't be doing that now, can we?",
-                message="No information for you.",
-            )
-            return
-
         province_name = remove_prefix(ctx)
         if not province_name:
             log_command(logger, ctx, message="No province given")
@@ -380,15 +371,6 @@ class CommandCog(commands.Cog):
             )
             return
 
-        # NOTE: Temporary for Meme's Severance event
-        if guild.id in [SEVERENCE_A_ID, SEVERENCE_B_ID]:
-            await send_message_and_file(
-                channel=ctx.channel,
-                title="Can't be doing that now, can we?",
-                message="No information for you.",
-            )
-            return
-
         player_name = remove_prefix(ctx)
         if not player_name:
             log_command(logger, ctx, message="No player given")
@@ -445,15 +427,6 @@ class CommandCog(commands.Cog):
             perms.assert_gm_only(
                 ctx, "call .all_province_data while orders are locked"
             )
-
-        # NOTE: Temporary for Meme's Severance event
-        if ctx.guild.id in [SEVERENCE_A_ID, SEVERENCE_B_ID]:
-            await send_message_and_file(
-                channel=ctx.channel,
-                title="Can't be doing that now, can we?",
-                message="No information for you.",
-            )
-            return
 
         province_by_owner = defaultdict(list)
         for province in board.provinces:

@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 # TODO: Find a better way to do this
 # maybe use a copy from manager?

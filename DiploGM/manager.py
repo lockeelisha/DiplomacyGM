@@ -21,9 +21,6 @@ from DiploGM.utils.sanitise import parse_variant_path, simple_player_name
 
 logger = logging.getLogger(__name__)
 
-SEVERENCE_A_ID = 1440703393369821248
-SEVERENCE_B_ID = 1440703645971644648
-
 class Manager(metaclass=SingletonMeta):
     """Manager acts as an intermediary between Bot (the Discord API), Board (the board state), the database."""
 
@@ -119,16 +116,7 @@ class Manager(metaclass=SingletonMeta):
     def get_board(self, server_id: int) -> Board:
         """Gets the current board for a server.
         Raises a RuntimeError if there is no game in the server."""
-        # NOTE: Temporary for Meme's Severence Diplomacy Event
-        if server_id == SEVERENCE_B_ID:
-            server_id = SEVERENCE_A_ID
-
-        # try:
-        board = self._boards.get(server_id)
-        # except KeyError:
-            # board = self._database.get_latest_board(server_id)
-
-        if not board:
+        if not (board := self._boards.get(server_id)):
             raise NoGameError("There is no existing game in this server.")
         return board
 
@@ -191,10 +179,7 @@ class Manager(metaclass=SingletonMeta):
                 or (board.turn.year == cur_board.turn.year
                     and board.turn.phase.value < cur_board.turn.phase.value)
             ):
-                if kwargs.get("is_severance"):
-                    board = cur_board
-                else:
-                    player_restriction = None
+                player_restriction = None
         svg, file_name = self.draw_map_for_board(
             board,
             player_restriction=player_restriction,
