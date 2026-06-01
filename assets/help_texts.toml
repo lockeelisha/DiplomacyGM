@@ -243,8 +243,6 @@ In these commands, 'Player' can be set to 'None' to indicate no ownership.
 "dislodge unit" = "<province> <retreat_options...> - Dislodges a unit and sets its retreat options (retreats only)."
 "make units claim provinces" = "[true] - All units claim their current province. If 'true', also claims supply centers."
 "set player points" = "<player> <points> - Sets a player's point total."
-"set vassal" = "<liege> <vassal> - Sets a player as vassal to another."
-"remove relationship" = "<player1> <player2> - Removes the liege-vassal relationship."
 "bulk" = "<sub-command> <player> <provinces...> - Runs a sub-command for multiple provinces."
 "bulk create units" = "<player> <unit_type> <provinces...> - Creates units for a player in multiple provinces."
 "apocalypse" = "[all|army|fleet|core|province] - Mass-deletes units, cores, or ownership."

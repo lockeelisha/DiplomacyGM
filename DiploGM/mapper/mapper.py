@@ -347,20 +347,6 @@ class Mapper:
             neutral_color = neutral_color.get(color_mode, neutral_color.get("standard", "ffffff"))
         self.player_colors["Neutral"] = neutral_color.lower()
 
-        #TODO: draw dual monarchies as stripes
-        if color_mode == "empires":
-            for player in self.board.players:
-                for vassal in player.vassals or []:
-                    self.player_colors[vassal.name] = self.player_colors[player.name]
-                    for subvassal in vassal.vassals or []:
-                        self.player_colors[subvassal.name] = self.player_colors[player.name]
-        elif color_mode == "kingdoms":
-            for player in self.board.players:
-                if player.liege or not player.vassals:
-                    continue
-                for vassal in player.vassals:
-                    self.player_colors[vassal.name] = self.player_colors[player.name]
-
         neutral_colors = self.board_svg_data["neutral"]
         if isinstance(neutral_colors, str):
             self.neutral_color = neutral_colors

@@ -65,9 +65,7 @@ def get_build_orders(board: Board,
     if tags.blind:
         return title, ""
 
-    for unit in player.build_orders | set(
-        player.vassal_orders.values()
-    ):
+    for unit in player.build_orders:
         body += f"{unit}\n"
     if player.waived_orders > 0:
         body += f"\nWaive {player.waived_orders}\n"

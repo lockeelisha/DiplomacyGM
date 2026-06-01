@@ -10,10 +10,7 @@ from typing import TYPE_CHECKING
 # maybe use a copy from manager?
 from DiploGM.map_parser.vector.vector import get_parser
 from DiploGM.models.turn import Turn
-from DiploGM.models.order import (
-    PlayerOrder, Build, Disband, TransformBuild,
-    Vassal, Liege, DualMonarchy, Disown, Defect, RebellionMarker
-)
+from DiploGM.models.order import PlayerOrder, Build, Disband, TransformBuild
 from DiploGM.models.unit import DPAllocation, Unit
 
 from DiploGM.models.spec_request import SpecRequest
@@ -60,9 +57,7 @@ class _DatabaseConnection:
     def load_board(self, board_id: int) -> Board | None:
         """Gets a specific board from the database."""
         cursor = self._connection.cursor()
-
         board_data = cursor.execute("SELECT * FROM boards  WHERE board_id=?", (board_id,)).fetchall()
-
         board_phases = [row[1] for row in board_data]
         logger.info("Loading %s boards from DB", len(board_data))
         board = None
@@ -84,10 +79,6 @@ class _DatabaseConnection:
         cursor.close()
         logger.info("Successfully loaded")
         return board
-
-    def get_old_board(self, board: Board, turn: Turn) -> Board | None:
-        """Finds an older board from that same game"""
-        return self.get_board(board.board_id, turn, board.datafile)
 
     def get_board(
         self,
@@ -153,35 +144,6 @@ class _DatabaseConnection:
                 continue
 
             player.build_orders.add(player_order)
-
-        vassals_data = cursor.execute(
-            "SELECT player, target_player, order_type FROM vassal_orders WHERE board_id=? and phase=?",
-            (board_id, format(board.turn, "%I %S")),
-        ).fetchall()
-
-        order_classes = [
-            Vassal,
-            Liege,
-            DualMonarchy,
-            Disown,
-            Defect,
-            RebellionMarker,
-        ]
-
-        for player_name, target_player_name, order_type in vassals_data:
-            player = get_player_by_name(player_name)
-            target_player = get_player_by_name(target_player_name)
-            assert player is not None
-            assert target_player is not None
-            order_class = next(
-                order_class
-                for order_class in order_classes
-                if order_class.__name__ == order_type
-            )
-
-            order = order_class(target_player)
-
-            player.vassal_orders[target_player] = order
 
     def _load_province(self, board: Board, province: Province, province_info_by_name: dict):
         if province.name not in province_info_by_name:
@@ -324,26 +286,20 @@ class _DatabaseConnection:
             (board_id,),
         ).fetchall()
         player_info_by_name = {
-            player_name: (color, liege, points)
-            for player_name, color, liege, points in player_data
+            player_name: (color, points)
+            for player_name, color, points in player_data
         }
         name_to_player = {player.name: player for player in board.players}
         for player in board.players:
             if player.name not in player_info_by_name:
                 logger.warning("Couldn't find player %s in DB", player.name)
                 continue
-            color, liege, points = player_info_by_name[player.name]
+            color, points = player_info_by_name[player.name]
             # TODO: Remove once board_params have been updated
             board.set_data(["players", player.name, "custom_color"], color)
             cursor.execute("INSERT OR IGNORE INTO board_parameters (board_id, parameter_key, parameter_value) VALUES (?, ?, ?)",
                            (board_id, f"players/{player.name}/custom_color", color))
 
-            if liege is not None:
-                try:
-                    player.liege = name_to_player[liege]
-                    player.liege.vassals.append(player)
-                except KeyError:
-                    logger.warning("Invalid liege of player %s: %s", player.name, liege)
             player.points = points
             player.units = set()
             player.centers = set()
@@ -423,7 +379,7 @@ class _DatabaseConnection:
                     board_id,
                     player.name,
                     board.data["players"][player.name].get("custom_color", player.default_color),
-                    (None if player.liege is None else str(player.liege)),
+                    None,
                     player.points,
                 )
                 for player in board.players
@@ -551,11 +507,10 @@ class _DatabaseConnection:
         cursor.execute("DELETE FROM units WHERE board_id=? AND phase=?", (board_id, phase))
 
         cursor.executemany(
-            "UPDATE players SET color=?, liege=?, points=? WHERE board_id=? AND player_name=?",
+            "UPDATE players SET color=?, points=? WHERE board_id=? AND player_name=?",
             [
                 (
                     board.data["players"][player.name].get("custom_color", player.default_color),
-                    (None if player.liege is None else str(player.liege)),
                     player.points,
                     board_id,
                     player.name,
@@ -702,7 +657,7 @@ class _DatabaseConnection:
         self._connection.commit()
 
     def save_build_orders_for_players(self, board: Board, player: Player | None):
-        """Stores build/disband/vassal/etc. orders for the given player, or all players if None."""
+        """Stores build/disband/etc. orders for the given player, or all players if None."""
         if player is None:
             players = board.players
         else:
@@ -710,10 +665,6 @@ class _DatabaseConnection:
         cursor = self._connection.cursor()
         cursor.executemany(
             "DELETE FROM builds WHERE board_id=? AND phase=? AND player=?",
-            [(board.board_id, format(board.turn, "%I %S"), p.name) for p in players],
-        )
-        cursor.executemany(
-            "DELETE FROM vassal_orders WHERE board_id=? AND phase=? AND player=?",
             [(board.board_id, format(board.turn, "%I %S"), p.name) for p in players],
         )
         cursor.executemany(
@@ -743,20 +694,6 @@ class _DatabaseConnection:
                 (board.board_id, format(board.turn, "%I %S"), player.name, player.waived_orders, "Waive", "")
                 for player in players
             ]
-        )
-        cursor.executemany(
-            "INSERT INTO vassal_orders (board_id, phase, player, target_player, order_type) VALUES (?, ?, ?, ?, ?) ",
-            [
-                (
-                    board.board_id,
-                    format(board.turn, "%I %S"),
-                    player.name,
-                    build_order.player.name,
-                    build_order.__class__.__name__,
-                )
-                for player in players
-                for build_order in player.vassal_orders.values()
-            ],
         )
         cursor.close()
         self._connection.commit()
@@ -817,10 +754,6 @@ class _DatabaseConnection:
         )
         cursor.execute(
             "DELETE FROM retreat_options WHERE board_id=? AND phase=?",
-            (board.board_id, format(board.turn, "%I %S")),
-        )
-        cursor.execute(
-            "DELETE FROM vassal_orders WHERE board_id=? AND phase=?",
             (board.board_id, format(board.turn, "%I %S")),
         )
         cursor.close()

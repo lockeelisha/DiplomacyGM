@@ -112,7 +112,9 @@ async def _ping_phase_change(guild: Guild, board: Board, log_url: str) -> None:
             if len(units_to_retreat) > 0:
                 extra_info[player.name] = "**Units to retreat**:\n" + '\n'.join(units_to_retreat)
     elif (curr_board.turn.is_builds()
-            and (old_board := manager._database.get_old_board(board, board.turn.get_previous_turn())) is not None):
+            and (old_board := manager._database.get_board(board.board_id,
+                                                          board.turn.get_previous_turn(),
+                                                          board.datafile)) is not None):
         for player in curr_board.get_players():
             old_player = old_board.get_player(player.name)
             if not old_player:

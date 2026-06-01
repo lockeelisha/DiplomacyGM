@@ -31,15 +31,13 @@ class Adjudicator:
     def __init__(self, board: Board):
         """Initialise the adjudicator with the current *board* state.
 
-        Reads variant-specific parameters (build options, vassal rules,
-        convoyable islands, etc.) from ``board.data`` and stores them
-        in :attr:`parameters` for use during adjudication.
+        Reads variant-specific parameters (build options, convoyable islands, etc.)
+        from ``board.data`` and stores them in :attr:`parameters` for use during adjudication.
         """
         self._board = board
         self.save_orders = True
         self.parameters = {"build_options": board.data.get("build_options", "classic"),
                            "supportable_cores": board.data.get("supportable_cores") == "enabled",
-                           "has_vassals": (board.data.get("vassals") == "enabled"),
                            "convoyable_islands": (board.data.get("convoyable_islands") == "enabled")}
         self.failed_or_invalid_units: set[MapperInformation] = set()
 

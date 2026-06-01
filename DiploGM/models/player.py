@@ -15,20 +15,6 @@ if TYPE_CHECKING:
     from DiploGM.models.board import Board
 
 
-class VassalType(Enum):
-    """Needed due to ambiguity, especially after fall moves but before fall retreats"""
-
-    VASSAL = "vassal"
-    DUAL = "dual"
-
-
-class PlayerClass(Enum):
-    """Used for World of Chaos vassals. Can be ignored otherwise."""
-    DUCHY = 0
-    KINGDOM = 1
-    EMPIRE = 2
-
-
 class Player:
     """Represents a player in the game."""
     def __init__(
@@ -51,18 +37,11 @@ class Player:
 
         self.centers: set[province.Province] = centers
         self.units: set[unit.Unit] = units
-
-        self.build_orders: set[order.PlayerOrder | order.RelationshipOrder] = set()
+        self.build_orders: set[order.PlayerOrder] = set()
         self.waived_orders: int = 0
 
-        self.vassal_orders: dict[Player, order.RelationshipOrder] = {}
-
         self.points: int = 0
-        self.liege: Player | None = None
-        self.vassals: list[Player] = []
-
         self._dp_max: int | None = None
-
         self.is_active: bool = is_active
 
         # Must be initialised when the board is made
@@ -103,8 +82,6 @@ class Player:
             out = (
                 f"Color: #{board.data['players'][self.name].get('custom_color', self.default_color)}\n"
                 + f"Points: {self.points}\n"
-                + f"Vassals: {', '.join(map(str,self.vassals))}\n"
-                + f"Liege: {self.liege if self.liege else 'None'}\n"
                 + f"Units ({len(units)}): {units}\n"
                 + f"Centers ({len(centers)}): {centers}\n"
             )
@@ -148,15 +125,6 @@ class Player:
             elif isinstance(build_order, Build):
                 num_builds += 1
         return num_builds
-
-    def get_class(self) -> PlayerClass:
-        """Gets the player's rank. Used for World of Chaos."""
-        scs = len(self.centers)
-        if scs >= 6:
-            return PlayerClass.EMPIRE
-        if scs >= 3:
-            return PlayerClass.KINGDOM
-        return PlayerClass.DUCHY
 
 class OrdersSubsetOption(Enum):
     """Whether to show all orders, only submitted orders, or only missing orders."""

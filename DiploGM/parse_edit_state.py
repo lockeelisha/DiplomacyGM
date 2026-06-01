@@ -214,27 +214,6 @@ def _set_player_points(_, keywords: list[str], board: Board) -> None:
 
     player.points = points
 
-
-def _set_player_vassal(_, keywords: list[str], board: Board) -> None:
-    liege = board.get_player(keywords[0])
-    vassal = board.get_player(keywords[1])
-    if not liege or not vassal:
-        raise ValueError("Unknown player specified")
-    vassal.liege = liege
-    liege.vassals.append(vassal)
-
-
-def _remove_player_vassal(_, keywords: list[str], board: Board) -> None:
-    player1 = board.get_player(keywords[0])
-    player2 = board.get_player(keywords[1])
-    if not player1 or not player2:
-        raise ValueError("Unknown player specified")
-    for vassal, liege in ((player1, player2), (player2, player1)):
-        if vassal.liege == liege:
-            vassal.liege = None
-            liege.vassals.remove(vassal)
-
-
 def _set_game_name(_, parameter_str: str, board: Board) -> None:
     raise NotImplementedError("set_game_name has been moved to `.edit_game`.")
 
@@ -291,8 +270,6 @@ function_list = {
     "transform unit": _transform_unit,
     "dislodge unit": _dislodge_unit,
     "make units claim provinces": _make_units_claim_provinces,
-    "set vassal": _set_player_vassal,
-    "remove relationship": _remove_player_vassal,
     "set game name": _set_game_name,
     "bulk create units": _bulk_create_units,
     "apocalypse": _apocalypse,
