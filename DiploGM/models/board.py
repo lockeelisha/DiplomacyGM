@@ -545,8 +545,18 @@ class Board:
                 prov_data["dislodged_unit"] = export_unit(province.dislodged_unit)
             provinces.append(prov_data)
 
+        def flatten_dict(d: dict, parent_key: str = "", sep: str = "/") -> dict:
+            items = {}
+            for k, v in d.items():
+                new_key = f"{parent_key}{sep}{k}" if parent_key else k
+                if isinstance(v, dict):
+                    items.update(flatten_dict(v, new_key, sep=sep))
+                else:
+                    items[new_key] = v
+            return items
+
         params = {}
-        for key, value in self.custom_data.items():
+        for key, value in flatten_dict(self.custom_data).items():
             try:
                 json.dumps(value)
                 params[key] = value
