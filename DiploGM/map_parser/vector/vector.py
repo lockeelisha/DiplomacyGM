@@ -557,10 +557,10 @@ class Parser:
         coast_suffix: str | None = None
 
         pattern = re.compile(
-            r"^(.*?)\s*(?: \(([nesw]+)c\)| ([nesw]+)c)$",
+            r"^(.*?)\s*(?: \(([neswc]+)c\)| ([neswc]+)c)$",
             re.IGNORECASE
         )
-        
+
         match = pattern.match(province_name)
         if match:
             province_name = match.group(1).strip()
