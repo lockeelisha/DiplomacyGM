@@ -54,7 +54,8 @@ class PanelDrawer:
         banner_coordinates = TransGL3(power_element).transform(initial_pretransform_coordinates)
         if high_player_count and banner_coordinates != self.scoreboard_power_locations[banner_index]:
             return False
-        if not high_player_count and get_element_color(power_element[0]) != player.default_color:
+        element_color = get_element_color(power_element[0])
+        if not high_player_count and (element_color or "").lower() != player.default_color.lower():
             return False
         player_data = self.board.data["players"][player.name]
         if player_data.get("hidden") == "true":
