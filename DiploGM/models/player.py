@@ -43,11 +43,11 @@ class Player:
         self.color_dict: dict | None = None
         # color used for rendering vs internal default color
         if isinstance(color, dict):
-            self.color_dict = color
-            self.default_color = color["standard"]
+            self.color_dict = {k: v.lower() for k, v in color.items()}
+            self.default_color = color["standard"].lower()
         else:
             self.color_dict = None
-            self.default_color = color
+            self.default_color = color.lower()
 
         self.centers: set[province.Province] = centers
         self.units: set[unit.Unit] = units

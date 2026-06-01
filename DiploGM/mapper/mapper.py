@@ -13,7 +13,7 @@ import lxml.etree as etree
 
 from DiploGM.map_parser.vector.utils import (
     clear_svg_element, get_element_color, find_svg_element, get_coordinates,
-    get_unit_coordinates, get_sc_coordinates,
+    get_element_unit_coordinates, get_sc_coordinates,
     NAMESPACE, SVG_CONFIG_KEY
 )
 from DiploGM.db.database import logger
@@ -134,7 +134,7 @@ class Mapper:
                 isinstance(unit.order, (RetreatMove, Move)) and not unit.order.has_failed):
                 continue
 
-            unit_locs = MapperUtils.get_unit_coordinates(
+            unit_locs = MapperUtils.get_all_unit_coordinates(
                 unit.province, unit.unit_type, unit.coast, retreat=current_turn.is_retreats())
 
             if unit.order is None and unit.dp_allocations:
@@ -149,7 +149,7 @@ class Mapper:
 
             # TODO: Maybe there's a better way to handle convoys?
             if isinstance(order, (RetreatMove, Move, Support)):
-                dest_coords = MapperUtils.get_unit_coordinates(
+                dest_coords = MapperUtils.get_all_unit_coordinates(
                     order.destination, unit.unit_type, order.destination_coast)
                 unit_locs = [MapperUtils.get_closest_loc(unit_locs,
                                                          endpoint,
@@ -269,10 +269,9 @@ class Mapper:
                 coast = province.unit.coast
             else:
                 unit_type = self.board.unit_types["F"] if province.type == ProvinceType.SEA else self.board.unit_types["A"]
-            # TODO: We should move to MapperUtils.get_unit_coordinates and remove the logic from Province
-            locdict[province.name] = province.get_unit_coordinates(unit_type, coast)
+            locdict[province.name] = MapperUtils.get_unit_coordinates(province, unit_type, coast)
             for coast in province.adjacencies.coasts:
-                locdict[province.get_name(coast)] = province.get_unit_coordinates(self.board.unit_types["F"], coast)
+                locdict[province.get_name(coast)] = MapperUtils.get_unit_coordinates(province, self.board.unit_types["F"], coast)
         locdict = {k: [v.real, v.imag] for k, v in locdict.items()}
         script = etree.Element("script")
 
@@ -342,11 +341,11 @@ class Mapper:
                 color = f"{random.randint(0, 16777215):#x}"[2:]
             else:
                 color = player.default_color
-            self.player_colors[player.name] = color
+            self.player_colors[player.name] = color.lower()
         neutral_color = self.board_svg_data.get("neutral", "ffffff")
         if isinstance(neutral_color, dict):
             neutral_color = neutral_color.get(color_mode, neutral_color.get("standard", "ffffff"))
-        self.player_colors["Neutral"] = neutral_color
+        self.player_colors["Neutral"] = neutral_color.lower()
 
         #TODO: draw dual monarchies as stripes
         if color_mode == "empires":
@@ -526,7 +525,7 @@ class Mapper:
                 MapperUtils.color_element(center_element, element_color)
             if province.name in capital_provinces and capital_marker is not None:
                 capital_copy = copy.deepcopy(capital_marker)
-                translation = get_sc_coordinates(center_element) - get_sc_coordinates(capital_copy)
+                translation = TransGL3(center_element).transform(get_sc_coordinates(center_element)) - get_sc_coordinates(capital_copy)
                 capital_copy.set("transform", f"translate({translation.real}, {translation.imag})")
                 for elem in capital_copy:
                     if get_element_color(elem) != "000000":
@@ -552,10 +551,10 @@ class Mapper:
                 MapperUtils.color_element(path, self.player_colors[player_name])
         province = unit.province
 
-        current_coords = get_unit_coordinates(unit_element)
+        current_coords = get_element_unit_coordinates(unit_element)
         current_coords = TransGL3(unit_element).transform(current_coords)
 
-        coord_list = MapperUtils.get_unit_coordinates(
+        coord_list = MapperUtils.get_all_unit_coordinates(
             unit.province, unit.unit_type, unit.coast, unit == province.dislodged_unit)
 
         for desired_coords in coord_list:
@@ -591,13 +590,13 @@ class Mapper:
         root = svg.getroot()
         if not unit.retreat_options:
             self.order_drawer.draw_force_disband(
-                None, None, unit.province.get_unit_coordinates(unit.unit_type, unit.coast, True), None, svg)
+                None, None, MapperUtils.get_unit_coordinates(unit.province, unit.unit_type, unit.coast, True), None, svg)
             return
 
-        unit_locs = MapperUtils.get_unit_coordinates(unit.province, unit.unit_type, unit.coast, True)
+        unit_locs = MapperUtils.get_all_unit_coordinates(unit.province, unit.unit_type, unit.coast, True)
 
         for retreat_province, retreat_coast in unit.retreat_options:
-            dest_coords = MapperUtils.get_unit_coordinates(
+            dest_coords = MapperUtils.get_all_unit_coordinates(
                 retreat_province, unit.unit_type, retreat_coast)
             new_locs = [MapperUtils.get_closest_loc(unit_locs,
                                                     endpoint,

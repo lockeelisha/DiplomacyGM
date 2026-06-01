@@ -83,18 +83,6 @@ class Province():
             return None
         return self.owner.name
 
-    def get_unit_coordinates(self,
-                             unit_type: UnitType,
-                             coast: str | None = None,
-                             is_retreat: bool = False) -> complex:
-        """Gets the coordinates of a unit given its type, coast, and whether it's retreating."""
-        index = coast if coast in self.unit_coordinates else unit_type.name
-        if is_retreat:
-            return (self.unit_coordinates[index].retreat_coordinate if index in self.unit_coordinates
-                    else self.unit_coordinates.get("default", UnitLocation(complex(0), complex(0))).retreat_coordinate)
-        return (self.unit_coordinates[index].primary_coordinate if index in self.unit_coordinates
-                else self.unit_coordinates.get("default", UnitLocation(complex(0), complex(0))).primary_coordinate)
-
     def set_unit_coordinate(self,
                             coord: complex | None,
                             unit_type: UnitType,
