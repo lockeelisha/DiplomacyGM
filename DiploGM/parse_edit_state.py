@@ -203,38 +203,6 @@ def _make_units_claim_provinces(_, keywords: list[str], board: Board) -> None:
         if claim_centers or not unit.province.has_supply_center:
             board.change_owner(unit.province, unit.player, force_change=True)
 
-
-def _set_player_points(_, keywords: list[str], board: Board) -> None:
-    player = board.get_player(keywords[0])
-    if not player:
-        raise ValueError("Unknown player specified")
-    points = int(keywords[1])
-    if points < 0:
-        raise ValueError("Can't have a negative number of points!")
-
-    player.points = points
-
-
-def _set_player_vassal(_, keywords: list[str], board: Board) -> None:
-    liege = board.get_player(keywords[0])
-    vassal = board.get_player(keywords[1])
-    if not liege or not vassal:
-        raise ValueError("Unknown player specified")
-    vassal.liege = liege
-    liege.vassals.append(vassal)
-
-
-def _remove_player_vassal(_, keywords: list[str], board: Board) -> None:
-    player1 = board.get_player(keywords[0])
-    player2 = board.get_player(keywords[1])
-    if not player1 or not player2:
-        raise ValueError("Unknown player specified")
-    for vassal, liege in ((player1, player2), (player2, player1)):
-        if vassal.liege == liege:
-            vassal.liege = None
-            liege.vassals.remove(vassal)
-
-
 def _set_game_name(_, parameter_str: str, board: Board) -> None:
     raise NotImplementedError("set_game_name has been moved to `.edit_game`.")
 
@@ -291,12 +259,9 @@ function_list = {
     "transform unit": _transform_unit,
     "dislodge unit": _dislodge_unit,
     "make units claim provinces": _make_units_claim_provinces,
-    "set vassal": _set_player_vassal,
-    "remove relationship": _remove_player_vassal,
     "set game name": _set_game_name,
     "bulk create units": _bulk_create_units,
-    "apocalypse": _apocalypse,
-    "set player points": _set_player_points
+    "apocalypse": _apocalypse
 }
 
 def _bulk(_, keywords: list[str], board: Board) -> None:

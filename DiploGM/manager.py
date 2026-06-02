@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 import os
@@ -20,15 +21,13 @@ from DiploGM.utils.sanitise import parse_variant_path, simple_player_name
 
 logger = logging.getLogger(__name__)
 
-SEVERENCE_A_ID = 1440703393369821248
-SEVERENCE_B_ID = 1440703645971644648
-
 class Manager(metaclass=SingletonMeta):
     """Manager acts as an intermediary between Bot (the Discord API), Board (the board state), the database."""
 
-    def __init__(self, board_ids: Optional[list[int]]=None):
+    def __init__(self):
         self._database = database.get_connection()
-        self._boards: dict[int, Board] = self._database.get_boards(board_ids)
+        self._boards: dict[int, Board] = {}
+        self._board_locks: dict[int, asyncio.Lock] = {}
         self._spec_requests: dict[int, list[SpecRequest]] = (
             self._database.get_spec_requests()
         )
@@ -40,12 +39,25 @@ class Manager(metaclass=SingletonMeta):
         # Ideally we should deepcopy the board, but it requires a custom implementation
         self.last_failed_orders: dict[int, set[str]] = {}
         self.last_dp_orders: dict[int, dict[str, tuple[str, str | None, str | None]]] = {}
-        # TODO: have multiple for each variant?
-        # do it like this so that the parser can cache data between board initializations
+
+    async def ensure_board_loaded(self, server_id: int) -> None:
+        """Ensures a board is loaded into memory for the given server.
+        Uses per-server locks to prevent race conditions from concurrent commands."""
+        if server_id in self._boards:
+            return
+        if server_id not in self._board_locks:
+            self._board_locks[server_id] = asyncio.Lock()
+
+        async with self._board_locks[server_id]:
+            if server_id in self._boards:
+                return
+            loaded = self._database.load_board(server_id)
+            if loaded is not None:
+                self._boards[server_id] = loaded
 
     def list_servers(self) -> set[int]:
         """Gets a list of server ids that have games."""
-        return set(self._boards.keys())
+        return self._database.get_active_board_ids()
 
     def create_game(self, server_id: int, gametype: str = "classic", **kwargs) -> tuple[bool, str]:
         """Creates a new game in the specified server and of the specified variant."""
@@ -104,16 +116,7 @@ class Manager(metaclass=SingletonMeta):
     def get_board(self, server_id: int) -> Board:
         """Gets the current board for a server.
         Raises a RuntimeError if there is no game in the server."""
-        # NOTE: Temporary for Meme's Severence Diplomacy Event
-        if server_id == SEVERENCE_B_ID:
-            server_id = SEVERENCE_A_ID
-
-        # try:
-        board = self._boards.get(server_id)
-        # except KeyError:
-            # board = self._database.get_latest_board(server_id)
-
-        if not board:
+        if not (board := self._boards.get(server_id)):
             raise NoGameError("There is no existing game in this server.")
         return board
 
@@ -142,8 +145,8 @@ class Manager(metaclass=SingletonMeta):
 
     def total_delete(self, server_id: int):
         """Completely wipes all data for a server."""
-        self._database.total_delete(self._boards[server_id])
-        del self._boards[server_id]
+        self._database.total_delete(server_id)
+        self._boards.pop(server_id, None)
 
     def draw_map(
         self,
@@ -176,10 +179,7 @@ class Manager(metaclass=SingletonMeta):
                 or (board.turn.year == cur_board.turn.year
                     and board.turn.phase.value < cur_board.turn.phase.value)
             ):
-                if kwargs.get("is_severance"):
-                    board = cur_board
-                else:
-                    player_restriction = None
+                player_restriction = None
         svg, file_name = self.draw_map_for_board(
             board,
             player_restriction=player_restriction,

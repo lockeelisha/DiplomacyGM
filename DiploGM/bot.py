@@ -71,9 +71,9 @@ class DiploGM(commands.Bot):
         # bind command invocation handling methods
         self.before_invoke(self.before_any_command)
         self.after_invoke(self.after_any_command)
+        self.tree.interaction_check = self.before_any_slash_command
 
-        current_servers = [g.id async for g in self.fetch_guilds()]
-        self.manager = Manager(board_ids=current_servers)
+        self.manager = Manager()
 
         self.eventbus = EventBus()
         for module_path in DiploGM.get_all_listeners():
@@ -269,6 +269,7 @@ class DiploGM(commands.Bot):
         if isinstance(ctx.channel, (discord.DMChannel, discord.PartialMessageable)) or not ctx.guild:
             return
         assert isinstance(ctx.guild, discord.Guild)
+        await self.manager.ensure_board_loaded(ctx.guild.id)
 
         logger.debug(
             "[%s][#%s](%s) - '%s'",
@@ -282,6 +283,12 @@ class DiploGM(commands.Bot):
         # ctx.message.content = re.sub(r"[‘’`´′‛]", "'", ctx.message.content)
 
         asyncio.create_task(ctx.message.add_reaction("👍"))
+
+    async def before_any_slash_command(self, interaction: discord.Interaction) -> bool:
+        """Before any slash command, ensure the board is loaded."""
+        if interaction.guild:
+            await self.manager.ensure_board_loaded(interaction.guild.id)
+        return True
 
     async def after_any_command(self, ctx: commands.Context):
         """After any command, log the time taken to execute the command."""

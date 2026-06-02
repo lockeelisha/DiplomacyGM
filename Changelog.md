@@ -1,3 +1,27 @@
+1.10.3
+======
+
+Contributors:
+- Golden Kumquat
+
+# New Features
+- The bot will now only load a board the first time someone issues a command, instead of all on load
+  - Startup times should be much quicker, though the first command run per server will be slower
+- Provinces can have more than four coasts, for those who wish to design eldrich abomination provinces
+- Games can be created with "chaos" and "fow" parameters
+  - Running FoW and Chaos games have not been tested yet and will be implemented in a future patch
+
+# Developer Changes
+- Removed temporary Severance code
+- Removed vassal/points system that was only used in WoC (and never was fully operational anyway)
+
+# Bugfixes
+- Fixed an issue with coast names. Some fleets might not be on a coast; if so they will need to be moved manually
+- Fixed an issue with .import_game not properly loading VSCC/ISCC
+
+# Known issues
+- .global_leaderboard will likely be missing a lot of servers
+
 1.10.2
 ======
 
