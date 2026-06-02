@@ -557,7 +557,7 @@ class Parser:
         coast_suffix: str | None = None
 
         pattern = re.compile(
-            r"^(.*?)\s*(?: \(([neswc]+)c\)| ([neswc]+)c)$",
+            r"^(.*?)\s*(?: \(([neswc]+c)\)| ([neswc]+c))$",
             re.IGNORECASE
         )
 
