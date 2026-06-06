@@ -215,6 +215,19 @@ def color_element(element: Element, color: str, key="fill") -> None:
         style = re.sub(key + r":#[0-9a-fA-F]{6}", f"{key}:{color}", style)
         element.set("style", style)
 
+def invert_hexcode(code: str) -> str:
+    code = code.removeprefix("#")
+    assert len(code) == 6
+    
+    r = 255 - int(code[:2], 16)
+    hex_r = hex(r)[2:]
+    g = 255 - int(code[2:4], 16)
+    hex_g = hex(g)[2:]
+    b = 255 - int(code[4:], 16)
+    hex_b = hex(b)[2:]
+
+    return f"{hex_r:02}{hex_g:02}{hex_b:02}"[::-1]
+
 def set_element_visibility(element: Element, visible: bool = False, key="display") -> None:
     """Colors a specific element with a given color."""
     if visible:

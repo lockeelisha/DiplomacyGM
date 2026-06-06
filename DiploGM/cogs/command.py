@@ -1,6 +1,7 @@
 from __future__ import annotations
 import inspect
 import logging
+import random
 from typing import TYPE_CHECKING
 from collections import defaultdict
 from discord import Member
@@ -70,6 +71,18 @@ class CommandCog(commands.Cog):
         with open("Changelog.md") as f:
             version = f.readline()
         await send_message_and_file(channel=ctx.channel, message=f"DiploGM Version: {version}")
+
+    @commands.command(name="rng", hidden=True)
+    async def rng(self, ctx: commands.Context, upper: int = 1_000_000_000) -> None:
+        upper = min(abs(upper), 1_000_000_000)
+        number = random.randint(0, upper)
+
+        title = "Your selected number was..."
+        out = (
+            f"Result: `{number}`\n"
+            f"Range: `0` to `{upper}`"
+        )
+        await send_message_and_file(channel=ctx.channel, title=title, message=out)
 
     def _generate_chaos_scoreboard(self, board: Board, ctx) -> str:
         response = ""
@@ -312,7 +325,7 @@ class CommandCog(commands.Cog):
         # FOW permissions
         if board.data.get("fow", "disabled") == "enabled":
             player = perms.require_player_by_context(ctx, "get province info")
-            if player and not province in board.get_visible_provinces(player):
+            if player and province not in board.get_visible_provinces(player):
                 log_command(
                     logger,
                     ctx,
