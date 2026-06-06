@@ -35,7 +35,14 @@ from DiploGM.map_parser.vector.vector import Parser
 
 class Mapper:
     """The main Mapper class."""
-    def __init__(self, board: Board, restriction: Player | None = None, color_mode: str | None = None, oil_spill_mode: bool=False):
+    def __init__(self, 
+        board: Board, 
+        restriction: Player | None = None, 
+        color_mode: str | None = None, 
+        oil_spill_mode: bool=False,
+        invert_color_mode: bool=False,
+        clean_map_mode: bool=False,
+    ):
         register_namespace('', "http://www.w3.org/2000/svg")
         register_namespace('inkscape', "http://www.inkscape.org/namespaces/inkscape")
         register_namespace('sodipodi', "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd")
@@ -50,9 +57,9 @@ class Mapper:
 
         # different colors
         self.replacements: dict | None = self.board_svg_data.get("color replacements")
-        self.load_colors(color_mode)
+        self.load_colors(color_mode, invert_color_mode)
         if color_mode is not None:
-            self.replace_colors(color_mode)
+            self.replace_colors(color_mode, invert_color_mode)
 
         # enable sea adjacency layer (oil spills)
         self.oil_spill_mode = oil_spill_mode
@@ -60,6 +67,19 @@ class Mapper:
             layer = find_svg_element(self.board_svg, "sea_borders", self.board_svg_data)
             if layer:
                 MapperUtils.set_element_visibility(layer, visible=True)
+
+        self.clean_map_mode = self.clean_map_mode
+        if self.clean_map_mode:
+            layers_to_hide = [
+                "province_names",
+                "supply_center_icons",
+                "unit_output",
+                "arrow_output",
+                "other_fills",
+            ]
+            for name in layers_to_hide:
+                if (layer := find_svg_element(self.board_svg, name, self.board_svg_data)):
+                    MapperUtils.set_element_visibility(layer, visible=False)
 
         self.panel_drawer = PanelDrawer(self.board_svg, self.board, self.player_colors, restriction)
         MapperUtils.add_arrow_definition_to_svg(self.board_svg, self.board, self.player_colors)
@@ -95,8 +115,9 @@ class Mapper:
         self.adjacent_provinces: set[str] = {p.name for p in visible_provinces}
 
         # TODO: Switch to passing the SVG directly, as that's simpiler (self.svg = draw_units(svg)?)
-        for unit in [unit for unit in self.board.units if unit.province.name in self.adjacent_provinces]:
-            self._draw_unit(unit)
+        if not self.clean_map_mode:
+            for unit in [unit for unit in self.board.units if unit.province.name in self.adjacent_provinces]:
+                self._draw_unit(unit)
         self._color_provinces()
         self._color_centers()
         self.panel_drawer.draw_side_panel(self.board_svg)
@@ -327,7 +348,7 @@ class Mapper:
         return elementToString(root, encoding="utf-8"), f"{str(self.board.turn).replace(' ', '_')}_gui.svg"
 
 
-    def load_colors(self, color_mode: str | None = None) -> None:
+    def load_colors(self, color_mode: str | None = None, invert_color_mode: bool = False) -> None:
         """Loads player colors based on the color mode."""
         self.player_colors = {
             "None": "ffffff",
@@ -348,20 +369,6 @@ class Mapper:
             neutral_color = neutral_color.get(color_mode, neutral_color.get("standard", "ffffff"))
         self.player_colors["Neutral"] = neutral_color
 
-        #TODO: draw dual monarchies as stripes
-        if color_mode == "empires":
-            for player in self.board.players:
-                for vassal in player.vassals or []:
-                    self.player_colors[vassal.name] = self.player_colors[player.name]
-                    for subvassal in vassal.vassals or []:
-                        self.player_colors[subvassal.name] = self.player_colors[player.name]
-        elif color_mode == "kingdoms":
-            for player in self.board.players:
-                if player.liege or not player.vassals:
-                    continue
-                for vassal in player.vassals:
-                    self.player_colors[vassal.name] = self.player_colors[player.name]
-
         neutral_colors = self.board_svg_data["neutral"]
         if isinstance(neutral_colors, str):
             self.neutral_color = neutral_colors
@@ -379,7 +386,15 @@ class Mapper:
             and color_mode in self.replacements[self.clear_seas_color]):
             self.clear_seas_color = self.replacements[self.clear_seas_color][color_mode]
 
-    def replace_colors(self, color_mode: str) -> None:
+        if invert_color_mode:
+            self.player_colors = {
+                k: MapperUtils.invert_hexcode(v) for k, v in self.player_colors.items()
+            }
+            self.neutral_color = MapperUtils.invert_hexcode(self.neutral_color)
+            self.impassable_color = MapperUtils.invert_hexcode(self.impassable_color)
+            self.clear_seas_color = MapperUtils.invert_hexcode(self.clear_seas_color)
+
+    def replace_colors(self, color_mode: str, invert_color_mode: bool = False) -> None:
         """Replaces colors in the SVG based on the color mode."""
         if self.replacements is None:
             return
@@ -391,13 +406,17 @@ class Mapper:
         if background is not None:
             elements_to_process.extend(background)
         for element in elements_to_process:
-            color = get_element_color(element)
+            color = get_element_color(element) or "ffffff"
             if color in self.replacements:
-                if color_mode in self.replacements[color]:
-                    MapperUtils.color_element(element, self.replacements[color][color_mode])
+                if color_mode in self.replacements.get(color, {}):
+                    color = self.replacements[color][color_mode]
             elif color_mode == "dark":
-                MapperUtils.color_element(element, "ffffff")
+                color = "ffffff"
 
+            if invert_color_mode:
+                color = MapperUtils.invert_hexcode(color)
+
+            MapperUtils.color_element(element, color)
 
 
         # Difficult to detect correctly using either geometry or province names
