@@ -68,7 +68,7 @@ class Mapper:
             if layer:
                 MapperUtils.set_element_visibility(layer, visible=True)
 
-        self.clean_map_mode = self.clean_map_mode
+        self.clean_map_mode = clean_map_mode
         if self.clean_map_mode:
             layers_to_hide = [
                 "province_names",
