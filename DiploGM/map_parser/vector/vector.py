@@ -15,7 +15,7 @@ import lxml.etree as etree
 from DiploGM.map_parser.vector.transform import TransGL3
 from DiploGM.map_parser.vector.utils import (
     get_coordinates, find_svg_element, get_element_color, get_sc_coordinates,
-    get_unit_coordinates, parse_path, initialize_province_resident_data, weighted_random_color,
+    get_element_unit_coordinates, parse_path, initialize_province_resident_data, weighted_random_color,
     LAYER_DICTIONARY, NAMESPACE, SVG_CONFIG_KEY
 )
 from DiploGM.models.adjacency import Terrain
@@ -543,7 +543,7 @@ class Parser:
             for unit_data in list(layer):
                 unit_translation = TransGL3(unit_data)
                 province, coast = self._get_province_and_coast(self.get_province_name(unit_data))
-                coordinate = get_unit_coordinates(unit_data)
+                coordinate = get_element_unit_coordinates(unit_data)
                 translated_coordinate = layer_translation.transform(unit_translation.transform(coordinate))
                 province.set_unit_coordinate(translated_coordinate, unit_type, is_retreat, coast)
 
@@ -557,10 +557,10 @@ class Parser:
         coast_suffix: str | None = None
 
         pattern = re.compile(
-            r"^(.*?)\s*(?: \(([nesw]+)c\)| ([nesw]+)c)$",
+            r"^(.*?)\s*(?: \(([neswc]+c)\)| ([neswc]+c))$",
             re.IGNORECASE
         )
-        
+
         match = pattern.match(province_name)
         if match:
             province_name = match.group(1).strip()

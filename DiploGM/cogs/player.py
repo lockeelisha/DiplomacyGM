@@ -13,7 +13,7 @@ from DiploGM.parse_order import parse_order, parse_remove_order
 from DiploGM.utils import get_orders, log_command, parse_season, send_message_and_file
 from DiploGM.utils.open_cores import get_open_core_text
 from DiploGM.utils.sanitise import find_discord_role, get_colour_option, remove_prefix
-from DiploGM.manager import Manager, SEVERENCE_A_ID, SEVERENCE_B_ID
+from DiploGM.manager import Manager
 from DiploGM.models.player import ForcedDisbandOption, Player, ViewOpenCoresTags, ViewOrdersTags, OrdersSubsetOption
 from DiploGM.utils.send_message import ErrorMessage, send_error, send_orders_locked_error
 
@@ -204,7 +204,6 @@ class PlayerCog(commands.Cog):
                 clean_map_mode=clean_map_mode,
                 movement_only="movement" in arguments,
                 turn=season,
-                is_severance=ctx.guild.id in [SEVERENCE_A_ID, SEVERENCE_B_ID],
                 fow_player=player if board.data.get("fow", "disabled") == "enabled" else None,
             )
         except Exception as err:

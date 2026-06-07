@@ -57,9 +57,27 @@ def get_closest_loc(possibilities: set[complex], coord: complex, map_width: floa
     return complex(closest.real % map_width, closest.imag) if normalize else closest
 
 def get_unit_coordinates(province: Province,
-                        unit_type: UnitType,
-                        coast: str | None,
-                        retreat: bool = False) -> set[complex]:
+                         unit_type: UnitType,
+                         coast: str | None,
+                         retreat: bool = False) -> complex:
+    """Returns the set of coordinates for a unit in a province, with failbacks if needed."""
+    coords = province.unit_coordinates
+    if not coords:
+        return complex(0, 0)
+    if coast and coast in coords:
+        locations = coords[coast]
+    elif unit_type.name in coords:
+        locations = coords[unit_type.name]
+    elif "Army" in coords:
+        locations = coords["Army"]
+    else:
+        locations = next(iter(coords.values()))
+    return locations.retreat_coordinate if retreat else locations.primary_coordinate
+
+def get_all_unit_coordinates(province: Province,
+                             unit_type: UnitType,
+                             coast: str | None,
+                             retreat: bool = False) -> set[complex]:
     """Returns the set of coordinates for a unit in a province, with failbacks if needed."""
     coords = province.all_coordinates
     if not coords:
@@ -84,7 +102,7 @@ def loc_to_point(loc: Province, unit_type: UnitType, coast: str | None,
         unit_type = loc.unit.unit_type
         coast = loc.unit.coast
 
-    coords = get_unit_coordinates(loc, unit_type, coast, retreat=use_retreats)
+    coords = get_all_unit_coordinates(loc, unit_type, coast, retreat=use_retreats)
     return get_closest_loc(coords, current, map_width, False)
 
 def pull_coordinate(anchor: complex, coordinate: complex, pull: float, limit=0.25) -> complex:

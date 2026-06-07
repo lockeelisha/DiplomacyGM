@@ -7,8 +7,7 @@ from typing import TYPE_CHECKING
 
 from DiploGM.adjudicator.adjudicator import Adjudicator
 from DiploGM.models.adjacency import Terrain
-from DiploGM.models.order import NMR, RetreatMove, RebellionMarker
-from DiploGM.models.player import PlayerClass
+from DiploGM.models.order import NMR, RetreatMove
 from DiploGM.models.unit import Unit
 
 if TYPE_CHECKING:
@@ -54,23 +53,6 @@ class RetreatsAdjudicator(Adjudicator):
 
         return retreats_by_destination, units_to_delete
 
-    def _handle_vassals(self):
-        for player in self._board.players:
-            if player.liege in player.vassals:
-                other = player.liege
-                if (player.get_class() != PlayerClass.KINGDOM) or (other.get_class() != PlayerClass.KINGDOM):
-                    # Dual Monarchy breaks
-                    for p in (player, other):
-                        p.vassals = []
-                        p.liege = None
-
-            elif player.liege:
-                if player.liege.get_class().value <= player.get_class().value:
-                    liege = player.liege
-                    player.liege = None
-                    liege.vassals.remove(player)
-                    player.build_orders.add(RebellionMarker(liege))
-
     def run(self) -> Board:
         retreats_by_destination, units_to_delete = self._validate_orders()
 
@@ -109,8 +91,5 @@ class RetreatsAdjudicator(Adjudicator):
         for unit in self._board.units:
             unit.order = None
             unit.retreat_options = None
-
-        if self._board.turn.is_fall() and self.parameters.get("has_vassals"):
-            self._handle_vassals()
 
         return self._board

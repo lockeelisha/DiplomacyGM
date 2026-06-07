@@ -268,7 +268,7 @@ class TestAdjudicate(GMCogTestCase):
         new_board = self.board  # just reuse the same board for simplicity
 
         for target, rv in [
-            ("DiploGM.cogs.game_management.adjudication.manager.adjudicate", new_board),
+            ("DiploGM.cogs.game_management.adjudication.manager.adjudicate", (None, new_board)),
             ("DiploGM.cogs.game_management.adjudication.manager.get_board_from_db", self.board),
             ("DiploGM.cogs.game_management.adjudication.manager.apply_adjudication_results", None),
             ("DiploGM.cogs.game_management.adjudication.manager.draw_map_for_board",

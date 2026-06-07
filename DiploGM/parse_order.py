@@ -165,78 +165,6 @@ class TreeToOrder(Transformer):
             raise ValueError("Please order waives in the appropriate player's orders channel.")
         return None, self.player_restriction, order.Waive(int(waive_num))
 
-    def vassal_order(self, a: Province | str, b: Province | str) -> tuple[Player, Player, order.Vassal]:
-        """Vassal order, of the form Vassalize [Province] or [Province] Vassalize."""
-        if isinstance(a, Province) and isinstance(b, str):
-            province = a
-        elif isinstance(a, str) and isinstance(b, Province):
-            province = b
-        else:
-            raise ValueError("Invalid vassal order format")
-        referenced_player = None
-        for player in self.board.players:
-            if player.name == province.name:
-                referenced_player = player
-        if referenced_player is None:
-            raise ValueError(f"{province.name} doesn't match the name of any player")
-        if self.player_restriction is None:
-            raise ValueError("A vassal_order currently must be made in a orders channel due to ambiguity")
-        return referenced_player, self.player_restriction, order.Vassal(referenced_player)
-
-    def liege_order(self, a: Province | str, b: Province | str) -> tuple[Player, Player, order.Liege]:
-        """Liege order, of the form Allegiance [Province] or [Province] Allegiance."""
-        if isinstance(a, Province) and isinstance(b, str):
-            province = a
-        elif isinstance(a, str) and isinstance(b, Province):
-            province = b
-        else:
-            raise ValueError("Invalid liege order format")
-        referenced_player = None
-        for player in self.board.players:
-            if player.name == province.name:
-                referenced_player = player
-        if referenced_player is None:
-            raise ValueError(f"{province.name} doesn't match the name of any player")
-        if self.player_restriction is None:
-            raise ValueError("A liege_order currently must be made in a orders channel due to ambiguity")
-        return referenced_player, self.player_restriction, order.Liege(referenced_player)
-
-    def monarchy_order(self, a: Province | str, b: Province | str) -> tuple[Player, Player, order.DualMonarchy]:
-        """Dual Monarchy order, of the form Monarchy [Province] or [Province] Monarchy."""
-        if isinstance(a, Province) and isinstance(b, str):
-            province = a
-        elif isinstance(a, str) and isinstance(b, Province):
-            province = b
-        else:
-            raise ValueError("Invalid dual monarchy order format")
-        referenced_player = None
-        for player in self.board.players:
-            if player.name == province.name:
-                referenced_player = player
-        if referenced_player is None:
-            raise ValueError(f"{province.name} doesn't match the name of any player")
-        if self.player_restriction is None:
-            raise ValueError("A dual_monarchy_order currently must be made in a orders channel due to ambiguity")
-        return referenced_player, self.player_restriction, order.DualMonarchy(referenced_player)
-
-    def disown_order(self, a: Province | str, b: Province | str) -> tuple[Player, Player, order.Disown]:
-        """Disown order, of the form Disown [Province] or [Province] Disown."""
-        if isinstance(a, Province) and isinstance(b, str):
-            province = a
-        elif isinstance(a, str) and isinstance(b, Province):
-            province = b
-        else:
-            raise ValueError("Invalid disown order format")
-        referenced_player = None
-        for player in self.board.players:
-            if player.name == province.name:
-                referenced_player = player
-        if referenced_player is None:
-            raise ValueError(f"{province.name} doesn't match the name of any player")
-        if self.player_restriction is None:
-            raise ValueError("A disown_order currently must be made in a orders channel due to ambiguity")
-        return referenced_player, self.player_restriction, order.Disown(referenced_player)
-
     def build(self, order_data: tuple[Province | Player, Player, order.Order]) -> Province | Player:
         """Handles winter builds orders, taking in a tuple of what was returned by the above."""
         target, player, player_order = order_data
@@ -247,18 +175,9 @@ class TreeToOrder(Transformer):
         elif isinstance(player_order, order.PlayerOrder) and isinstance(target, Province):
             remove_player_order_for_province(player, target)
             player.build_orders.add(player_order)
-        elif isinstance(player_order, order.RelationshipOrder) and isinstance(target, Player):
-            remove_relationship_order(player_order, player)
-            player.vassal_orders[target] = player_order
         else:
             raise ValueError("Invalid build order data")
         return target
-
-    def defect_order(self, _) -> tuple[Player, Player, order.Defect]:
-        """Defect order, which doesn't need any arguments."""
-        if self.player_restriction is None or self.player_restriction.liege is None:
-            raise ValueError("No liege to defect from!")
-        return self.player_restriction.liege, self.player_restriction, order.Defect(self.player_restriction.liege)
 
     def non_build_order(self, _) -> None:
         """Handles when someone tries to issue a non-build order during builds."""
@@ -512,22 +431,7 @@ def _parse_remove_order(command: str, player_restriction: Player | None, board: 
 
     if components[0] in board.fetch_unit_types():
         command = " ".join(components[1:])
-
     province, _ = board.get_province_and_coast(command)
-    if command.startswith("relationship"):
-        if player_restriction is None:
-            raise RuntimeError("Relationship orders can only be removed in a player's orders channel")
-        command = command.split(" ", 1)[1]
-        target_player = None
-        for player in board.players:
-            if player.name.lower() == command.lower().strip() or player.get_name().lower() == command.lower().strip():
-                target_player = player
-        if target_player is None:
-            raise RuntimeError(f"No such player: {command}")
-        if target_player not in player_restriction.vassal_orders:
-            raise RuntimeError(f"No relationship order with {target_player}")
-        remove_relationship_order(player_restriction.vassal_orders[target_player], player_restriction)
-        return target_player
 
     if board.turn.is_builds():
         # remove build order
@@ -567,8 +471,3 @@ def remove_player_order_for_province(player: Player, province: Province):
             player.build_orders.remove(player_order)
             return True
     return False
-
-def remove_relationship_order(old_order: order.RelationshipOrder, player: Player):
-    """Removes a relationship order (vassal/liege/monarchy/disown) for a player."""
-    if old_order.player in player.vassal_orders:
-        del player.vassal_orders[old_order.player]

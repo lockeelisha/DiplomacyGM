@@ -356,7 +356,7 @@ class OrderDrawer:
     def _draw_build(self, order: Build) -> None:
         element = self.moves_svg.getroot()
         assert element is not None
-        build_locations = MapperUtils.get_unit_coordinates(order.province, order.unit_type, order.coast)
+        build_locations = MapperUtils.get_all_unit_coordinates(order.province, order.unit_type, order.coast)
         for build_location in build_locations:
             drawn_order = MapperUtils.create_element(
                 "circle",
