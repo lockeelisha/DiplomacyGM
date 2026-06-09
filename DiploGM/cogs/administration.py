@@ -9,6 +9,7 @@ from discord.utils import find as discord_find
 from DiploGM import config
 from DiploGM import perms
 from DiploGM.config import MAP_ARCHIVE_SAS_TOKEN
+from DiploGM.errors import NoGameError
 from DiploGM.utils import log_command, parse_season, send_message_and_file, upload_map_to_archive
 from DiploGM.manager import Manager
 from DiploGM.utils.sanitise import remove_prefix
@@ -103,8 +104,11 @@ class AdminCog(commands.Cog):
 
             if server.id in servers_with_games:
                 servers_with_games.remove(server.id)
-                board = manager.get_board(server.id)
-                board_state = f" - {board.turn}"
+                try:
+                    board = manager.get_board(server.id)
+                    board_state = f" - {board.turn}"
+                except NoGameError:
+                    board_state = " - board not loaded"
             else:
                 board_state = " - no active game"
 
