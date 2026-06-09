@@ -469,7 +469,7 @@ class Board:
             if _class.__name__ == order_type
         )
         source_province, destination_province, destination_coast = None, None, None
-        if destination is not None:
+        if destination:
             if len(destination) == 2 and destination[1] == "c":
                 destination_coast = destination
             else:
