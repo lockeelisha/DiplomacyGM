@@ -154,16 +154,17 @@ async def publish_map(
                 lambda player=player: map_caller(manager, guild_id, player),
                 channel,
                 message,
+                dpi=board.data["svg config"].get("dpi", 200),
             )
         )
 
     await asyncio.gather(*tasks)
 
 
-async def map_publish_task(map_maker, channel, message):
+async def map_publish_task(map_maker, channel, message, dpi: int = 200):
     async with fow_export_limit:
         file, file_name = map_maker()
-        file, file_name = await svg_to_png(file, file_name)
+        file, file_name = await svg_to_png(file, file_name, dpi)
         await send_message_and_file(
             channel=channel,
             message=message,

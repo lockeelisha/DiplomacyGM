@@ -70,10 +70,8 @@ class VariantDevelopmentCog(commands.Cog):
             await send_message_and_file(channel=ctx.channel, message=message)
             return
 
-        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-
         async def run_command(*args) -> bool:
-            process = await asyncio.create_subprocess_exec("git", *args, stdout=PIPE, stderr=PIPE, cwd=variant_dir, env=env)
+            process = await asyncio.create_subprocess_exec("git", *args, stdout=PIPE, stderr=PIPE, cwd=variant_dir)
             _, err = await process.communicate()
             if process.returncode == 0:
                 return True

@@ -181,6 +181,7 @@ class SlashSubstituteCog(commands.Cog):
             file=file,
             file_name=file_name,
             convert_svg=True,
+            dpi=board.data["svg config"].get("dpi", 200),
         )
         try:
             msg = await locations["advertise_channel"].send(interested_sub_role.mention)

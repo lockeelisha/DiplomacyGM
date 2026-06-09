@@ -227,7 +227,7 @@ async def _upload_maps(ctx: commands.Context, args: dict, title: str, board: Boa
     converted_file_name: str | None = None
     needs_png = args["return_svg"] or (args["full"] and _get_maps_channel(ctx.guild))
     if needs_png:
-        converted_file, converted_file_name = await svg_to_png(file, file_name)
+        converted_file, converted_file_name = await svg_to_png(file, file_name, dpi=board.data["svg config"].get("dpi", 200))
     await send_message_and_file(
         channel=ctx.channel,
         title=f"{title} {'Orders' if is_orders else 'Results'} Map",
@@ -333,6 +333,7 @@ async def adjudicate(ctx: commands.Context) -> None:
             file=file,
             file_name=file_name,
             convert_svg=args["return_svg"],
+            dpi=board.data["svg config"].get("dpi", 200),
         )
 
     await _upload_maps(ctx, args, title, new_board, False)

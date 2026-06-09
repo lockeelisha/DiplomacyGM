@@ -69,6 +69,7 @@ async def send_message_and_file(
     footer_datetime: datetime.datetime | None = None,
     fields: List[Tuple[str, str]] | None = None,
     convert_svg: bool = False,
+    dpi: int = 200,
     **_,
 ) -> Message:
 
@@ -79,7 +80,7 @@ async def send_message_and_file(
     assert embed_colour is not None
 
     if convert_svg and file and file_name:
-        file, file_name = await svg_to_png(file, file_name)
+        file, file_name = await svg_to_png(file, file_name, dpi=dpi)
 
     # Checks embed title and bodies are within limits.
     if fields:
