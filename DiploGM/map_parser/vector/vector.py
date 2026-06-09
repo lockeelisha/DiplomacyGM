@@ -447,7 +447,7 @@ class Parser:
         if self.layers["province_labels"]:
             name = self.get_province_name(province_data)
             if name == "":
-                raise RuntimeError(f"Province name not found in province with data {province_data}")
+                raise RuntimeError(f"Province name not found in province with data {tostring(province_data)}")
 
         province = Province(name, poly, province_type)
 
