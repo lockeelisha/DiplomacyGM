@@ -153,28 +153,28 @@ class Mapper:
                     order.destination, unit.unit_type, order.destination_coast)
                 unit_locs = [MapperUtils.get_closest_loc(unit_locs,
                                                          endpoint,
-                                                         self.board_svg_data["map_width"])
+                                                         self.board_svg_data.get("map_width", 0))
                              for endpoint in dest_coords]
-            try:
-                for loc in unit_locs:
-                    val = self.order_drawer.draw_order(unit, order, loc, current_turn)
-                    if val is None:
-                        continue
-                    if not isinstance(val, list):
-                        val = [val]
-                    for path in val:
-                        # if something returns, that means it could potentially go across the edge
-                        # copy it 3 times (-1, 0, +1)
-                        lval = copy.deepcopy(path)
-                        rval = copy.deepcopy(path)
-                        lval.attrib["transform"] = f"translate({-self.board_svg_data['map_width']}, 0)"
-                        rval.attrib["transform"] = f"translate({self.board_svg_data['map_width']}, 0)"
+            width = self.board_svg_data.get("map_width", 0)
+            for loc in unit_locs:
+                val = self.order_drawer.draw_order(unit, order, loc, current_turn)
+                if val is None:
+                    continue
+                if not isinstance(val, list):
+                    val = [val]
+                for path in val:
+                    arrow_layer.append(path)
+                    if width == 0:
+                        break
+                    # if something returns, that means it could potentially go across the edge
+                    # copy it 3 times (-1, 0, +1)
+                    lval = copy.deepcopy(path)
+                    rval = copy.deepcopy(path)
+                    lval.attrib["transform"] = f"translate({-width}, 0)"
+                    rval.attrib["transform"] = f"translate({width}, 0)"
 
-                        arrow_layer.append(lval)
-                        arrow_layer.append(rval)
-                        arrow_layer.append(path)
-            except Exception as err:
-                logger.error("Drawing move failed for %s", unit, exc_info=err)
+                    arrow_layer.append(lval)
+                    arrow_layer.append(rval)
 
     def draw_moves_map(self,
                        current_turn: turn.Turn,
@@ -586,7 +586,7 @@ class Mapper:
                 retreat_province, unit.unit_type, retreat_coast)
             new_locs = [MapperUtils.get_closest_loc(unit_locs,
                                                     endpoint,
-                                                    self.board_svg_data["map_width"])
+                                                    self.board_svg_data.get("map_width", 0))
                         for endpoint in dest_coords]
 
             for loc in new_locs:

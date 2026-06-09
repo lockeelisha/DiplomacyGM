@@ -37,6 +37,7 @@ class BuildsAdjudicator(Adjudicator):
 
         if error:
             logger.warning("Skipping %s; errors: %s", order, error)
+            order.has_failed = True
             return 0
         self._board.create_unit(order.unit_type, player, order.province, order.coast, None)
         return -1
@@ -60,11 +61,13 @@ class BuildsAdjudicator(Adjudicator):
             order.province.unit.coast = order.coast
             return
 
+        order.has_failed = True
         logger.warning("Skipping %s; errors: %s", order, error)
 
     def _adjudicate_order(self, order: Order, available_builds: int, player: Player) -> int:
         if isinstance(order, Build):
             if available_builds <= 0:
+                order.has_failed = True
                 return 0
             return self._adjudicate_build(order, player)
 
@@ -106,15 +109,17 @@ class BuildsAdjudicator(Adjudicator):
     def run(self) -> Board:
         for player in self._board.players:
             available_builds = len(player.centers) - len(player.units)
-            if available_builds == 0:
-                continue
             for order in player.build_orders:
                 available_builds += self._adjudicate_order(order, available_builds, player)
             if available_builds < 0:
                 logger.warning("Player %s disbanded less orders than they should have", player.get_name())
                 self._adjudicate_civil_disorder(player, -available_builds)
 
-        for player in self._board.players:
-            player.build_orders = set()
-            player.waived_orders = 0
+        self.failed_build_provinces = {
+            order.province.name
+            for player in self._board.players
+            for order in player.build_orders
+            if order.has_failed
+        }
+
         return self._board
