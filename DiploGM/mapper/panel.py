@@ -62,7 +62,9 @@ class PanelDrawer:
             return True
 
         MapperUtils.color_element(power_element[0], self.player_colors[player.name])
-        if self.board_svg_data.get("scoreboard", {}).get("sort", True):
+        sort_powers = self.board_svg_data.get("scoreboard", {}).get("sort", True)
+        sort_powers &= self.board.data.get("fow", "disabled") != "enabled" or self.restriction is None
+        if sort_powers:
             original_trans = TransGL3(power_element)
             translation = self.scoreboard_power_locations[banner_index] \
                         - original_trans.transform(initial_pretransform_coordinates)
@@ -104,14 +106,6 @@ class PanelDrawer:
         all_power_banners_element = find_svg_element(root, "power_banners", self.board_svg_data)
         if all_power_banners_element is None:
             return
-
-        if self.board.data.get("fow", "disabled") == "enabled" and self.restriction is not None:
-            # don't get info
-            players = sorted(self.board.get_players(), key=lambda sort_player: sort_player.name)
-        else:
-            players = self.board.get_players_sorted_by_score()
-        players = sorted(players, key=lambda hidden_player:
-                                  self.board.is_player_hidden(hidden_player))
 
         high_player_count = (len(self.board.get_players()) > len(self.scoreboard_power_locations)
                              or self.board.is_chaos())

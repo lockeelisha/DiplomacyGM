@@ -1,9 +1,8 @@
 """Game management commands related to adjudication."""
 import asyncio
 import logging
-import random
 
-import discord.utils
+import discord
 from discord import TextChannel, Guild
 from discord.ext import commands
 

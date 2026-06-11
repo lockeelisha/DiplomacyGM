@@ -11,10 +11,10 @@ from DiploGM.utils import (
     get_filtered_orders,
     send_message_and_file,
 )
-from DiploGM.utils.image import svg_to_png
 from DiploGM.manager import Manager
 from DiploGM.models.player import Player
 from DiploGM.utils.sanitise import remove_prefix
+from DiploGM.utils.send_message import ErrorMessage, send_error
 
 logger = logging.getLogger(__name__)
 manager = Manager()
@@ -23,7 +23,6 @@ manager = Manager()
 fow_export_limit = asyncio.Semaphore(
     max(int(config.SIMULATRANEOUS_SVG_EXPORT_LIMIT) - 1, 1)
 )
-
 
 class FogOfWarCog(commands.Cog):
     def __init__(self, bot):
@@ -39,26 +38,59 @@ class FogOfWarCog(commands.Cog):
         brief="Sends fog of war maps",
     )
     @perms.gm_only("publish fow moves")
-    async def publish_fow_moves(
-        self,
-        ctx: commands.Context,
-        manager: Manager,
-    ):
+    async def publish_fow_moves(self, ctx: commands.Context):
         assert ctx.guild is not None
         board = manager.get_board(ctx.guild.id)
 
         if board.data.get("fow", "disabled") != "enabled":
-            raise ValueError("This is not a fog of war game")
+            await send_error(ctx.channel, ErrorMessage.FOW_DISABLED)
+            return
 
-        filter_player = board.get_player(remove_prefix(ctx))
+        player_category = next((c for c in ctx.guild.categories if config.is_player_category(c)), None)
+        if not player_category:
+            await send_error(ctx.channel, ErrorMessage.NO_PLAYER_CATEGORY)
+            return
 
-        await publish_map(
-            ctx,
-            manager,
-            "moves map",
-            lambda m, s, p: m.draw_map(s, True, None, fow_player=p),
-            filter_player,
-        )
+        dpi = board.data["svg config"].get("dpi", 200)
+        prev_turn = board.turn.get_previous_turn()
+
+        for channel in player_category.channels:
+            if not isinstance(channel, TextChannel):
+                continue
+            if not (player := perms.get_player_by_channel(board, channel)):
+                continue
+            if (len(player.units) + len(player.centers) == 0) or not player.is_active:
+                continue
+
+            file, file_name = manager.draw_map(server_id=ctx.guild.id,
+                                            draw_moves=True,
+                                            player=None,
+                                            turn=prev_turn,
+                                            fow_player=player)
+            await send_message_and_file(channel=channel,
+                                        title=f"{prev_turn} Orders Map",
+                                        message=f"Here is the {prev_turn} orders map for {player.name}",
+                                        file=file,
+                                        file_name=file_name,
+                                        convert_svg=True,
+                                        file_in_embed=False,
+                                        dpi=dpi)
+            await asyncio.sleep(0)
+
+            file, file_name = manager.draw_map(server_id=ctx.guild.id,
+                                            draw_moves=False,
+                                            player=None,
+                                            turn=board.turn,
+                                            fow_player=player)
+            await send_message_and_file(channel=channel,
+                                        title=f"{prev_turn} Results Map",
+                                        message=f"Here is the {prev_turn} results map for {player.name}",
+                                        file=file,
+                                        file_name=file_name,
+                                        convert_svg=True,
+                                        file_in_embed=False,
+                                        dpi=dpi)
+            await asyncio.sleep(0)
 
     @commands.command(
         brief="Sends fog of war orders",
@@ -164,11 +196,12 @@ async def publish_map(
 async def map_publish_task(map_maker, channel, message, dpi: int = 200):
     async with fow_export_limit:
         file, file_name = map_maker()
-        file, file_name = await svg_to_png(file, file_name, dpi)
         await send_message_and_file(
             channel=channel,
             message=message,
             file=file,
             file_name=file_name,
             file_in_embed=False,
+            convert_svg=True,
+            dpi=dpi
         )

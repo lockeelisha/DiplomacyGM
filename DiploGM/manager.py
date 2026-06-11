@@ -229,7 +229,7 @@ class Manager(metaclass=SingletonMeta):
             self.last_failed_orders[server_id] = getattr(adjudicator, 'failed_build_provinces', set())
         else:
             self.last_failed_orders[server_id] = {
-                order.province.name
+                order.current_province.name
                 for order in getattr(adjudicator, 'orders', [])
                 if order.resolution == Resolution.FAILS
             }

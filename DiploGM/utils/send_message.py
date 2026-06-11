@@ -26,6 +26,7 @@ class ErrorMessage(Enum):
     """Enum that gives a common set of error messages for send_error()."""
     CHANNEL_NOT_GIVEN = "No channel given."
     COMMAND_IN_PAST = "Don't schedule a command to occur in the past."
+    FOW_DISABLED = "This is not a fog of war game."
     IMPROPER_TIMESTAMP = "Did not give a proper timestamp."
     MESSAGE_NOT_GIVEN = "No message given."
     NO_PLAYER_CATEGORY = "No player category found."
