@@ -265,11 +265,14 @@ class OrderDrawer:
                       coordinate: complex,
                       has_failed: bool) -> list[Element]:
         source: Province = order.source
+        source_coast = source.unit.coast if source.unit else None
+        source_unit_type = source.unit.unit_type if source.unit else unit.unit_type
         if source.unit is None:
             raise ValueError("Support order has no source unit")
-        source_coord = MapperUtils.loc_to_point(source, unit.unit_type, source.unit.coast,
+        source_coord = MapperUtils.loc_to_point(source, unit.unit_type, source_coast,
                                                 coordinate, self.board_svg_data["map_width"])
-        if (isinstance(source.unit.order, Move)
+        if (source.unit is not None
+            and isinstance(source.unit.order, Move)
             and source.unit.order.destination == order.destination
             and (not order.destination_coast
                  or source.unit.order.destination_coast == order.destination_coast)):
@@ -284,7 +287,7 @@ class OrderDrawer:
         else:
             dest_coast = order.destination_coast
         dest_coord = MapperUtils.loc_to_point(order.destination,
-                                              source.unit.unit_type,
+                                              ssource_unit_type,
                                               dest_coast,
                                               source_coord,
                                               self.board_svg_data.get("map_width", 0))
