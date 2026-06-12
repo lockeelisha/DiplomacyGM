@@ -184,6 +184,8 @@ class Manager(metaclass=SingletonMeta):
                     and board.turn.phase.value < cur_board.turn.phase.value)
             ):
                 player_restriction = None
+            if kwargs.get("fow_player") is not None:
+                kwargs["fow_player"] = board.get_player(kwargs["fow_player"].name)
         svg, file_name = self.draw_map_for_board(
             board,
             player_restriction=player_restriction,

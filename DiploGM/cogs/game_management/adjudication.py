@@ -170,11 +170,7 @@ async def publish_orders(ctx: commands.Context, *args) -> None:
 
     board = manager.get_previous_board(guild.id)
     if not board:
-        await send_message_and_file(
-            channel=ctx.channel,
-            title="Failed to get previous phase",
-            embed_colour=config.ERROR_COLOUR,
-        )
+        await send_error(ctx.channel, ErrorMessage.NO_PREVIOUS_BOARD)
         return
     log_url = await _post_orders(ctx, board)
 

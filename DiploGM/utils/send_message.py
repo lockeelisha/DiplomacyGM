@@ -29,6 +29,7 @@ class ErrorMessage(Enum):
     FOW_DISABLED = "This is not a fog of war game."
     IMPROPER_TIMESTAMP = "Did not give a proper timestamp."
     MESSAGE_NOT_GIVEN = "No message given."
+    NO_PREVIOUS_BOARD = "No previous board found."
     NO_PLAYER_CATEGORY = "No player category found."
     NO_PLAYER_ROLE = "No player role found."
     NO_ROLES_SUPPLIED = "No roles were supplied to allocate. Please include a role mention in the command."
