@@ -8,6 +8,10 @@ Contributors:
 - Builds/transforms in Winter will now be marked in red if they have failed
 - Variants can now set a custom DPI for map exporting
 - `map_width` is now an optional parameter for variants. If it is not set, or set to 0, the map will not wrap around
+- Fog of War now works!
+  - `.adjudicate full` should not be used; instead use `.publish_fow_moves` and `.publish_fow_order_logs`
+  - It is a bad idea to try FoW on large maps with many players, as the bot won't handle sending many maps at once very well
+  - Many thanks to the fine folks at the Imperial Diplomacy Bullet Server for getting it to work
 
 # Developer Changes
 - Added has_failed to orders done in Winter

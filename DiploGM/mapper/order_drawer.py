@@ -296,6 +296,7 @@ class OrderDrawer:
                          dest_coord, (1 if order.is_support_hold() else 1.5) * self.board_svg_data["unit_radius"])
             # Draw hold around unit that can be support-held
             if (order.is_support_hold()
+                and source.unit is not None
                 and isinstance(source.unit.order, (ConvoyTransport, Support))
                 and MapperUtils.is_moveable(source.unit, self.adjacent_provinces, self.player_restriction)):
                 for coord in source.all_coordinates[source.unit.coast if source.unit.coast else source.unit.unit_type.name]:

@@ -128,9 +128,10 @@ class FogOfWarCog(commands.Cog):
                 board=board, player_restriction=None, ctx=ctx,
                 tags=tags, fields=False, fow_restriction=prev_player
             )
-            if message is None:
+            if not isinstance(message, str) or not message:
                 continue
-            await send_message_and_file(channel=channel, message=message)
+            title = f"{board.turn} Order Log"
+            await send_message_and_file(channel=channel, title=title, message=message)
 
         await send_message_and_file(
             channel=ctx.channel,

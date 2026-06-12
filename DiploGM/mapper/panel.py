@@ -47,7 +47,7 @@ class PanelDrawer:
         self._draw_side_panel_scoreboard(svg)
 
     def _draw_power_banner(self, power_element: Element, player: Player,
-                           banner_index: int, high_player_count: bool) -> bool:
+                           banner_index: int, high_player_count: bool, display_scs: bool) -> bool:
         if len(power_element) == 0:
             return False
         initial_pretransform_coordinates = TransGL3(power_element[0]).transform(get_coordinates(power_element[0]))
@@ -87,7 +87,7 @@ class PanelDrawer:
                 style = re.sub(r"font-size:[0-9.]+px", "font-size:42.6667px", style)
                 power_element[i].set("style", style)
 
-            score = str(len(player.centers)) if self.board.data.get("fow", "disabled") != "enabled" else "?"
+            score = str(len(player.centers)) if display_scs else "?"
             value = value.replace("__name__", player.get_name())
             value = value.replace("__score__", score)
             value = value.replace("__pct__", "{:.0f}%".format(self.board.get_score(player) * 100))
@@ -113,7 +113,9 @@ class PanelDrawer:
             if i >= len(self.scoreboard_power_locations):
                 break
             for power_element in all_power_banners_element:
-                if self._draw_power_banner(power_element, player, i, high_player_count):
+                display_scs = (self.board.data.get("fow", "disabled") != "enabled"
+                               or self.restriction in {player, None})
+                if self._draw_power_banner(power_element, player, i, high_player_count, display_scs):
                     break
 
     def _draw_side_panel_date(self, svg: ElementTree) -> None:

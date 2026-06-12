@@ -68,6 +68,8 @@ def _get_build_orders(board: Board,
             + (f" ({open_core_count_label}{open_core_count} °)" if tags.open_cores and build_count > 0 else '')
         )
     else:
+        if build_count == 0:
+            return None, None
         title = (f"**{player_name}** ({'+' if build_count >= 0 else '-'}{len(build_orders)})")
 
     body = ""
