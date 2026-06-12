@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS builds (
 );
 
 INSERT INTO builds (board_id, phase, player, location, order_type, unit_type, failed_order)
-SELECT board_id, phase, player, location, order_type, unit_type, "false" FROM builds_old;
+SELECT board_id, phase, player, location, order_type, unit_type, 0 FROM builds_old;
 
 DROP TABLE builds_old;
 COMMIT;

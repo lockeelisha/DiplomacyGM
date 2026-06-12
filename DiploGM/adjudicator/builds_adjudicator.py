@@ -122,4 +122,7 @@ class BuildsAdjudicator(Adjudicator):
             if order.has_failed
         }
 
+        for player in self._board.players:
+            player.build_orders = set()
+            player.waived_orders = 0
         return self._board
