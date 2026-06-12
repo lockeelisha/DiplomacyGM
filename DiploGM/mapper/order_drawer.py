@@ -267,8 +267,6 @@ class OrderDrawer:
         source: Province = order.source
         source_coast = source.unit.coast if source.unit else None
         source_unit_type = source.unit.unit_type if source.unit else unit.unit_type
-        if source.unit is None:
-            raise ValueError("Support order has no source unit")
         source_coord = MapperUtils.loc_to_point(source, unit.unit_type, source_coast,
                                                 coordinate, self.board_svg_data["map_width"])
         if (source.unit is not None
