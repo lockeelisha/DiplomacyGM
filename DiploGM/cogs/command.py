@@ -1,6 +1,7 @@
 from __future__ import annotations
 import inspect
 import logging
+import random
 from typing import TYPE_CHECKING
 from collections import defaultdict
 from discord import Member
@@ -70,6 +71,54 @@ class CommandCog(commands.Cog):
         with open("Changelog.md") as f:
             version = f.readline()
         await send_message_and_file(channel=ctx.channel, message=f"DiploGM Version: {version}")
+
+    @commands.command(name="rng", hidden=True)
+    async def rng(self, ctx: commands.Context, upper: int = 1_000_000_000) -> None:
+        upper = min(abs(upper), 1_000_000_000)
+        number = random.randint(0, upper)
+
+        title = "Your selected number was..."
+        out = (
+            f"Result: `{number}`\n"
+            f"Range: `0` to `{upper}`"
+        )
+        await send_message_and_file(channel=ctx.channel, title=title, message=out)
+
+    def _generate_chaos_scoreboard(self, board: Board, ctx) -> str:
+        response = ""
+        the_player = perms.get_player_by_context(ctx)
+        scoreboard_rows = []
+
+        latest_index = -1
+        latest_points = float("inf")
+
+        for i, player in enumerate(board.get_players_sorted_by_points()):
+            points = player.points
+
+            if points < latest_points:
+                latest_index = i
+                latest_points = points
+
+            if i <= 25 or player == the_player:
+                scoreboard_rows.append((latest_index + 1, player))
+            elif the_player is None:
+                break
+            elif the_player == player:
+                scoreboard_rows.append((latest_index + 1, player))
+                break
+
+        index_length = len(str(scoreboard_rows[-1][0]))
+        points_length = len(str(scoreboard_rows[0][1]))
+
+        for index, player in scoreboard_rows:
+            if board.is_player_hidden(player):
+                continue
+            response += (
+                f"\n\\#{index: >{index_length}} | {player.points: <{points_length}} | **{player.get_name()}**: "
+                f"{len(player.centers)} ({'+' if len(player.centers) - len(player.units) >= 0 else ''}"
+                f"{len(player.centers) - len(player.units)})"
+            )
+        return response
 
     def _generate_scoreboard(self, board: Board, ctx: commands.Context, alphabetical: bool) -> str:
         assert ctx.guild is not None
@@ -263,7 +312,7 @@ class CommandCog(commands.Cog):
         # FOW permissions
         if board.data.get("fow", "disabled") == "enabled":
             player = perms.require_player_by_context(ctx, "get province info")
-            if player and not province in board.get_visible_provinces(player):
+            if player and province not in board.get_visible_provinces(player):
                 log_command(
                     logger,
                     ctx,

@@ -183,6 +183,8 @@ class PlayerCog(commands.Cog):
         arguments = remove_prefix(ctx).lower().split()
         convert_svg = not ({"true", "t", "svg", "s"} & set(arguments))
         oil_spills = "oil" in set(arguments)
+        invert_color_mode = "invert" in set(arguments)
+        clean_map_mode = "clean" in set(arguments)
         board = manager.get_board(ctx.guild.id)
         season = parse_season(arguments, board.turn)
 
@@ -198,6 +200,8 @@ class PlayerCog(commands.Cog):
                 player_restriction=player,
                 color_mode=get_colour_option(board, arguments),
                 oil_spill_mode=oil_spills,
+                invert_color_mode=invert_color_mode,
+                clean_map_mode=clean_map_mode,
                 movement_only="movement" in arguments,
                 turn=season,
                 fow_player=player if board.data.get("fow", "disabled") == "enabled" else None,

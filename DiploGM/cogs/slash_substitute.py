@@ -134,8 +134,12 @@ class SlashSubstituteCog(commands.Cog):
             return
 
         board = manager.get_board(guild.id)
-        player = board.get_player(power_role.name)
-        if not player:
+        player = None
+        scrap = power_role.name == "scrap"
+
+        if not scrap:
+            player = board.get_player(power_role.name)
+        if not player and not scrap:
             out = f"Could not find Player object for given role {power_role.mention}"
             await send_advertise_error(f"{out}")
             await interaction.response.send_message("Failure!", ephemeral=True)
@@ -155,14 +159,19 @@ class SlashSubstituteCog(commands.Cog):
                 await interaction.followup.send("Failure!", ephemeral=True)
                 return
 
+        centers = 0
+        vscc = 0
+        if player:
+            centers = len(player.centers)
+            vscc = round(board.get_score(player) * 100, 2)
 
         out = (
             f"Period: {timestamp_msg}\n"
             f"Game: {guild.name}\n"
             f"Phase: {board.turn}\n"
             f"Power: {power_role.name}\n"
-            f"SC Count: {len(player.centers)}\n"
-            f"VSCC: {round(board.get_score(player) * 100, 2)}%\n"
+            f"SC Count: {centers}\n"
+            f"VSCC: {vscc}%\n"
             "\n"
             f"Message: {message}\n"
             "\n"
