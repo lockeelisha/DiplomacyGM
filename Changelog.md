@@ -1,4 +1,4 @@
-1.10.3
+1.10.5
 ======
 
 Contributors:
@@ -23,6 +23,33 @@ Contributors:
 - If unit symbols are images, they will now properly copy over to the correct spot on the map
 - If a map has a lot of adjacency issues, `.verify_adjacencies` will not give up instead of recursively iterating for a very long time
 - Trying to draw a unit disbanding will no longer crash if the bot doesn't know where to draw the X
+
+1.10.4
+======
+
+Contributors:
+- aahoughton
+- seanyjolhv
+
+# New Features
+- Added new command `.rng`, give it a number and decide your fate!
+- Added new argument `invert` to commands `.view_map / .view_current`
+- Added new argument `clean` to command `.view_map / .view_current`
+
+# Quality of Life
+- Added colourblind map modes to Imperial Diplomacy for greater accessibility, available modes:
+  - `proto_a`
+  - `proto_b`
+  - `deute_a`
+  - `deute_b`
+  - `trita_a`
+  - `trita_b`
+
+# Game Management Changes
+- Made `@scrap` possible for use in `/advertise`
+
+# Developer Changes
+- Added new `MapperUtils` method `invert_hexcode()`
 
 1.10.3
 ======
