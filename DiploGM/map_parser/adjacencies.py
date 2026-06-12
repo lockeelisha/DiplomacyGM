@@ -40,6 +40,8 @@ def _find_province_loop(province: Province,
         loop = _find_province_loop(adj, destination, visited, ignored_provinces)
         if loop is not None:
             return loop
+        if len(visited) > 50:  # Prevent infinite recursion
+            return visited
     visited.pop()
     return None
 

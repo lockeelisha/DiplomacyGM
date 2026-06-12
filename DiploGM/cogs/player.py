@@ -236,6 +236,7 @@ class PlayerCog(commands.Cog):
             file_name=file_name,
             convert_svg=convert_svg,
             file_in_embed=False,
+            dpi=board.data["svg config"].get("dpi", 200),
         )
 
     @commands.command(

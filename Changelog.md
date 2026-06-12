@@ -32,6 +32,32 @@ Contributors:
 - Golden Kumquat
 
 # New Features
+- Builds/transforms in Winter will now be marked in red if they have failed
+- Variants can now set a custom DPI for map exporting
+- `map_width` is now an optional parameter for variants. If it is not set, or set to 0, the map will not wrap around
+- Fog of War now works!
+  - `.adjudicate full` should not be used; instead use `.publish_fow_moves` and `.publish_fow_order_logs`
+  - It is a bad idea to try FoW on large maps with many players, as the bot won't handle sending many maps at once very well
+  - Many thanks to the fine folks at the Imperial Diplomacy Bullet Server for getting it to work
+
+# Developer Changes
+- Added has_failed to orders done in Winter
+- Refactored how orders done in Winter are drawn
+
+# Bugfixes
+- Help texts for `.create_press_channel`, `.edit`, and `.edit_game` have been fixed
+- The `.servers` command properly works with builds again
+- If unit symbols are images, they will now properly copy over to the correct spot on the map
+- If a map has a lot of adjacency issues, `.verify_adjacencies` will not give up instead of recursively iterating for a very long time
+- Trying to draw a unit disbanding will no longer crash if the bot doesn't know where to draw the X
+
+1.10.3
+======
+
+Contributors:
+- Golden Kumquat
+
+# New Features
 - The bot will now only load a board the first time someone issues a command, instead of all on load
   - Startup times should be much quicker, though the first command run per server will be slower
 - Provinces can have more than four coasts, for those who wish to design eldrich abomination provinces

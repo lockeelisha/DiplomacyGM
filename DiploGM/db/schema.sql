@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS builds(
     location text,
     order_type text,
     unit_type text,
+    failed_order boolean,
     PRIMARY KEY (board_id, phase, player, location),
     FOREIGN KEY (board_id, phase) REFERENCES boards (board_id, phase),
     FOREIGN KEY (board_id, player) REFERENCES players (board_id, player_name),

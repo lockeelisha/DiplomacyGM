@@ -26,8 +26,10 @@ class ErrorMessage(Enum):
     """Enum that gives a common set of error messages for send_error()."""
     CHANNEL_NOT_GIVEN = "No channel given."
     COMMAND_IN_PAST = "Don't schedule a command to occur in the past."
+    FOW_DISABLED = "This is not a fog of war game."
     IMPROPER_TIMESTAMP = "Did not give a proper timestamp."
     MESSAGE_NOT_GIVEN = "No message given."
+    NO_PREVIOUS_BOARD = "No previous board found."
     NO_PLAYER_CATEGORY = "No player category found."
     NO_PLAYER_ROLE = "No player role found."
     NO_ROLES_SUPPLIED = "No roles were supplied to allocate. Please include a role mention in the command."
@@ -69,6 +71,7 @@ async def send_message_and_file(
     footer_datetime: datetime.datetime | None = None,
     fields: List[Tuple[str, str]] | None = None,
     convert_svg: bool = False,
+    dpi: int = 200,
     **_,
 ) -> Message:
 
@@ -79,7 +82,7 @@ async def send_message_and_file(
     assert embed_colour is not None
 
     if convert_svg and file and file_name:
-        file, file_name = await svg_to_png(file, file_name)
+        file, file_name = await svg_to_png(file, file_name, dpi=dpi)
 
     # Checks embed title and bodies are within limits.
     if fields:

@@ -32,8 +32,10 @@ def is_moveable(unit: Unit,
         return False
     return True
 
-def get_closest_loc(possibilities: set[complex], coord: complex, map_width: float, normalize: bool = True) -> complex:
+def get_closest_loc(possibilities: set[complex], coord: complex, map_width: float = 0, normalize: bool = True) -> complex:
     """Gets the closest point to the given coordinate, accounting for horizontal wrapping of the map."""
+    if map_width <= 0:
+        map_width = float('inf') # If map_width is zero, we make it infinite to prevent wrapping
     possibilities_list = list(possibilities)
     crossed_pos = []
     crossed = []
@@ -94,7 +96,7 @@ def get_all_unit_coordinates(province: Province,
             for loc in locations}
 
 def loc_to_point(loc: Province, unit_type: UnitType, coast: str | None,
-                current: complex, map_width: float, use_retreats=False) -> complex:
+                current: complex, map_width: float = 0, use_retreats=False) -> complex:
     """Gets the coordinates to draw a unit in a province, given the unit type and coast.
     If there are multiple possibilities, gets the one closest to the current coordinates."""
     # If we're moving to somewhere that's inhabitted, draw to the proper coast

@@ -14,7 +14,7 @@ class Order:
     """Order is a player's game state API."""
 
     def __init__(self):
-        pass
+        self.has_failed = False
 
 
 # moves, holds, etc.
@@ -29,7 +29,6 @@ class UnitOrder(Order):
                  destination: Province | None = None,
                  destination_coast: str | None = None):
         super().__init__()
-        self.has_failed = False
         self.destination = destination
         self.destination_coast = destination_coast
         self.source = source

@@ -1,9 +1,8 @@
 """Game management commands related to adjudication."""
 import asyncio
 import logging
-import random
 
-import discord.utils
+import discord
 from discord import TextChannel, Guild
 from discord.ext import commands
 
@@ -171,11 +170,7 @@ async def publish_orders(ctx: commands.Context, *args) -> None:
 
     board = manager.get_previous_board(guild.id)
     if not board:
-        await send_message_and_file(
-            channel=ctx.channel,
-            title="Failed to get previous phase",
-            embed_colour=config.ERROR_COLOUR,
-        )
+        await send_error(ctx.channel, ErrorMessage.NO_PREVIOUS_BOARD)
         return
     log_url = await _post_orders(ctx, board)
 
@@ -227,7 +222,7 @@ async def _upload_maps(ctx: commands.Context, args: dict, title: str, board: Boa
     converted_file_name: str | None = None
     needs_png = args["return_svg"] or (args["full"] and _get_maps_channel(ctx.guild))
     if needs_png:
-        converted_file, converted_file_name = await svg_to_png(file, file_name)
+        converted_file, converted_file_name = await svg_to_png(file, file_name, dpi=board.data["svg config"].get("dpi", 200))
     await send_message_and_file(
         channel=ctx.channel,
         title=f"{title} {'Orders' if is_orders else 'Results'} Map",
@@ -333,6 +328,7 @@ async def adjudicate(ctx: commands.Context) -> None:
             file=file,
             file_name=file_name,
             convert_svg=args["return_svg"],
+            dpi=board.data["svg config"].get("dpi", 200),
         )
 
     await _upload_maps(ctx, args, title, new_board, False)

@@ -39,7 +39,7 @@ async def upload_map_to_archive(ctx: commands.Context,
                 break
     if url is None:
         return
-    png_map, _ = await svg_to_png(game_map, url)
+    png_map, _ = await svg_to_png(game_map, url, dpi=board.data["svg config"].get("dpi", 200))
     p = await asyncio.create_subprocess_shell(
         f'azcopy copy "{url}" --from-to PipeBlob --content-type image/png',
         stdout=PIPE,

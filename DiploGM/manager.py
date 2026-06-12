@@ -142,6 +142,10 @@ class Manager(metaclass=SingletonMeta):
         for unit in board.units:
             if unit.order and unit.province.name in failed:
                 unit.order.has_failed = True
+        for player in board.players:
+            for order in player.build_orders:
+                if order.province.name in failed:
+                    order.has_failed = True
 
     def total_delete(self, server_id: int):
         """Completely wipes all data for a server."""
@@ -180,6 +184,8 @@ class Manager(metaclass=SingletonMeta):
                     and board.turn.phase.value < cur_board.turn.phase.value)
             ):
                 player_restriction = None
+            if kwargs.get("fow_player") is not None:
+                kwargs["fow_player"] = board.get_player(kwargs["fow_player"].name)
         svg, file_name = self.draw_map_for_board(
             board,
             player_restriction=player_restriction,
@@ -228,11 +234,14 @@ class Manager(metaclass=SingletonMeta):
         adjudicator = make_adjudicator(old_board)
         adjudicator.save_orders = not test
         new_board = adjudicator.run()
-        self.last_failed_orders[server_id] = {
-            order.current_province.name
-            for order in getattr(adjudicator, 'orders', [])
-            if order.resolution == Resolution.FAILS
-        }
+        if old_board.turn.is_builds():
+            self.last_failed_orders[server_id] = getattr(adjudicator, 'failed_build_provinces', set())
+        else:
+            self.last_failed_orders[server_id] = {
+                order.current_province.name
+                for order in getattr(adjudicator, 'orders', [])
+                if order.resolution == Resolution.FAILS
+            }
         self.last_dp_orders[server_id] = getattr(adjudicator, 'dp_order_strings', {})
         new_board.turn = new_board.turn.get_next_turn()
         message = new_board.run_variant_scripts()
