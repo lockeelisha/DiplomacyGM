@@ -26,3 +26,6 @@
 	path = variants/faerundip
 	url = https://github.com/Imperial-Diplomacy/FaerunDip-Variants.git
 	branch = main
+[submodule "variants/blackdragon"]
+	path = variants/blackdragon
+	url = https://github.com/Imperial-Diplomacy/BlackDragonDip-variants.git
