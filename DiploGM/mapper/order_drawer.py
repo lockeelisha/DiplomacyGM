@@ -287,7 +287,7 @@ class OrderDrawer:
         else:
             dest_coast = order.destination_coast
         dest_coord = MapperUtils.loc_to_point(order.destination,
-                                              ssource_unit_type,
+                                              source_unit_type,
                                               dest_coast,
                                               source_coord,
                                               self.board_svg_data.get("map_width", 0))
