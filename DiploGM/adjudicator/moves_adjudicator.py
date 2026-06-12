@@ -70,8 +70,12 @@ class MovesAdjudicator(Adjudicator):
 
         for order in self.orders:
             if order.type == OrderType.SUPPORT:
+                if order.source_province.name not in self.orders_by_province:
+                    continue
                 self.orders_by_province[order.source_province.name].supports.add(order)
             if order.type == OrderType.CONVOY:
+                if order.source_province.name not in self.orders_by_province:
+                    continue
                 self.orders_by_province[order.source_province.name].convoys.add(order)
 
         self._dependencies: list[AdjudicableOrder] = []
