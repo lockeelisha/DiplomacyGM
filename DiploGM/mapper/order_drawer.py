@@ -299,7 +299,9 @@ class OrderDrawer:
                 and source.unit is not None
                 and isinstance(source.unit.order, (ConvoyTransport, Support))
                 and MapperUtils.is_moveable(source.unit, self.adjacent_provinces, self.player_restriction)):
-                for coord in source.all_coordinates[source.unit.coast if source.unit.coast else source.unit.unit_type.name]:
+                location = source.unit.coast if source.unit.coast else source.unit.unit_type.name
+                coords = source.all_coordinates.get(location, [])
+                for coord in coords:
                     self._draw_hold(None, None, coord.primary_coordinate, False)
 
             # if two units are support-holding each other
