@@ -55,7 +55,7 @@ async def png_to_jpg(png: bytes, file_name: str) -> tuple[bytes, str, bytes]:
     """Convert a PNG to a JPG using ImageMagick."""
     async with external_task_limit:
         p = await asyncio.create_subprocess_shell(
-            "magick png:- jpg:-", stdout=PIPE, stdin=PIPE, stderr=PIPE
+            "convert png:- jpg:-", stdout=PIPE, stdin=PIPE, stderr=PIPE
         )
         data, error = await p.communicate(input=png)
         base = os.path.splitext(file_name)[0]
