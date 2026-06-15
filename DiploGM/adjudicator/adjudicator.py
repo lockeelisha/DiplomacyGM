@@ -37,7 +37,7 @@ class Adjudicator:
         self._board = board
         self.save_orders = True
         self.parameters = {"build_options": board.data.get("build_options", "classic"),
-                           "supportable_cores": board.data.get("supportable_cores") == "enabled",
+                           "core_options": board.data.get("core_options", {}),
                            "convoyable_islands": (board.data.get("convoyable_islands") == "enabled")}
         self.failed_or_invalid_units: set[MapperInformation] = set()
 
