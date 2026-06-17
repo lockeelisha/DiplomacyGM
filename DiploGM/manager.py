@@ -40,6 +40,8 @@ class Manager(metaclass=SingletonMeta):
         self.last_failed_orders: dict[int, set[str]] = {}
         self.last_dp_orders: dict[int, dict[str, tuple[str, str | None, str | None]]] = {}
 
+        self.ctx_parameters: dict = self._database.load_ctx_parameters()
+
     async def ensure_board_loaded(self, server_id: int) -> None:
         """Ensures a board is loaded into memory for the given server.
         Uses per-server locks to prevent race conditions from concurrent commands."""
@@ -353,3 +355,34 @@ class Manager(metaclass=SingletonMeta):
             if server_id not in self.last_activity:
                 self.last_activity[server_id] = {}
             self.last_activity[server_id][player.name] = time.time()
+
+    def save_ctx_parameter(self, context_id: int, parameter_key: str, parameter_value: str) -> None:
+        """Saves a context parameter to the database."""
+        self.ctx_parameters[context_id] = self.ctx_parameters.get(context_id, {})
+        keys = parameter_key.split('/')
+        data = self.ctx_parameters[context_id]
+        for key in keys[:-1]:
+            data = data.setdefault(key, {})
+        data[keys[-1]] = parameter_value
+        self._database.execute_arbitrary_sql(
+            "INSERT OR REPLACE INTO ctx_parameters (context_id, parameter_key, parameter_value) VALUES (?, ?, ?)",
+            (context_id, parameter_key, parameter_value)
+        )
+
+    def delete_ctx_parameter(self, context_id: int, parameter_key: str) -> None:
+        """Deletes a context parameter from the database."""
+        if context_id not in self.ctx_parameters:
+            return
+        keys = parameter_key.split('/')
+        data = self.ctx_parameters[context_id]
+        for key in keys[:-1]:
+            if key in data:
+                data = data[key]
+            else:
+                return
+        if keys[-1] in data:
+            del data[keys[-1]]
+        self._database.execute_arbitrary_sql(
+            "DELETE FROM ctx_parameters WHERE context_id = ? AND parameter_key = ?",
+            (context_id, parameter_key)
+        )

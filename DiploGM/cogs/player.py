@@ -188,6 +188,10 @@ class PlayerCog(commands.Cog):
         board = manager.get_board(ctx.guild.id)
         season = parse_season(arguments, board.turn)
 
+        color_mode=get_colour_option(board, arguments)
+        if color_mode is None:
+            color_mode = manager.ctx_parameters.get(ctx.author.id, {}).get(board.datafile, {}).get("color_mode", "standard")
+
         if player and show_moves and not board.orders_enabled:
             log_command(logger, ctx, "Orders locked - not processing")
             await send_orders_locked_error(ctx.channel)
@@ -198,7 +202,7 @@ class PlayerCog(commands.Cog):
                 ctx.guild.id,
                 draw_moves=show_moves,
                 player_restriction=player,
-                color_mode=get_colour_option(board, arguments),
+                color_mode=color_mode,
                 oil_spill_mode=oil_spills,
                 invert_color_mode=invert_color_mode,
                 clean_map_mode=clean_map_mode,
@@ -267,8 +271,11 @@ class PlayerCog(commands.Cog):
         assert ctx.guild is not None
         arguments = remove_prefix(ctx).lower().split()
         board = manager.get_board(ctx.guild.id)
-        color_mode = get_colour_option(board, arguments)
         fow_player = player if board.data.get("fow", "disabled") == "enabled" else None
+
+        color_mode=get_colour_option(board, arguments)
+        if color_mode is None:
+            color_mode = manager.ctx_parameters.get(ctx.author.id, {}).get(board.datafile, {}).get("color_mode", "standard")
 
         if player and not board.orders_enabled:
             log_command(logger, ctx, "Orders locked - not processing")

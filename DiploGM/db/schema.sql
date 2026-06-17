@@ -82,6 +82,13 @@ CREATE TABLE IF NOT EXISTS board_parameters (
     PRIMARY KEY (board_id, parameter_key)
 );
 
+CREATE TABLE IF NOT EXISTS ctx_parameters (
+    context_id INTEGER NOT NULL,
+    parameter_key TEXT NOT NULL,
+    parameter_value TEXT NOT NULL,
+    PRIMARY KEY (context_id, parameter_key)
+);
+
 CREATE TABLE IF NOT EXISTS dp_orders (
     board_id int,
     phase text,

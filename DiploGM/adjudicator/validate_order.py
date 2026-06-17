@@ -209,7 +209,7 @@ def _validate_core_order(province: Province, core_options: dict) -> tuple[OrderV
         return OrderValidity.INVALID, f"{province} does not have a supply center to core"
     if province.owner != province.unit.player:
         return OrderValidity.INVALID, "Units can only core in owned supply centers"
-    if (adj_requirement := core_options.get("require_adjacent_ownership", False)):
+    if (adj_requirement := core_options.get("require_adjacent_ownership", "false")) != "false":
         for p in province.adjacencies.get_all():
             if p.owner == province.unit.player:
                 continue
@@ -217,7 +217,7 @@ def _validate_core_order(province: Province, core_options: dict) -> tuple[OrderV
                 return OrderValidity.INVALID, "Cannot core if there are unowned adjacent provinces"
             if adj_requirement == "sc" and p.has_supply_center:
                 return OrderValidity.INVALID, "Cannot core if there are unowned adjacent supply centers"
-    if (unit_requirement := core_options.get("require_no_enemy_units", False)):
+    if (unit_requirement := core_options.get("require_no_enemy_units", "false")) != "false":
         for p in province.adjacencies.get_all():
             if p.unit is None or p.unit.player == province.unit.player:
                 continue

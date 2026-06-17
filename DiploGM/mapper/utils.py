@@ -238,7 +238,7 @@ def color_element(element: Element, color: str, key="fill") -> None:
 def invert_hexcode(code: str) -> str:
     code = code.removeprefix("#")
     assert len(code) == 6
-    
+
     r = 255 - int(code[:2], 16)
     hex_r = hex(r)[2:]
     g = 255 - int(code[2:4], 16)
