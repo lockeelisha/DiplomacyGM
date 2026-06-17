@@ -2,12 +2,11 @@ import asyncio
 import logging
 import time
 import os
-from typing import Optional
 
 from discord import Member, User
 
 from DiploGM.utils.singleton import SingletonMeta
-from DiploGM.errors import NoGameError
+from DiploGM.errors import MapRenderError, NoGameError
 from DiploGM.adjudicator.make_adjudicator import make_adjudicator
 from DiploGM.adjudicator.defs import Resolution
 from DiploGM.mapper.mapper import Mapper
@@ -205,22 +204,25 @@ class Manager(metaclass=SingletonMeta):
     ) -> tuple[bytes, str]:
         """Gets the current map for a board."""
         start = time.time()
-        mapper = Mapper(
-            board, 
-            restriction=kwargs.get("fow_player"), 
-            color_mode=kwargs.get("color_mode"), 
-            oil_spill_mode=kwargs.get("oil_spill_mode", False),
-            invert_color_mode=kwargs.get("invert_color_mode", False),
-            clean_map_mode=kwargs.get("clean_map_mode", False)
-        )
-
-        if draw_moves:
-            svg, file_name = mapper.draw_moves_map(board.turn,
-                                                   player_restriction=player_restriction,
-                                                   movement_only=kwargs.get("movement_only", False),
+        try:
+            mapper = Mapper(
+                board,
+                restriction=kwargs.get("fow_player"),
+                color_mode=kwargs.get("color_mode"),
+                oil_spill_mode=kwargs.get("oil_spill_mode", False),
+                invert_color_mode=kwargs.get("invert_color_mode", False),
+                clean_map_mode=kwargs.get("clean_map_mode", False)
             )
-        else:
-            svg, file_name = mapper.draw_current_map()
+
+            if draw_moves:
+                svg, file_name = mapper.draw_moves_map(board.turn,
+                                                       player_restriction=player_restriction,
+                                                       movement_only=kwargs.get("movement_only", False),
+                )
+            else:
+                svg, file_name = mapper.draw_current_map()
+        except Exception as e:
+            raise MapRenderError("Failed to render map") from e
 
         elapsed = time.time() - start
         logger.info("manager.draw_map_for_board took %ss", elapsed)
@@ -268,9 +270,12 @@ class Manager(metaclass=SingletonMeta):
         """Draws an GUI map for a board."""
         start = time.time()
 
-        svg, file_name = Mapper(
-            self._boards[server_id], fow_player, color_mode=color_mode
-        ).draw_gui_map(self._boards[server_id].turn, player_restriction)
+        try:
+            svg, file_name = Mapper(
+                self._boards[server_id], fow_player, color_mode=color_mode
+            ).draw_gui_map(self._boards[server_id].turn, player_restriction)
+        except Exception as e:
+            raise MapRenderError("Failed to render GUI map") from e
 
         elapsed = time.time() - start
         logger.info("manager.draw_moves_map.%s.%ss", server_id, elapsed)

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 def log_command(
     remote_logger: logging.Logger,
-    ctx: discord.ext.commands.Context,
+    ctx: commands.Context,
     message: str,
     *,
     level=logging.INFO,
@@ -21,7 +21,7 @@ def log_command(
         remote_logger,
         ctx.message.content,
         ctx.channel,
-        ctx.guild.name,
+        ctx.guild.name if ctx.guild else "DM",
         message,
         level=level,
     )

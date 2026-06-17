@@ -42,7 +42,7 @@ toml_errors, all_config = merge_toml(_toml, _default_toml)
 # BOT CONFIG
 DISCORD_TOKEN = all_config["bot"]["discord_token"]
 LOGGING_LEVEL = all_config["bot"]["log_level"]
-COMMAND_PREFIX = all_config["bot"]["command_prefix"]
+COMMAND_PREFIX: str = all_config["bot"]["command_prefix"]
 GAME_PLAYING: str = all_config["bot"]["game_playing"]
 
 
@@ -75,7 +75,7 @@ HUB_SERVER_BOT_BUG_REPORT_CHANNEL_MESSAGE: str = all_config["hub"]["bug_report_c
 SUPERUSERS = all_config["permissions"]["superusers"]
 
 # EXTENSIONS
-EXTENSIONS_TO_LOAD_ON_STARTUP = all_config["extensions"]["load_on_startup"]
+EXTENSIONS_TO_LOAD_ON_STARTUP: list[str] = all_config["extensions"]["load_on_startup"]
 
 # COLOURS
 EMBED_STANDARD_COLOUR: str = all_config["colours"]["embed_standard"]

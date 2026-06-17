@@ -271,7 +271,7 @@ class Parser:
             self.cache_provinces = set()
             for province in raw_provinces:
                 if province.name in cache:
-                    logger.warning(f"{self.datafile}: {province.name} repeats in map, ignoring...")
+                    logger.warning("%s: %s repeats in map, ignoring...", self.datafile, province.name)
                     continue
                 cache.append(province.name)
                 self.cache_provinces.add(province)
@@ -431,7 +431,7 @@ class Parser:
         # Given an SVG element for a province, creates a Province object with the correct geometry and name.
         path_string = province_data.get("d")
         if not path_string:
-            logger.error(f"Province path data not found in province with data {tostring(province_data)}")
+            logger.error("Province path data not found in province with data %s", tostring(province_data))
             raise RuntimeError("Province path data not found")
         translation = TransGL3(province_data) * layer_transformation
 
@@ -488,10 +488,11 @@ class Parser:
         for center_data in self.layer_data["supply_center_icons"]:
             name = self.get_province_name(center_data)
             province = self.name_to_province[name]
-            supply_center_coords = sc_layer_transformation.transform(TransGL3(center_data).transform(get_sc_coordinates(center_data)))
-            supply_center_point = shapely.Point(supply_center_coords.real, supply_center_coords.imag)
-            if not shapely.dwithin(supply_center_point, province.geometry, self.data[SVG_CONFIG_KEY].get("unit_radius", 10)):
-                logger.warning(f"{self.datafile}: Supply center icon for '{name}' is not within its province")
+            sc_coords = sc_layer_transformation.transform(TransGL3(center_data)
+                                               .transform(get_sc_coordinates(center_data)))
+            sc_point = shapely.Point(sc_coords.real, sc_coords.imag)
+            if not shapely.dwithin(sc_point, province.geometry, self.data[SVG_CONFIG_KEY].get("unit_radius", 10)):
+                logger.warning("%s: Supply center icon for '%s' is not within its province", self.datafile, name)
 
             if province.has_supply_center:
                 raise RuntimeError(f"{name} already has a supply center")
@@ -501,7 +502,8 @@ class Parser:
                 sc_circles = center_data.findall(".//svg:circle", namespaces=NAMESPACE)
                 sc_circles.extend(center_data.findall(".//svg:path", namespaces=NAMESPACE))
                 if len(sc_circles) > 0:
-                    element = next((c for c in sc_circles if get_element_color(c) not in (None, "none", "000000")), sc_circles[-1])
+                    element = next((c for c in sc_circles
+                                    if get_element_color(c) not in (None, "none", "000000")), sc_circles[-1])
                 else:
                     element = center_data
                 core = self._get_element_player(element, province_name=province.name)
@@ -526,7 +528,7 @@ class Parser:
         for unit_data in self.layer_data["starting_units"]:
             province_name = self.get_province_name(unit_data)
             if not province_name:
-                logger.error(f"Unit data {tostring(unit_data)} has no province name")
+                logger.error("Unit data %s has no province name", tostring(unit_data))
                 continue
             if self.data[SVG_CONFIG_KEY]["unit_type_labeled"]:
                 province_name = province_name[1:]
@@ -601,7 +603,7 @@ class Parser:
         neutral_color = neutral_color.lower()
         #FIXME: only works if there's one person per province
         if self.is_chaos:
-            if color is None or color == self.impassable_color or not self.name_to_province[province_name].has_supply_center:
+            if color in (None, self.impassable_color) or not self.name_to_province[province_name].has_supply_center:
                 return None
             if color == neutral_color or color in self.color_to_player:
                 color = weighted_random_color(province_name)

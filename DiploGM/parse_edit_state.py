@@ -22,7 +22,7 @@ def parse_edit_state(message: str, board: Board) -> tuple[str, str, bytes | None
     for command in commands:
         try:
             _parse_command(command, board)
-        except Exception as error:
+        except (ValueError, RuntimeError, IndexError, KeyError) as error:
             invalid.append((command, error))
 
     embed_colour = None

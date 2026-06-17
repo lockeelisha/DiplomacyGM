@@ -71,44 +71,31 @@ class Player:
         bullet = "\n- "
 
         units = sorted(self.units, key=lambda u: (u.unit_type.code, u.province.get_name(u.coast)))
-        centers = sorted(self.centers, key=lambda c: c.name)
-
-        if board.is_chaos():
-            units = ((bullet + bullet.join([unit.province.get_name(unit.coast) for unit in units]))
-                    if len(units) > 0 else 'None')
-            centers = ((bullet + bullet.join([center.name for center in centers]))
-                      if len(centers) > 0 else 'None')
-            out = (
-                f"Color: #{board.data['players'][self.name].get('custom_color', self.default_color)}\n"
-                + f"Units ({len(units)}): {units}\n"
-                + f"Centers ({len(centers)}): {centers}\n"
-            )
-            return out
-
-        center_str = "Centers:"
-        for center in centers:
-            center_str += bullet
-            if center.core_data.core == self:
-                center_str += f"{center.name} (core)"
-            elif center.core_data.half_core == self:
-                center_str += f"{center.name} (half-core)"
-            else:
-                center_str += f"{center.name}"
-
-        unit_str = "Units:"
+        unit_str = f"({len(units)}):"
         for unit in units:
             unit_str += f"{bullet}({unit.unit_type.code}) {unit.province.get_name(unit.coast)}"
 
-        color = (bullet + board.data['players'][self.name].get('custom_color', self.default_color) +
-                 (bullet + bullet.join([k + ': ' + v for k, v in self.color_dict.items()])
-                  if self.color_dict is not None else ""))
+        centers = sorted(self.centers, key=lambda c: c.name)
+        center_str = f"({len(centers)}):"
+        for center in centers:
+            core_str = (" (core)" if center.core_data.core == self
+                        else " (half-core)" if center.core_data.half_core == self else "")
+            center_str += f"{bullet}{center.name}{core_str}"
+
+        player_data = board.data['players'][self.name]
+        color = player_data.get('custom_color', self.default_color)
+        score = ""
+        if not board.is_chaos():
+            color = (bullet + color + (bullet + bullet.join([k + ': ' + v for k, v in self.color_dict.items()])
+                                      if self.color_dict is not None else ""))
+            score = f"Score: [{len(self.centers)}/{int(player_data.get('vscc', 0))}] " + \
+                    f"{round(board.get_score(self) * 100, 2)}%\n"
+
         out = (
-            ""
-            + f"Color: {color}\n"
-            + f"Score: [{len(self.centers)}/{int(board.data['players'][self.name]['vscc'])}] "
-                + f"{round(board.get_score(self) * 100, 2)}%\n"
-            + f"{center_str}\n"
-            + f"{unit_str}\n"
+            f"Color: {color}\n"
+            f"{score}"
+            f"Centers: {center_str}\n"
+            f"Units: {unit_str}\n"
         )
         return out
 

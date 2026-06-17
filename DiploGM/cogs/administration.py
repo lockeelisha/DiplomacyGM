@@ -317,7 +317,9 @@ class AdminCog(commands.Cog):
 
     # @commands.command(
     #     brief="Execute Arbitrary SQL",
-    #     description="Perform an SQL query on the production database.\n\nONLY TO BE USED IN THE MOST EXTREME CASES\nONLY USE IF YOU ARE ABSOLUTELY SURE OF WHAT YOU ARE DOING.",
+    #     description="Perform an SQL query on the production database.\n\n
+    #                  ONLY TO BE USED IN THE MOST EXTREME CASES\n
+    #  ONLY USE IF YOU ARE ABSOLUTELY SURE OF WHAT YOU ARE DOING.",
     #     help="""Example:
     # `.exec_sql "DELETE FROM units WHERE board_id=? AND phase=? AND owner=?" <server_id> "0 Fall Moves" England`
     # `.exec_sql "UPDATE provinces SET owner=? WHERE board_id=? AND phase=?" Aymara <server_id> "2 Spring Moves"`

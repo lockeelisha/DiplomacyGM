@@ -8,3 +8,7 @@ class CommandPermissionError(commands.CheckFailure):
 
 class NoGameError(RuntimeError):
     """Raised when a command requires a game but none exists in the server."""
+
+
+class MapRenderError(RuntimeError):
+    """Raised when rendering a map fails for any reason in the drawing pipeline."""

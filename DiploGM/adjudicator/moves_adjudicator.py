@@ -467,7 +467,7 @@ class MovesAdjudicator(Adjudicator):
         # Deal with paradoxes and circular dependencies
         orders = self._dependencies[old_dependency_count:]
         self._dependencies = self._dependencies[:old_dependency_count]
-        logger.warning(f"I think there's a move paradox involving these moves: {[str(x) for x in orders]}")
+        logger.warning("I think there's a move paradox involving these moves: %s", [str(x) for x in orders])
         # Szykman rule - If any of these orders is a convoy, fail the order
         apply_szykman = False
         for order in orders:

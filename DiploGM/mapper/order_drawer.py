@@ -79,6 +79,11 @@ class OrderDrawer:
         for coord in coord_list:
             order_function(None, None, coord, order.has_failed)
 
+    def _is_visible_order(self, unit: Unit) -> bool:
+        if self.player_restriction is None or unit.player is None:
+            return True
+        return unit.player.name == self.player_restriction
+
     def _draw_hold(self, _, __, coordinate: complex, has_failed: bool) -> None:
         element = self.moves_svg.getroot()
         assert element is not None
@@ -182,9 +187,8 @@ class OrderDrawer:
                 and unit.order.source == source
                 and unit.order.destination == destination
             )
-            if (self.player_restriction is not None
-                and (unit.player is None or unit.player.name != self.player_restriction)):
-                continue # Don't draw if the player doesn't know that fleet is convoying
+            if not self._is_visible_order(unit):
+                continue
             if is_convoying_fleet:
                 options += self._path_helper(source, destination, possibility, new_checked)
         return list(map((lambda t: [current] + t), options))
@@ -303,14 +307,12 @@ class OrderDrawer:
                     self._draw_hold(None, None, coord, False)
 
             # if two units are support-holding each other
-            destorder = order.destination.unit.order
+            destunit = order.destination.unit
 
-            if (isinstance(destorder, Support)
-                and destorder.is_support_hold()
-                and order.is_support_hold()
-                and destorder.source == unit.province
-                and (self.player_restriction is None
-                     or order.destination.unit.player.name == self.player_restriction)
+            if (isinstance(destunit.order, Support)
+                and destunit.order.is_support_hold() == order.is_support_hold() == True
+                and destunit.order.source == unit.province
+                and self._is_visible_order(destunit)
             ):
                 marker_end = f"url(#{'red' if has_failed else ''}ball)"
                 # doesn't matter that v3 has been pulled, as it's still collinear
@@ -373,6 +375,7 @@ class OrderDrawer:
         """Draws a disband order on the map.
         This method is public since we need to forced disbands on the current map."""
         element = (svg if svg is not None else self.moves_svg).getroot()
+        assert element is not None
         cross_width = self.board_svg_data["order_stroke_width"] / (2**0.5)
         square_rad = self.board_svg_data["unit_radius"] / (2**0.5)
         # two corner and a center point. Rotate and concat them to make the correct object
