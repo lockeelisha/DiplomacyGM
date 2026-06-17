@@ -1,3 +1,30 @@
+1.10.6
+======
+
+Contributors:
+- Golden Kumquat
+
+# New Features
+- Players can set a preferred map color by using `.edit_prefs color_mode <color_mode>`
+  - This preference will be saved across all games in a variant
+- GMs can add additional map channels by using `.edit_server maps_channel <#channel> <(optional) color_mode>`
+  - When `.adjudicate full` is run, maps will be outputted to those channels in addition to #maps, with the selected color mode if included
+- There's now a lot more granularity over how cores can work:
+  - Cores can be set to require one or two turns to complete
+  - Coring can require ownership of all adjacent SCs or provinces to be valid
+  - Coring can require no enemy units to be in adjacent SCs or provinces
+  - Coring can be set to fail if anyone supports the core
+  - Coring can be set to fail if an enemy unit moves into an adjacent SC or province
+  - As a result, editing coring options are now in `.edit_game core_options`
+
+# Developer Changes
+- Added ctx_parameters table to store player/server parameters, such as map color preferences
+
+# Bugfixes
+- Fixed bug where labelling a starting fleet "Province NC" was failing SVG validation due to capitalization
+- Fixed path data errors not being logged well
+- Fixed .view_open_cores in control-based and chaos-based building modes
+
 1.10.5
 ======
 
