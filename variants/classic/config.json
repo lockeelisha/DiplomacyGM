@@ -40,7 +40,14 @@
 	"victory_conditions": "classic",
 	"victory_count": 18,
     "convoyable_islands": "disabled",
-    "supportable_cores": "disabled",
+    "core_options": {
+        "turns": "2",
+        "supportable": "false",
+        "require_adjacent_ownership": "false",
+        "require_no_enemy_units": "false",
+        "require_no_interactions": "false",
+        "fail_on_adjacent_move": "false"
+    },
     "transformation": "disabled",
     "dp": "disabled",
     "fow": "disabled",

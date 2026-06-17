@@ -84,6 +84,14 @@ description = "Displays how long the bot has been running and how long it has be
 [version]
 description = "Gets the current version of the bot, as determined by the Changelog."
 
+[edit_prefs]
+description = """
+Edits your user preferences. One parameter per line.
+Edits here will persist through game servers.
+Use '.edit_prefs' followed by one or more lines, each setting a parameter.
+"""
+"color_mode" = "<color mode> - for all games of the currently loaded variant, will default to outputting maps in that color mode when you run '.view_map' or '.view_current'. Must be set for each variant, and requires a loaded game."
+
 
 # Player Cog
 [create_press_channel]
@@ -259,7 +267,7 @@ Use '.edit_game' followed by one or more lines, each setting a parameter.
 "game_name" = "<name> - Sets the display name of the game. Use 'None' to clear."
 "building" = "<classic|cores|control|anywhere> - Sets the build rule."
 "convoyable_islands" = "<true|false> - Whether island provinces can be convoyed through."
-"supportable_cores" = "<true|false> - Whether coring units can receive support."
+"core_options" = "Configure coring requirements. Use '.edit_game core_options' for more information."
 "transformation" = "<disabled|moves|builds|all> - When units can be ordered to transform."
 "dp" = "<true|false> - Enables or disables Diplomacy Points."
 "victory_conditions" = "<classic|vscc> - Sets the victory condition type."
@@ -271,6 +279,15 @@ Use '.edit_game' followed by one or more lines, each setting a parameter.
 "player_color" = "<player> <hex_color> - Sets a player's custom color (6-digit hex)."
 "hide_player" = "<player> <true|false> - Hides or unhides a player from the scoreboard."
 "add_player" = "<name> <hex_color> - Adds a new player to the game."
+
+[edit_server]
+description = """
+Edits server-wide parameters. One parameter per line.
+Edits here will persist through game creation and deletion.
+Use '.edit_server' followed by one or more lines, each setting a parameter.
+"""
+"maps_channel" = "<channel> <(optional) color mode|None> - adds a specific text channel as an output channel for maps during '.adjudicate full'. Optionally set a color mode, or None to remove it."
+
 
 [export_game]
 description = "Exports the current game state as a JSON file."

@@ -203,7 +203,34 @@ def _validate_support_order(province: Province, order: Support) -> tuple[OrderVa
 
     return OrderValidity.VALID, None
 
-def order_is_valid(province: Province, order: Order, strict_coast_movement=True) -> tuple[OrderValidity, str | None]:
+def _validate_core_order(province: Province, core_options: dict) -> tuple[OrderValidity, str | None]:
+    assert province.unit is not None
+    if not province.has_supply_center:
+        return OrderValidity.INVALID, f"{province} does not have a supply center to core"
+    if province.owner != province.unit.player:
+        return OrderValidity.INVALID, "Units can only core in owned supply centers"
+    if (adj_requirement := core_options.get("require_adjacent_ownership", "false")) != "false":
+        for p in province.adjacencies.get_all():
+            if p.owner == province.unit.player:
+                continue
+            if adj_requirement == "all" and p.type != ProvinceType.SEA:
+                return OrderValidity.INVALID, "Cannot core if there are unowned adjacent provinces"
+            if adj_requirement == "sc" and p.has_supply_center:
+                return OrderValidity.INVALID, "Cannot core if there are unowned adjacent supply centers"
+    if (unit_requirement := core_options.get("require_no_enemy_units", "false")) != "false":
+        for p in province.adjacencies.get_all():
+            if p.unit is None or p.unit.player == province.unit.player:
+                continue
+            if unit_requirement == "all":
+                return OrderValidity.INVALID, "Cannot core if there are adjacent enemy units"
+            if unit_requirement == "sc" and p.has_supply_center:
+                return OrderValidity.INVALID, "Cannot core if there are adjacent enemy units in supply centers"
+    return OrderValidity.VALID, None
+
+def order_is_valid(province: Province,
+                   order: Order,
+                   strict_coast_movement=True,
+                   core_options: dict | None = None) -> tuple[OrderValidity, str | None]:
     """
     Checks if order from given location is valid for configured board
 
@@ -232,11 +259,7 @@ def order_is_valid(province: Province, order: Order, strict_coast_movement=True)
     if isinstance(order, (Hold, RetreatDisband, NMR)):
         return OrderValidity.VALID, None
     if isinstance(order, Core):
-        if not province.has_supply_center:
-            return OrderValidity.INVALID, f"{province} does not have a supply center to core"
-        if province.owner != province.unit.player:
-            return OrderValidity.INVALID, "Units can only core in owned supply centers"
-        return OrderValidity.VALID, None
+        return _validate_core_order(province, core_options or {})
     if isinstance(order, (Move, RetreatMove)):
         valid, reason = _validate_move_order(province, order, strict_coast_movement)
         if valid != OrderValidity.VALID and isinstance(order, Move) and province.unit.unit_type.can_be_convoyed:

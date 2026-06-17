@@ -9,7 +9,9 @@ from discord.ext import commands
 
 from DiploGM.config import ERROR_COLOUR
 from DiploGM import perms
+from DiploGM.errors import NoGameError
 from DiploGM.models.adjacency import Terrain
+from DiploGM.parse_user_prefs import parse_user_prefs
 from DiploGM.utils import (
     send_message_and_file,
     log_command,
@@ -83,42 +85,6 @@ class CommandCog(commands.Cog):
             f"Range: `0` to `{upper}`"
         )
         await send_message_and_file(channel=ctx.channel, title=title, message=out)
-
-    def _generate_chaos_scoreboard(self, board: Board, ctx) -> str:
-        response = ""
-        the_player = perms.get_player_by_context(ctx)
-        scoreboard_rows = []
-
-        latest_index = -1
-        latest_points = float("inf")
-
-        for i, player in enumerate(board.get_players_sorted_by_points()):
-            points = player.points
-
-            if points < latest_points:
-                latest_index = i
-                latest_points = points
-
-            if i <= 25 or player == the_player:
-                scoreboard_rows.append((latest_index + 1, player))
-            elif the_player is None:
-                break
-            elif the_player == player:
-                scoreboard_rows.append((latest_index + 1, player))
-                break
-
-        index_length = len(str(scoreboard_rows[-1][0]))
-        points_length = len(str(scoreboard_rows[0][1]))
-
-        for index, player in scoreboard_rows:
-            if board.is_player_hidden(player):
-                continue
-            response += (
-                f"\n\\#{index: >{index_length}} | {player.points: <{points_length}} | **{player.get_name()}**: "
-                f"{len(player.centers)} ({'+' if len(player.centers) - len(player.units) >= 0 else ''}"
-                f"{len(player.centers) - len(player.units)})"
-            )
-        return response
 
     def _generate_scoreboard(self, board: Board, ctx: commands.Context, alphabetical: bool) -> str:
         assert ctx.guild is not None
@@ -529,6 +495,26 @@ class CommandCog(commands.Cog):
             await send_message_and_file(channel=ctx.channel, message="No deadline set")
             return
         await send_message_and_file(channel=ctx.channel, message=f"Current deadline: <t:{deadline}:f>")
+
+    @commands.command(brief="Changes your user preferences")
+    async def edit_prefs(self, ctx: commands.Context) -> None:
+        """Edits your own user preferences.
+
+        Usage: 
+            `.edit_prefs <commands>`
+        """
+        assert ctx.guild is not None
+        param_commands = remove_prefix(ctx)
+        try:
+            title, message, embed_colour = parse_user_prefs(ctx.author.id, param_commands, manager.get_board(ctx.guild.id))
+        except NoGameError as e:
+            title, message, embed_colour = parse_user_prefs(ctx.author.id, param_commands, None)
+            return
+        log_command(logger, ctx, message=title)
+        await send_message_and_file(channel=ctx.channel,
+                                    title=title,
+                                    message=message,
+                                    embed_colour=embed_colour)
 
 async def setup(bot):
     """Sets up the cog."""

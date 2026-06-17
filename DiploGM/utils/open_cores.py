@@ -21,7 +21,7 @@ def get_open_cores(
             continue
         open_cores = []
         for center in player.centers:
-            if center.can_build(player):
+            if center.can_build(board.data.get("build_options", "classic")):
                 open_cores.append(center)
         if len(open_cores) > 0:
             response.append((player, tuple(open_cores)))

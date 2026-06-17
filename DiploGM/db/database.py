@@ -611,6 +611,21 @@ class _DatabaseConnection:
         cursor.close()
         self._connection.commit()
 
+    def load_ctx_parameters(self) -> dict:
+        """Loads all context parameters from the database."""
+        parameters = {}
+        cursor = self._connection.cursor()
+        result = cursor.execute("SELECT context_id, parameter_key, parameter_value FROM ctx_parameters").fetchall()
+        for context_id, parameter_key, parameter_value in result:
+            parameters[context_id] = parameters.get(context_id, {})
+            keys = parameter_key.split('/')
+            data = parameters[context_id]
+            for key in keys[:-1]:
+                data = data.setdefault(key, {})
+            data[keys[-1]] = parameter_value
+        cursor.close()
+        return parameters
+
     def delete_board(self, board: Board):
         """Deletes a board and all associated data for that phase."""
         cursor = self._connection.cursor()

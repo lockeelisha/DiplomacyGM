@@ -211,16 +211,21 @@ async def _is_missing_orders(board: Board) -> bool:
                 return True
     return False
 
-async def _upload_maps(ctx: commands.Context, args: dict, title: str, board: Board, is_orders: bool) -> None:
+async def _upload_maps(ctx: commands.Context, args: dict, title: str, board: Board, is_orders: bool, maps_channel_id: str | None = None, color_mode: str = "standard") -> None:
     assert ctx.guild is not None
     file, file_name = manager.draw_map_for_board(
         board,
         draw_moves=is_orders,
-        color_mode=args["color"],
+        color_mode=color_mode,
     )
+    maps_channel_id = maps_channel_id or _get_maps_channel(ctx.guild)
+    map_channel = ctx.guild.get_channel(int(maps_channel_id)) if maps_channel_id is not None else None
+    if not isinstance(map_channel, discord.TextChannel):
+        await send_error(ctx.channel, ErrorMessage.INVALID_MAPS_CHANNEL)
+        map_channel = None
     converted_file: bytes | None = None
     converted_file_name: str | None = None
-    needs_png = args["return_svg"] or (args["full"] and _get_maps_channel(ctx.guild))
+    needs_png = args["return_svg"] or (args["full"] and map_channel is not None)
     if needs_png:
         converted_file, converted_file_name = await svg_to_png(file, file_name, dpi=board.data["svg config"].get("dpi", 200))
     await send_message_and_file(
@@ -230,7 +235,7 @@ async def _upload_maps(ctx: commands.Context, args: dict, title: str, board: Boa
         file=converted_file if args["return_svg"] else file,
         file_name=converted_file_name if args["return_svg"] else file_name,
     )
-    if args["full"] and (map_channel := _get_maps_channel(ctx.guild)):
+    if args["full"] and map_channel is not None:
         map_message = await send_message_and_file(
             channel=map_channel,
             title=f"{title} {'Orders' if is_orders else 'Results'} Map",
@@ -312,7 +317,13 @@ async def adjudicate(ctx: commands.Context) -> None:
     manager.apply_adjudication_results(guild.id, draw_board)
     title = (f"{board.data.get('game_name')} — " if board.data.get("game_name") else "") + f"{old_turn}"
 
-    await _upload_maps(ctx, args, title, draw_board, True)
+    map_channels = manager.ctx_parameters.get(guild.id, {}).get("maps_channel", {})
+    default_maps_channel = _get_maps_channel(guild)
+    if default_maps_channel and default_maps_channel not in map_channels:
+        map_channels[default_maps_channel] = "standard"
+    for map_channel, color_mode in map_channels.items():
+        await _upload_maps(ctx, args, title, draw_board, True, map_channel, color_mode)
+        await _upload_maps(ctx, args, title, new_board, False, map_channel, color_mode)
 
     if args["movement"]:
         file, file_name = manager.draw_map_for_board(
@@ -331,15 +342,13 @@ async def adjudicate(ctx: commands.Context) -> None:
             dpi=board.data["svg config"].get("dpi", 200),
         )
 
-    await _upload_maps(ctx, args, title, new_board, False)
-
     if args["full"]:
         await publish_orders(ctx)
         await unlock_orders(ctx)
 
     await _adjudication_utils(ctx, guild, new_board, args["test"])
 
-def _get_maps_channel(guild: Guild) -> TextChannel | None:
+def _get_maps_channel(guild: Guild) -> str | None:
     for channel in guild.channels:
         if (
             channel.name.lower() == "maps"
@@ -347,7 +356,7 @@ def _get_maps_channel(guild: Guild) -> TextChannel | None:
             and channel.category.name.lower() == "gm channels"
             and isinstance(channel, TextChannel)
         ):
-            return channel
+            return str(channel.id)
     return None
 
 

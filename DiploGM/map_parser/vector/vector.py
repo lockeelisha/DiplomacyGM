@@ -193,7 +193,7 @@ class Parser:
                     errors.append(error)
                     continue
 
-                name = re.sub(r" \(?[ensw]+c\)?$", "", name)  # Remove coast names
+                name = re.sub(r" \(?[ensw]+c\)?$", "", name, flags=re.IGNORECASE)  # Remove coast names
                 if name not in seen_names:
                     error = f"[{layer_name}] Name '{name}' not found in any province layer"
                     logger.error(error)
@@ -431,7 +431,7 @@ class Parser:
         # Given an SVG element for a province, creates a Province object with the correct geometry and name.
         path_string = province_data.get("d")
         if not path_string:
-            print(tostring(province_data))
+            logger.error(f"Province path data not found in province with data {tostring(province_data)}")
             raise RuntimeError("Province path data not found")
         translation = TransGL3(province_data) * layer_transformation
 
@@ -525,6 +525,9 @@ class Parser:
     def _initialize_units(self) -> None:
         for unit_data in self.layer_data["starting_units"]:
             province_name = self.get_province_name(unit_data)
+            if not province_name:
+                logger.error(f"Unit data {tostring(unit_data)} has no province name")
+                continue
             if self.data[SVG_CONFIG_KEY]["unit_type_labeled"]:
                 province_name = province_name[1:]
             province, coast = self._get_province_and_coast(province_name)

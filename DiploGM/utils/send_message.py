@@ -28,6 +28,7 @@ class ErrorMessage(Enum):
     COMMAND_IN_PAST = "Don't schedule a command to occur in the past."
     FOW_DISABLED = "This is not a fog of war game."
     IMPROPER_TIMESTAMP = "Did not give a proper timestamp."
+    INVALID_MAPS_CHANNEL = "Maps channel does not exist or is not a text channel."
     MESSAGE_NOT_GIVEN = "No message given."
     NO_PREVIOUS_BOARD = "No previous board found."
     NO_PLAYER_CATEGORY = "No player category found."

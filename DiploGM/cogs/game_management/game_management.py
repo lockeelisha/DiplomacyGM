@@ -423,6 +423,16 @@ class GameManagementCog(commands.Cog):
         """
         await game_editing.edit_game(ctx)
 
+    @commands.command(brief="Edits server settings")
+    @perms.gm_only("edit server")
+    async def edit_server(self, ctx: commands.Context) -> None:
+        """Edits server settings.
+
+        Usage: 
+            `.edit_server <commands>`
+        """
+        await game_editing.edit_server(ctx)
+
     @commands.command(brief="Renames a player")
     @perms.gm_only("rename player")
     async def rename_player(self, ctx: commands.Context, old_name: str, new_name: str) -> None:
