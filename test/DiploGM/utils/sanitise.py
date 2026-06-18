@@ -1,10 +1,14 @@
+"""Test cases for the sanitise module."""
 import unittest
 
 from DiploGM.models.turn import PhaseName, Turn
 from DiploGM.utils.sanitise import parse_season
 
 class TestSanitise(unittest.TestCase):
+    """Test cases for the sanitise module."""
+    # TODO: Add more test cases
     def test_parse_season(self):
+        """Test the parse_season function."""
         input_phases = [
             "Spring 1901",
             "1901 fm",
