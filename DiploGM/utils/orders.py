@@ -6,7 +6,6 @@ from discord.ext.commands import Context
 
 from DiploGM.models.province import Province
 from DiploGM.utils.sanitise import find_discord_role
-from DiploGM.models.order import PlayerOrder
 from DiploGM.models.player import ForcedDisbandOption, Player, ViewOrdersTags, OrdersSubsetOption
 
 if TYPE_CHECKING:

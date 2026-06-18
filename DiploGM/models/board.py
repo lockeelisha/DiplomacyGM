@@ -13,7 +13,7 @@ from DiploGM.models.adjacency import Terrain
 from DiploGM.models.order import NMR, Move, Hold, Support, ConvoyTransport, Core, Transform, RetreatMove, RetreatDisband
 from DiploGM.models.unit import Unit, UnitType, DPAllocation
 from DiploGM.models.turn import Turn
-from DiploGM.utils.sanitise import parse_variant_path, sanitise_name, simple_player_name
+from DiploGM.utils.sanitise import parse_variant_path, remove_special_characters, sanitise_name, simple_player_name
 
 if TYPE_CHECKING:
     from DiploGM.models.player import Player
@@ -58,9 +58,10 @@ class Board:
         self.name_to_province: Dict[str, Province] = {}
         self.name_to_coast: Dict[str, tuple[Province, str | None]] = {}
         for location in self.provinces:
-            self.name_to_province[location.name.lower()] = location
+            filtered_name = remove_special_characters(location.name)
+            self.name_to_province[filtered_name] = location
             for coast in location.adjacencies.coasts:
-                self.name_to_coast[location.get_name(coast)] = (location, coast)
+                self.name_to_coast[remove_special_characters(location.get_name(coast))] = (location, coast)
 
         for player in self.players:
             player.board = self
@@ -190,12 +191,9 @@ class Board:
     def get_province_and_coast(self, name: str) -> tuple[Province, str | None]:
         """Given a string, attempts to find a matching province and coast.
         If an exact match is not found, will see if any provinces being with the string."""
-        # FIXME: This should not be raising exceptions many places already assume it returns None on failure.
         # TODO: (BETA) we build this everywhere, let's just have one live on the Board on init
         # we ignore capitalization because this is primarily used for user input
-        # People input apostrophes that don't match what the province names are
-        name = re.sub(r"[‘’`´′‛]", "'", name)
-        name = name.lower()
+        name = remove_special_characters(name)
 
         # Legacy back-compatibility for coasts
         if name.endswith(" coast") and name not in self.name_to_province:
@@ -218,14 +216,13 @@ class Board:
                 f'The location {name} is ambiguous. Possible matches: ' +
                 f'{", ".join([loc[0].name for loc in potential_locations])}.'
             )
-        elif len(potential_locations) == 0:
+        if len(potential_locations) == 0:
             suggestion = self._suggest_province(name)
             message = f"The location {name} does not match any known provinces."
             if suggestion:
                 message += f" {suggestion}"
             raise ValueError(message)
-        else:
-            return potential_locations[0]
+        return potential_locations[0]
 
     def get_visible_provinces(self, player: Player) -> set[Province]:
         """Gets a set of provinces that a player can see in Fog of War games."""

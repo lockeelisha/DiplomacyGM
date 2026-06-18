@@ -71,6 +71,11 @@ HUB_SERVER_VERIFIED_ROLE: str = all_config["hub"]["verified_role"]
 ## Messages
 HUB_SERVER_BOT_BUG_REPORT_CHANNEL_MESSAGE: str = all_config["hub"]["bug_report_channel"]
 
+# SERVER CHANNELS
+GM_CATEGORY: str = all_config["server_channels"]["gm_category"]
+MAPS_CHANNEL: str = all_config["server_channels"]["maps_channel"]
+ORDERS_LOG_CHANNEL: str = all_config["server_channels"]["orders_log_channel"]
+
 # PERMISSIONS
 SUPERUSERS = all_config["permissions"]["superusers"]
 

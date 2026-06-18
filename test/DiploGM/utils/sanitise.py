@@ -24,7 +24,7 @@ class TestSanitise(unittest.TestCase):
             Turn(1903, PhaseName.SPRING_RETREATS),
         ]
         for input_phase, expected_turn in zip(input_phases, output_turns):
-            output_turn = parse_season(input_phase.split(" "),
+            output_turn = parse_season(input_phase.split(),
                                        Turn(1903, PhaseName.SPRING_RETREATS))
 
             self.assertEqual(format(output_turn, "%Y"), format(expected_turn, "%Y"),

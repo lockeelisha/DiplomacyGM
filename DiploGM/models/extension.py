@@ -1,3 +1,4 @@
+"""Module that handles extensions/graces, mainly interacted via the .grace command"""
 from __future__ import annotations
 from dataclasses import dataclass, field
 import datetime
@@ -11,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ExtensionEvent:
+    """Represents an extension event in the system."""
     user_id: int
     server_id: int
     hours: float
@@ -19,6 +21,7 @@ class ExtensionEvent:
     created_at: datetime.datetime = field(default_factory=datetime.datetime.now)
 
     def to_json(self) -> dict:
+        """Converts the ExtensionEvent to a JSON-serializable dictionary."""
         return {
             "user_id": self.user_id,
             "server_id": self.server_id,
@@ -29,6 +32,7 @@ class ExtensionEvent:
 
     @classmethod
     def from_json(cls, data: dict) -> ExtensionEvent:
+        """Creates an ExtensionEvent from a JSON-serializable dictionary."""
         return ExtensionEvent(
             user_id=data["user_id"],
             server_id=data["server_id"],
@@ -38,6 +42,7 @@ class ExtensionEvent:
         )
 
 class SQLiteExtensionEventRepository(Repository):
+    """A repository for storing and retrieving ExtensionEvent objects from a SQLite database."""
     def __init__(self) -> None:
         self.conn = get_connection()._connection
         self._initialise_schema()
@@ -124,6 +129,7 @@ class SQLiteExtensionEventRepository(Repository):
         ]
 
     def load_by_user(self, user_id: int) -> list[ExtensionEvent]:
+        """Loads all extension events for a specific user."""
         cursor = self.conn.cursor()
         cursor.execute(
             "SELECT id, user_id, server_id, hours, reason, created_at FROM extension_events WHERE user_id = ?;",
@@ -145,6 +151,7 @@ class SQLiteExtensionEventRepository(Repository):
         ]
 
     def load_by_server(self, server_id: int) -> list[ExtensionEvent]:
+        """Loads all extension events for a specific server."""
         cursor = self.conn.cursor()
         cursor.execute(
             "SELECT id, user_id, server_id, hours, reason, created_at FROM extension_events WHERE server_id = ?;",

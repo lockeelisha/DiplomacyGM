@@ -189,8 +189,8 @@ async def send_message_and_file(
                     "?",
                     f"jpg is too big ({len(file)})",
                 )
-                if False: #TODO: redo this: is_gm_channel(channel):
-                    message = "Try `.vm true` to get an svg"
+                if config.is_gm_channel(channel):
+                    message = "Try using the `svg` option to get an svg"
                 else:
                     message = "Please contact your GM"
                 await send_message_and_file(

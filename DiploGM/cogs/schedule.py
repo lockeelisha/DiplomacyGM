@@ -129,7 +129,7 @@ class ScheduleCog(commands.Cog):
                 if i == 0:
                     line = f"{timestamp} {command_name} {line}"
 
-                components = line.split(" ")
+                components = line.split()
                 _timestamp = components[0]
                 _command_name = components[1]
                 _content = " ".join(components[2:])

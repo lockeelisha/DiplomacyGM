@@ -31,7 +31,7 @@ class RetreatsAdjudicator(Adjudicator):
                 unit.order = NMR()
 
             if not isinstance(unit.order, RetreatMove):
-                logger.warning(f"Unit {unit.province} is doing an unexpected action during retreat phase")
+                logger.warning("Unit %s is doing an unexpected action during retreat phase", unit.province)
                 units_to_delete.add(unit)
                 continue
 

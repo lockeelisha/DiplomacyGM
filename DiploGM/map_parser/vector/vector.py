@@ -28,7 +28,6 @@ from DiploGM.utils.sanitise import parse_variant_path
 
 # TODO: (BETA) all attribute getting should be in utils which we import and call utils.my_unit()
 # TODO: (BETA) consistent in bracket formatting
-HIGH_PROVINCES_KEY = "high provinces"
 LAYER_NAMES = set(LAYER_DICTIONARY.keys())
 INKSCAPE_LABEL = f"{NAMESPACE.get('inkscape')}label"
 
@@ -292,12 +291,6 @@ class Parser:
         adjacencies = copy.deepcopy(self.cache_adjacencies)
 
         return (provinces, adjacencies)
-
-    def _add_province_to_board(self, provinces: set[Province], province: Province) -> set[Province]:
-        provinces = {x for x in provinces if x.name != province.name}
-        provinces.add(province)
-        self.name_to_province[province.name] = province
-        return provinces
 
     def _json_cheats(self, provinces: set[Province]) -> set[Province]:
         if "overrides" not in self.data:
@@ -601,7 +594,6 @@ class Parser:
         if isinstance(neutral_color, dict):
             neutral_color = neutral_color["standard"]
         neutral_color = neutral_color.lower()
-        #FIXME: only works if there's one person per province
         if self.is_chaos:
             if color in (None, self.impassable_color) or not self.name_to_province[province_name].has_supply_center:
                 return None

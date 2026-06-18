@@ -87,7 +87,7 @@ class AdminCog(commands.Cog):
         """Lists all servers the bot is in."""
         servers_with_games = manager.list_servers()
         message = ""
-        args = remove_prefix(ctx).split(" ")
+        args = remove_prefix(ctx).split()
         send_id = "id" in args
         send_invite = "invite" in args
         for server in ctx.bot.guilds:
@@ -205,7 +205,7 @@ class AdminCog(commands.Cog):
         content = remove_prefix(ctx)
 
         usernames = []
-        components = content.split(" ")
+        components = content.split()
         for comp in components:
             if comp == "":
                 continue

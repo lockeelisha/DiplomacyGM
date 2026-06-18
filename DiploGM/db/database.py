@@ -662,13 +662,6 @@ class _DatabaseConnection:
         cursor.close()
         self._connection.commit()
 
-    def executemany_arbitrary_sql(self, sql: str, args: list[tuple]):
-        """Executes several arbitrary SQL commands. Probably should be deprecated in the future."""
-        cursor = self._connection.cursor()
-        cursor.executemany(sql, args)
-        cursor.close()
-        self._connection.commit()
-
     def __del__(self):
         self._connection.commit()
         self._connection.close()

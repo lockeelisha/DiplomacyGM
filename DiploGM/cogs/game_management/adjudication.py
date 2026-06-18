@@ -353,9 +353,9 @@ async def adjudicate(ctx: commands.Context) -> None:
 def _get_maps_channel(guild: Guild) -> str | None:
     for channel in guild.channels:
         if (
-            channel.name.lower() == "maps"
+            channel.name.lower() == config.MAPS_CHANNEL
             and channel.category is not None
-            and channel.category.name.lower() == "gm channels"
+            and channel.category.name.lower() == config.GM_CATEGORY
             and isinstance(channel, TextChannel)
         ):
             return str(channel.id)
@@ -364,11 +364,10 @@ def _get_maps_channel(guild: Guild) -> str | None:
 
 def _get_orders_log(guild: Guild) -> TextChannel | None:
     for channel in guild.channels:
-        # FIXME move "orders" and "gm channels" to bot.config
         if (
-            channel.name.lower() == "orders-log"
+            channel.name.lower() == config.ORDERS_LOG_CHANNEL
             and channel.category is not None
-            and channel.category.name.lower() == "gm channels"
+            and channel.category.name.lower() == config.GM_CATEGORY
             and isinstance(channel, TextChannel)
         ):
             return channel

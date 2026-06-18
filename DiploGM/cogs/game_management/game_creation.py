@@ -7,14 +7,12 @@ from discord.ext import commands
 from DiploGM import config
 from DiploGM.db.database import get_connection
 from DiploGM import perms
-from DiploGM.errors import NoGameError
 from DiploGM.utils import (
     import_game as import_game_module,
     log_command,
     send_message_and_file,
 )
 from DiploGM.manager import Manager
-from DiploGM.utils.send_message import ErrorMessage, send_error
 
 logger = logging.getLogger(__name__)
 manager = Manager()

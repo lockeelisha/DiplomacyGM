@@ -26,6 +26,9 @@ def sanitise_name(name: str) -> str:
     name = re.sub(r"-", " ", name)
     return name
 
+def remove_special_characters(name: str) -> str:
+    """Removes all special characters from a string and makes it lowercase."""
+    return re.sub(r"[^a-zA-Z0-9\s]", "", name).lower()
 
 # I'm sorry this is a bad function name. I couldn't think of anything better and I'm in a rush
 def simple_player_name(name: str) -> str:
@@ -36,7 +39,7 @@ def simple_player_name(name: str) -> str:
 def get_keywords(command: str) -> list[str]:
     """Command is split by whitespace with '_' representing whitespace in a concept to be stuck in one word.
     e.g. 'A New_York - Boston' becomes ['A', 'New York', '-', 'Boston']"""
-    keywords = command.split(" ")
+    keywords = command.split()
     for i, _ in enumerate(keywords):
         for j, _ in enumerate(keywords[i]):
             if keywords[i][j] == "_":

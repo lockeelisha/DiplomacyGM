@@ -305,6 +305,7 @@ class CommandCog(commands.Cog):
         adjacent_sorted = sorted([adjacent.name for adjacent in province.adjacencies.get_all()])
         unit_text = ((province.unit.player.get_name() if province.unit.player is not None else '')
                         + ' ' + province.unit.unit_type.name
+                        + (f" {province.unit.coast}" if province.unit.coast is not None else '')
                     if province.unit else 'None')
         out = f"Type: {province.type.name}\n" + \
             f"{coast_info}" + \
@@ -379,7 +380,6 @@ class CommandCog(commands.Cog):
         out = player.info(board)
         log_command(logger, ctx, message=f"Got info for player {player}")
 
-        # FIXME title should probably include what coast it is.
         await send_message_and_file(channel=ctx.channel, title=player.get_name(), message=out)
 
     @commands.command(brief="outputs all provinces per owner")

@@ -1,7 +1,6 @@
 """The Mapper module, for drawing maps with or without orders on them."""
 import copy
 import itertools
-import sys
 import random
 from xml.etree.ElementTree import ElementTree, Element, register_namespace
 from xml.etree.ElementTree import tostring as elementToString
@@ -559,10 +558,7 @@ class Mapper:
         province_name = element.get(f"{NAMESPACE['inkscape']}label")
         if province_name is None:
             raise ValueError(f"Unlabeled element {element}")
-        province = self.board.get_province(province_name)
-        if province is None:
-            raise ValueError(f"Could not find province for label {province_name}")
-        return province
+        return self.board.get_province(province_name)
 
     def _draw_unit(self, unit: Unit, use_moves_svg=False):
         player_name = unit.player.name if unit.player else "Neutral"
