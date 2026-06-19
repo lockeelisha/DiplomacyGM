@@ -89,7 +89,12 @@ class CommandCog(commands.Cog):
     def _generate_scoreboard(self, board: Board, ctx: commands.Context, alphabetical: bool) -> str:
         assert ctx.guild is not None
         response = ""
-        old_board = manager.get_board_from_db(board.board_id, parse_season(["Fall"], board.turn.get_previous_turn()))
+        try:
+            old_board = manager.get_board_from_db(
+                board.board_id, parse_season(["Fall"], board.turn.get_previous_turn())
+            )
+        except NoGameError:
+            old_board = None
         player_list = (
             sorted(board.get_players(), key=lambda p: p.get_name())
             if alphabetical
