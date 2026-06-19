@@ -40,6 +40,10 @@ bug_report_channel = "https://discord.com/channels/1201167737163104376/128602717
 id = 1262215477237645314
 unhandled_errors_channel = 1423396664483381258
 
+[server_channels]
+gm_category = "gm channels"
+maps_channel = "maps"
+orders_log_channel = "orders_log"
 
 [permissions]
 superusers = [

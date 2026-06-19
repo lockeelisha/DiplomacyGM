@@ -70,7 +70,7 @@ class CommandCog(commands.Cog):
     @commands.command(name="version", hidden=True)
     async def version(self, ctx: commands.Context) -> None:
         """Outputs the version number of the bot, read from the first line of Changelog.md"""
-        with open("Changelog.md") as f:
+        with open("Changelog.md", "r", encoding="utf-8") as f:
             version = f.readline()
         await send_message_and_file(channel=ctx.channel, message=f"DiploGM Version: {version}")
 
@@ -89,11 +89,12 @@ class CommandCog(commands.Cog):
     def _generate_scoreboard(self, board: Board, ctx: commands.Context, alphabetical: bool) -> str:
         assert ctx.guild is not None
         response = ""
-        old_board = manager._database.get_board(
-            board.board_id,
-            parse_season(["Fall"], board.turn.get_previous_turn()),
-            board.datafile,
-        )
+        try:
+            old_board = manager.get_board_from_db(
+                board.board_id, parse_season(["Fall"], board.turn.get_previous_turn())
+            )
+        except NoGameError:
+            old_board = None
         player_list = (
             sorted(board.get_players(), key=lambda p: p.get_name())
             if alphabetical
@@ -309,6 +310,7 @@ class CommandCog(commands.Cog):
         adjacent_sorted = sorted([adjacent.name for adjacent in province.adjacencies.get_all()])
         unit_text = ((province.unit.player.get_name() if province.unit.player is not None else '')
                         + ' ' + province.unit.unit_type.name
+                        + (f" {province.unit.coast}" if province.unit.coast is not None else '')
                     if province.unit else 'None')
         out = f"Type: {province.type.name}\n" + \
             f"{coast_info}" + \
@@ -335,8 +337,16 @@ class CommandCog(commands.Cog):
         guild = ctx.guild
         if not guild:
             return
-
         board = manager.get_board(guild.id)
+
+        if board.data.get("fow", "disabled") == "enabled":
+            await send_message_and_file(
+                channel=ctx.channel,
+                title="Gametype Error!",
+                message="This command does not work with FoW",
+                embed_colour=ERROR_COLOUR,
+            )
+            return
 
         if not board.orders_enabled:
             perms.assert_gm_only(
@@ -359,25 +369,11 @@ class CommandCog(commands.Cog):
         player: Player | None = None
         if board.is_chaos():
             # HACK: chaos has same name of players as provinces so we exploit that
-            province, _ = board.get_province_and_coast(player_name)
-            player = board.get_player(province.name.lower())
-
-        elif board.data.get("fow", "disabled") == "enabled":
-            await send_message_and_file(
-                channel=ctx.channel,
-                title="Gametype Error!",
-                message="This command does not work with FoW",
-                embed_colour=ERROR_COLOUR,
-            )
-            return
-
-        else:
-            try:
-                player = board.get_player(player_name)
-            except ValueError:
-                player = None
-
-        # f"Initial/Current/Victory SC Count [Score]: {player.iscc}/{len(player.centers)}/{player.vscc} [{player.score()}%]\n" + \
+            player_name = board.get_province(player_name).name
+        try:
+            player = board.get_player(player_name)
+        except ValueError:
+            player = None
 
         if player is None:
             log_command(logger, ctx, message=f"Player `{player}` not found")
@@ -389,7 +385,6 @@ class CommandCog(commands.Cog):
         out = player.info(board)
         log_command(logger, ctx, message=f"Got info for player {player}")
 
-        # FIXME title should probably include what coast it is.
         await send_message_and_file(channel=ctx.channel, title=player.get_name(), message=out)
 
     @commands.command(brief="outputs all provinces per owner")
@@ -506,15 +501,14 @@ class CommandCog(commands.Cog):
         assert ctx.guild is not None
         param_commands = remove_prefix(ctx)
         try:
-            title, message, embed_colour = parse_user_prefs(ctx.author.id, param_commands, manager.get_board(ctx.guild.id))
-        except NoGameError as e:
-            title, message, embed_colour = parse_user_prefs(ctx.author.id, param_commands, None)
-            return
+            title, message, colour = parse_user_prefs(ctx.author.id, param_commands, manager.get_board(ctx.guild.id))
+        except NoGameError:
+            title, message, colour = parse_user_prefs(ctx.author.id, param_commands, None)
         log_command(logger, ctx, message=title)
         await send_message_and_file(channel=ctx.channel,
                                     title=title,
                                     message=message,
-                                    embed_colour=embed_colour)
+                                    embed_colour=colour)
 
 async def setup(bot):
     """Sets up the cog."""

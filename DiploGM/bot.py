@@ -90,7 +90,7 @@ class DiploGM(commands.Bot):
             logger.info("Loaded app commands: %s", [cmd.name for cmd in self.tree.get_commands()])
         except discord.app_commands.CommandAlreadyRegistered as e:
             logger.warning("Command already registered: %s", e)
-        except Exception as e:
+        except discord.HTTPException as e:
             logger.warning("Failed to sync commands: %s", e, exc_info=True)
 
     async def load_diplogm_extension(self, name: str, *, package: Optional[str] = None):
@@ -123,7 +123,7 @@ class DiploGM(commands.Bot):
             start = datetime.datetime.now()
             await super().load_extension(f"{name}", package=package)
             logger.info("Successfully loaded Cog: %s in %s", name, datetime.datetime.now() - start)
-        except Exception as e:
+        except commands.ExtensionError as e:
             logger.info("Failed to load Cog %s", name)
             raise e
 
@@ -133,7 +133,7 @@ class DiploGM(commands.Bot):
             start = datetime.datetime.now()
             await super().unload_extension(f"{name}", package=package)
             logger.info("Successfully unloaded Cog: %s in %s", name, datetime.datetime.now() - start)
-        except Exception as e:
+        except commands.ExtensionError as e:
             logger.info("Failed to unload Cog %s", name)
             raise e
 
@@ -143,7 +143,7 @@ class DiploGM(commands.Bot):
             start = datetime.datetime.now()
             await super().reload_extension(f"{name}", package=package)
             logger.info("Successfully reloaded Cog: %s in %s", name, datetime.datetime.now() - start)
-        except Exception as e:
+        except commands.ExtensionError as e:
             logger.info("Failed to reload Cog %s", name)
             raise e
 
@@ -158,7 +158,7 @@ class DiploGM(commands.Bot):
     async def load_listener(self, bus: EventBus, module_path: str):
         try:
             module = importlib.import_module(module_path)
-        except Exception as e:
+        except ImportError as e:
             logger.error("Failed to import %s: %s", module_path, e)
             return
 
@@ -329,12 +329,12 @@ class DiploGM(commands.Bot):
             # mark the message as failed
             await context.message.add_reaction("❌")
             await context.message.remove_reaction("👍", self.user)
-        except Exception:
+        except discord.HTTPException:
             # if reactions fail, ignore and continue handling existing exception
             pass
 
         if getattr(context, "handled", False):
-            logger.info(f"global on_command_error skipped a {type(exception)} that was previously handled...")
+            logger.info("global on_command_error skipped a %s that was previously handled...", type(exception))
             return
 
         time_spent = (

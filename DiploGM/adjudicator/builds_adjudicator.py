@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 
 class BuildsAdjudicator(Adjudicator):
     """Adjudicator for handling Adjustment phase."""
+    def __init__(self, board: Board):
+        self.failed_build_provinces: set[str] = set()
+        super().__init__(board)
+
     def _adjudicate_build(self, order: Build, player: Player) -> int:
         # ignore coast specifications for army
         error = ""

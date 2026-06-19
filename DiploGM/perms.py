@@ -22,16 +22,17 @@ manager = Manager()
 def get_player_by_context(ctx: commands.Context) -> Player | None:
     """Gets the player associated with the command context, if it exists."""
     assert ctx.guild is not None
-    # FIXME cleaner way of doing this
-    board = manager.get_board(ctx.guild.id)
-    # return if in order channel
-    if board.data.get("fow", "disabled") == "enabled" or board.is_chaos():
-        return get_player_by_channel(
-            board, ctx.channel, ignore_category=board.is_chaos()
-        )
     if not isinstance(ctx.author, discord.Member):
         return None
-    return manager.get_member_player_object(ctx.message.author)
+
+    player = manager.get_member_player_object(ctx.message.author)
+    if player is not None:
+        return player
+
+    board = manager.get_board(ctx.guild.id)
+    if board.data.get("fow", "disabled") == "enabled" or board.is_chaos():
+        return get_player_by_channel(board, ctx.channel, ignore_category=board.is_chaos())
+    return None
 
 def get_player_by_channel(
         board: Board,
@@ -79,20 +80,16 @@ def require_player_by_context(ctx: commands.Context, description: str) -> Player
     but requires that the command is run by a player in their orders channel
     or by a GM in a GM channel or a player's orders channel."""
     assert ctx.guild is not None and ctx.message is not None
-    # FIXME cleaner way of doing this
     board = manager.get_board(ctx.guild.id)
     # return if in order channel
-    if board.data.get("fow", "disabled") == "enabled" or board.is_chaos():
-        player = get_player_by_channel(
-            board, ctx.channel, ignore_category=board.is_chaos()
-        )
-        if player:
-            return player
-    else:
-        player = manager.get_member_player_object(ctx.message.author)
+    ctx_player = manager.get_member_player_object(ctx.message.author)
+    if ctx_player is None and (board.data.get("fow", "disabled") == "enabled" or board.is_chaos()):
+        ctx_player = get_player_by_channel(board, ctx.channel, ignore_category=board.is_chaos())
+        if ctx_player:
+            return ctx_player
 
-    if player:
-        if not is_player_channel(player, ctx.channel):
+    if ctx_player:
+        if not is_player_channel(ctx_player, ctx.channel):
             raise CommandPermissionError(
                 f"You cannot {description} as a player outside of your orders channel."
             )
@@ -103,12 +100,12 @@ def require_player_by_context(ctx: commands.Context, description: str) -> Player
             )
         player_channel = get_player_by_channel(board, ctx.channel)
         if player_channel is not None:
-            player = player_channel
+            ctx_player = player_channel
         elif not is_gm_channel(ctx.channel):
             raise CommandPermissionError(
                 f"You cannot {description} as a GM in non-player and non-GM channels."
             )
-    return player
+    return ctx_player
 
 # Player
 

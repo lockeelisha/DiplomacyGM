@@ -221,17 +221,8 @@ class MovesAdjudicator(Adjudicator):
                     bounces_and_occupied.add(order.destination_province)
                 continue
 
-            # TODO duplicated head on code
-            if order.destination_province.name in self.orders_by_province:
-                attacked_order = self.orders_by_province[order.destination_province.name]
-                if (
-                    attacked_order.type == OrderType.MOVE
-                    and attacked_order.destination_province == order.current_province
-                ):
-                    # if this is a head on attack, and the unit lost the head on, then the area is not contested
-                    head_on = not attacked_order.is_convoy and not order.is_convoy
-                    if head_on and order.resolution == Resolution.FAILS:
-                        continue
+            if self._head_on_check(order) and order.resolution == Resolution.FAILS:
+                continue
 
             bounces_and_occupied.add(order.destination_province)
 
@@ -338,6 +329,14 @@ class MovesAdjudicator(Adjudicator):
                 strength += 1
         return strength
 
+    def _head_on_check(self, order: AdjudicableOrder) -> bool:
+        attacked_order = self.orders_by_province.get(order.destination_province.name)
+        return (attacked_order is not None
+                and attacked_order.type == OrderType.MOVE
+                and attacked_order.destination_province == order.current_province
+                and not order.is_convoy
+                and not attacked_order.is_convoy)
+
     def _adjudicate_move_order(self, order: AdjudicableOrder) -> Resolution:
         # check that convoy path work
         if order.is_convoy and self._adjudicate_convoys_for_order(order) == Resolution.FAILS:
@@ -346,15 +345,9 @@ class MovesAdjudicator(Adjudicator):
         # X -> Z, Y -> Z scenario, prevent strength
         orders_to_overcome = self.moves_by_destination[order.destination_province.name] - {order}
         # X -> Y, Y -> Z scenario
-        attacked_order: AdjudicableOrder | None = None
+        attacked_order = self.orders_by_province.get(order.destination_province.name)
 
-        head_on = False
-        if order.destination_province.name in self.orders_by_province:
-            attacked_order = self.orders_by_province[order.destination_province.name]
-
-            if attacked_order.type == OrderType.MOVE and attacked_order.destination_province == order.current_province:
-                # only head on if not convoy
-                head_on = not attacked_order.is_convoy and not order.is_convoy
+        head_on = self._head_on_check(order)
 
         attack_strength = 1
         # Determine if destination unit moved
@@ -467,7 +460,7 @@ class MovesAdjudicator(Adjudicator):
         # Deal with paradoxes and circular dependencies
         orders = self._dependencies[old_dependency_count:]
         self._dependencies = self._dependencies[:old_dependency_count]
-        logger.warning(f"I think there's a move paradox involving these moves: {[str(x) for x in orders]}")
+        logger.warning("I think there's a move paradox involving these moves: %s", [str(x) for x in orders])
         # Szykman rule - If any of these orders is a convoy, fail the order
         apply_szykman = False
         for order in orders:

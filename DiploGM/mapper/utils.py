@@ -32,7 +32,7 @@ def is_moveable(unit: Unit,
         return False
     return True
 
-def get_closest_loc(possibilities: set[complex], coord: complex, map_width: float = 0, normalize: bool = True) -> complex:
+def get_closest_loc(possibilities: set[complex], coord: complex, map_width: float=0, normalize: bool=True) -> complex:
     """Gets the closest point to the given coordinate, accounting for horizontal wrapping of the map."""
     if map_width <= 0:
         map_width = float('inf') # If map_width is zero, we make it infinite to prevent wrapping

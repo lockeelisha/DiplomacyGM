@@ -1,10 +1,14 @@
+"""Test cases for the sanitise module."""
 import unittest
 
 from DiploGM.models.turn import PhaseName, Turn
 from DiploGM.utils.sanitise import parse_season
 
 class TestSanitise(unittest.TestCase):
+    """Test cases for the sanitise module."""
+    # TODO: Add more test cases
     def test_parse_season(self):
+        """Test the parse_season function."""
         input_phases = [
             "Spring 1901",
             "1901 fm",
@@ -24,7 +28,7 @@ class TestSanitise(unittest.TestCase):
             Turn(1903, PhaseName.SPRING_RETREATS),
         ]
         for input_phase, expected_turn in zip(input_phases, output_turns):
-            output_turn = parse_season(input_phase.split(" "),
+            output_turn = parse_season(input_phase.split(),
                                        Turn(1903, PhaseName.SPRING_RETREATS))
 
             self.assertEqual(format(output_turn, "%Y"), format(expected_turn, "%Y"),

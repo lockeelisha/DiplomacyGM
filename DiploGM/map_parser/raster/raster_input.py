@@ -1,3 +1,7 @@
+# pylint: skip-file
+# pyright: basic
+# type: ignore
+# Ignoring Pylint/Pylance while this is still in development
 import numpy as np
 from PIL import Image
 from scipy import ndimage

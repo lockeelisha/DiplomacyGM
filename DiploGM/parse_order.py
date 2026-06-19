@@ -22,6 +22,14 @@ logger = logging.getLogger(__name__)
 @v_args(inline=True)
 class TreeToOrder(Transformer):
     """The order parser. Each function takes in tokens (sans whitespace) as arguments."""
+    def __init__(self):
+        super().__init__()
+        self.board: Board
+        self.build_options: str = "classic"
+        self.transform_options: str = "disabled"
+        self.dp_options: str = "disabled"
+        self.player_restriction: Player | None = None
+
     def set_state(self, board: Board, player_restriction: Player | None):
         """Passes the board information into the parser."""
         self.board = board
@@ -409,7 +417,7 @@ def parse_remove_order(message: str, player_restriction: Player | None, board: B
                 updated_units.add(removed)
             elif isinstance(removed, str):
                 provinces_with_removed_builds.add(removed)
-        except Exception as error:
+        except (ValueError, RuntimeError) as error:
             invalid.append((command, error))
 
     if not invalid:
@@ -427,7 +435,7 @@ def parse_remove_order(message: str, player_restriction: Player | None, board: B
 
 def _parse_remove_order(command: str, player_restriction: Player | None, board: Board) -> Player | Unit | str:
     command = command.lower().strip()
-    components = command.split(" ")
+    components = command.split()
 
     if components[0] in board.fetch_unit_types():
         command = " ".join(components[1:])
