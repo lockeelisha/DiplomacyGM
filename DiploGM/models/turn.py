@@ -57,6 +57,7 @@ class Turn:
             %S - Full phase name (e.g. "Spring Moves")
             %s - Short phase name (e.g. "sm")
             %Z - Season name (e.g. "Spring")
+            %i - Index of the turn
         """
         if not fmt:
             return str(self)
@@ -68,6 +69,7 @@ class Turn:
         result = result.replace("%S", self.phase_names[self.phase])
         result = result.replace("%s", self.short_names[self.phase])
         result = result.replace("%Z", self.season_names[self.phase])
+        result = result.replace("%i", str(5 * (self.year - self.start_year) + self.phase.value))
         return result
 
     def get_next_turn(self) -> Turn:

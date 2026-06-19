@@ -317,7 +317,10 @@ async def adjudicate(ctx: commands.Context) -> None:
     manager.apply_adjudication_results(guild.id, draw_board)
     title = (f"{board.data.get('game_name')} — " if board.data.get("game_name") else "") + f"{old_turn}"
 
-    map_channels = manager.ctx_parameters.get(guild.id, {}).get("maps_channel", {})
+    if args["full"]:
+        map_channels = manager.ctx_parameters.get(guild.id, {}).get("maps_channel", {})
+    else:
+        map_channels = {}
     default_maps_channel = _get_maps_channel(guild)
     if default_maps_channel and default_maps_channel not in map_channels:
         map_channels[default_maps_channel] = "standard"
