@@ -353,14 +353,14 @@ class SpectatorCog(commands.Cog):
     async def spec(self, interaction: discord.Interaction, power_role: discord.Role):
         """Request to spectate a player."""
         guild = interaction.guild
-        if not (guild and self.bot.user and interaction.channel and self._validate_spec_request(interaction)):
+        if not (guild and self.bot.user and interaction.channel and await self._validate_spec_request(interaction)):
             return
 
         requester = guild.get_member(interaction.user.id)
         if not requester:
             return
 
-        if not self._validate_good_standing(interaction):
+        if not await self._validate_good_standing(interaction):
             return
 
         admin_channel_names = ["admin-chat", "admin-spam", "gm-bot-commands"]

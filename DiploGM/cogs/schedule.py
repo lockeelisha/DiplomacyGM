@@ -55,7 +55,7 @@ class ScheduleCog(commands.Cog):
                 "Could not load previous store of scheduled tasks because it does not exist: " +
                 "should be located at 'DiploGM/assets/schedule.json'"
             )
-        except (json.JSONDecodeError, KeyError, TypeError) as e:
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
             logger.warning("Could not load previous store of scheduled tasks: %s", e)
             raise e
 

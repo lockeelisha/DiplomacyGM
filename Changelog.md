@@ -1,3 +1,17 @@
+1.11.1
+======
+
+Contributors:
+- Golden Kumquat
+
+# Bugfixes
+- The bot will now condense multiple spaces into one when processing commands
+- In servers with multiple map channels, the adjudicator won't spit out so many maps if it's not a full adjudication
+- `.edit_server maps_channel` is far less likely to fail for no good reason
+
+# Developer Changes
+- Did a bunch of refactoring that hopefully didn't break anything
+
 1.11.0
 ======
 

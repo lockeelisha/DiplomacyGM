@@ -318,7 +318,7 @@ async def adjudicate(ctx: commands.Context) -> None:
     title = (f"{board.data.get('game_name')} — " if board.data.get("game_name") else "") + f"{old_turn}"
 
     if args["full"]:
-        map_channels = manager.ctx_parameters.get(guild.id, {}).get("maps_channel", {})
+        map_channels = dict(manager.ctx_parameters.get(guild.id, {}).get("maps_channel", {}))
     else:
         map_channels = {}
     default_maps_channel = _get_maps_channel(guild)

@@ -499,7 +499,6 @@ class CommandCog(commands.Cog):
             title, message, colour = parse_user_prefs(ctx.author.id, param_commands, manager.get_board(ctx.guild.id))
         except NoGameError:
             title, message, colour = parse_user_prefs(ctx.author.id, param_commands, None)
-            return
         log_command(logger, ctx, message=title)
         await send_message_and_file(channel=ctx.channel,
                                     title=title,
