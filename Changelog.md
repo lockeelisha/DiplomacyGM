@@ -1,3 +1,223 @@
+1.11.1
+======
+
+Contributors:
+- Golden Kumquat
+
+# Bugfixes
+- The bot will now condense multiple spaces into one when processing commands
+- In servers with multiple map channels, the adjudicator won't spit out so many maps if it's not a full adjudication
+- `.edit_server maps_channel` is far less likely to fail for no good reason
+
+# Developer Changes
+- Did a bunch of refactoring that hopefully didn't break anything
+
+1.11.0
+======
+
+Contributors:
+- Golden Kumquat
+
+# New Features
+- Players can set a preferred map color by using `.edit_prefs color_mode <color_mode>`
+  - This preference will be saved across all games in a variant
+- GMs can add additional map channels by using `.edit_server maps_channel <#channel> <(optional) color_mode>`
+  - When `.adjudicate full` is run, maps will be outputted to those channels in addition to #maps, with the selected color mode if included
+- There's now a lot more granularity over how cores can work:
+  - Cores can be set to require one or two turns to complete
+  - Coring can require ownership of all adjacent SCs or provinces to be valid
+  - Coring can require no enemy units to be in adjacent SCs or provinces
+  - Coring can be set to fail if anyone supports the core
+  - Coring can be set to fail if an enemy unit moves into an adjacent SC or province
+  - As a result, editing coring options are now in `.edit_game core_options`
+
+# Developer Changes
+- Added ctx_parameters table to store player/server parameters, such as map color preferences
+
+# Bugfixes
+- Fixed bug where labelling a starting fleet "Province NC" was failing SVG validation due to capitalization
+- Fixed path data errors not being logged well
+- Fixed .view_open_cores in control-based and chaos-based building modes
+
+1.10.5
+======
+
+Contributors:
+- Golden Kumquat
+
+# New Features
+- Builds/transforms in Winter will now be marked in red if they have failed
+- Variants can now set a custom DPI for map exporting
+- `map_width` is now an optional parameter for variants. If it is not set, or set to 0, the map will not wrap around
+- Fog of War now works!
+  - `.adjudicate full` should not be used; instead use `.publish_fow_moves` and `.publish_fow_order_logs`
+  - It is a bad idea to try FoW on large maps with many players, as the bot won't handle sending many maps at once very well
+  - Many thanks to the fine folks at the Imperial Diplomacy Bullet Server for getting it to work
+
+# Developer Changes
+- Added has_failed to orders done in Winter
+- Refactored how orders done in Winter are drawn
+
+# Bugfixes
+- Help texts for `.create_press_channel`, `.edit`, and `.edit_game` have been fixed
+- The `.servers` command properly works with builds again
+- If unit symbols are images, they will now properly copy over to the correct spot on the map
+- If a map has a lot of adjacency issues, `.verify_adjacencies` will not give up instead of recursively iterating for a very long time
+- Trying to draw a unit disbanding will no longer crash if the bot doesn't know where to draw the X
+
+1.10.4
+======
+
+Contributors:
+- aahoughton
+- seanyjolhv
+
+# New Features
+- Added new command `.rng`, give it a number and decide your fate!
+- Added new argument `invert` to commands `.view_map / .view_current`
+- Added new argument `clean` to command `.view_map / .view_current`
+
+# Quality of Life
+- Added colourblind map modes to Imperial Diplomacy for greater accessibility, available modes:
+  - `proto_a`
+  - `proto_b`
+  - `deute_a`
+  - `deute_b`
+  - `trita_a`
+  - `trita_b`
+
+# Game Management Changes
+- Made `@scrap` possible for use in `/advertise`
+
+# Developer Changes
+- Added new `MapperUtils` method `invert_hexcode()`
+
+1.10.3
+======
+
+Contributors:
+- Golden Kumquat
+
+# New Features
+- The bot will now only load a board the first time someone issues a command, instead of all on load
+  - Startup times should be much quicker, though the first command run per server will be slower
+- Provinces can have more than four coasts, for those who wish to design eldrich abomination provinces
+- Games can be created with "chaos" and "fow" parameters
+  - Running FoW and Chaos games have not been tested yet and will be implemented in a future patch
+
+# Developer Changes
+- Removed temporary Severance code
+- Removed vassal/points system that was only used in WoC (and never was fully operational anyway)
+
+# Bugfixes
+- Fixed an issue with coast names. Some fleets might not be on a coast; if so they will need to be moved manually
+- Fixed an issue with .import_game not properly loading VSCC/ISCC
+
+# Known issues
+- .global_leaderboard will likely be missing a lot of servers
+
+1.10.2
+======
+
+Contributors:
+- aahoughton
+- ianic
+
+# Variant Changes
+- Added Forgotten Realms Diplomacy (made by **willowx**) under the title `faerundip`
+
+# Quality of Life
+- Clean handling of error when deleting a game that does not exist
+- Made `.press_directory` available to voids
+
+# Map Changes
+- Added colour mode `.vm random` that randomises power colours
+- Added map mode `.vm oil` that colours sea/island provinces according to ownership
+
+# Developer Changes
+- Created new `MapperUtils` method `set_element_visibility` that can, well, set the visibility of elements
+
+1.10.1
+=====
+
+Contributors:
+- Golden Kumquat
+
+# New Features
+- `.setup_server <variant>`, which can be done to create channels and roles in a server for a specific variant.
+  - If a role/channel exists, the bot won't try to make a duplicate
+  - This requires someone in a "GM Team"/Admin/Moderator role in a GM channel to prevent abuse, as it will create a bunch of channels and roles
+- Implemented `.edit transform_unit <province>` to change an army to a fleet or vice-versa
+  - `.edit transform_unit <unit_type> <province>` will transform that province's unit to a specific unit type
+  - `.edit bulk transform_unit <unit_type> <province1> <province2>...` can transform many units at once to the specified unit type
+- Custom variant scripts can return messages that can be sent to `#gm-bot-commands` after adjudication
+
+# Quality of Life
+- Players can now do `.vm svg` to get an SVG version of the map
+- Added support for aliases in unit types (e.g. "cannon" for armies)
+- Added some more SVG support for custom unit types
+- If two units support hold each other, and one unit's support is cut, the dashed arrow will be split between red and black to show that one has succeeded and one has failed
+- Custom units are now recognised by the order parser (e.g. `Wing London - English Channel` or `B W Paris` would now be successfully parsed)
+- If you order a fleet to a province with multiple coasts, but only one that is reachable, the bot will grumble at you but change the destination coast to match (e.g. `Mar - Spa` will get interpreted as `F Marseilles - Spain sc`)
+
+# Developer Changes
+- Added a new NoGameError exception to properly handle when someone tries running a command where there's no game
+- SVG validation errors are now properly reported
+- DiploGM/map_parser/vector/layers.md now has more description of SVG layers
+- Added missing DATC tests and added comments for cases where the bot diverges from DATC
+  - Namely, the bot does allow for convoy kidnapping, and it does not implement the "via convoy" modification to move orders
+
+# Bugfixes
+- Units being dislodged can no longer claim provinces
+- Various bugfixes for Land/Sea/Coast adjacencies along sea/land borders
+- Fixes for some commands not properly working in threads
+- Scoreboards properly flip between VSCC and classic victory conditions based on the game type
+- Fixed a really old bug where convoy paths weren't quite drawn properly
+
+1.10.0
+=====
+
+Contributors:
+- Golden Kumquat
+
+# New Features
+- Variants can override existing unit types or create custom new unit types. Currently the following custom parameters can be set:
+  - The name/abbreviation of the unit
+  - If the unit can move over land, on sea, and/or along coasts
+  - If the unit can convoy or be convoyed
+  - If the unit can capture provinces
+  - What the unit can transform into, if it can transform
+
+# Developer Changes
+- Replaced the UnitType enum with types loaded from toml files
+- Updated database to change "is_army" to "unit_type" to support new types
+
+# Bugfixes
+- Fixed `.edit_game capital` not properly handling capitalization
+- Removed geometry from provinces on load, as it was taking a ton of memory for no good reason
+
+1.9.6
+=====
+
+Contributors:
+- Golden Kumquat
+
+# Quality of Life
+- Added "remove_adjacent_land" as a province override option for variant configs. Handy for Helladip-like hybrid territories
+- Bot will now warn you if a supply center is not inside its province's territory
+- `.verify_adjacencies` is now much more robust and will spit out far fewer false positives
+- Capital markers can now be added to the "Symbol Templates" layer for dynamic capital locations
+
+# Bugfixes
+- Fixed a lot of adjacency issues with older maps.
+- Waive orders are now saved between restarts
+- Fixed an issue with transformations not being in the right order, causing map elements to be in the wrong size/place
+- Fixed an issue where civil disorder disbands would crash the bot due to an issue with distance calculations
+
+# Developer Changes
+- Refactored how unit adjacencies are handled to be less complicated and easier to do stuff with
+  - Adjacencies are now stored in their own class, and each adjacency stores which units can cross it and if it's a difficult crossing
+
 1.9.5
 =====
 

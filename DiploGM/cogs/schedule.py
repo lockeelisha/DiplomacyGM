@@ -6,6 +6,7 @@ import uuid
 
 from discord.ext import commands, tasks
 from discord import Message, TextChannel, User
+from discord.types.user import User as UserPayload
 
 from DiploGM.bot import DiploGM
 from DiploGM import perms
@@ -36,7 +37,7 @@ class ScheduleCog(commands.Cog):
 
         try:
             logger.info("Reading stored scheduled tasks")
-            with open(self.scheduled_storage) as f:
+            with open(self.scheduled_storage, "r", encoding="utf-8") as f:
                 read_tasks = json.load(f)
                 for _, task in read_tasks.items():
                     task["created_at"] = datetime.datetime.fromisoformat(
@@ -47,22 +48,22 @@ class ScheduleCog(commands.Cog):
                     )
 
                 self.scheduled_tasks = read_tasks
-            logger.info(f"Obtained {len(self.scheduled_tasks)} stored scheduled tasks")
+            logger.info("Obtained %s stored scheduled tasks", len(self.scheduled_tasks))
 
         except FileNotFoundError:
             logger.warning(
                 "Could not load previous store of scheduled tasks because it does not exist: " +
                 "should be located at 'DiploGM/assets/schedule.json'"
             )
-        except Exception as e:
-            logger.warning(f"Could not load previous store of scheduled tasks: {e}")
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+            logger.warning("Could not load previous store of scheduled tasks: %s", e)
             raise e
 
         self.process_scheduled_tasks.start()
 
     async def close(self):
         self.process_scheduled_tasks.cancel()
-        with open(self.scheduled_storage, "w") as f:
+        with open(self.scheduled_storage, "w", encoding="utf-8") as f:
             for _, task in self.scheduled_tasks.items():
                 task["created_at"] = task["created_at"].isoformat()
                 task["execute_at"] = task["execute_at"].isoformat()
@@ -89,13 +90,13 @@ class ScheduleCog(commands.Cog):
         *,
         content: str = "",
     ):
-        f"""Schedule a command for execution at a time in the future
+        """Schedule a command for execution at a time in the future
 
         Usage: 
             Used as `.schedule <timestamp> <command_name> <content>`
 
         Note:
-            List of commands that can't be scheduled {IMPOSSIBLE_COMMANDS}
+            List of commands that can't be scheduled: "schedule", "create_game", "delete_game"
             Scheduling saved to json file for persistent storage in case of bot restart
             Schedulings identified by the unique message ID of the invoking message
 
@@ -128,7 +129,7 @@ class ScheduleCog(commands.Cog):
                 if i == 0:
                     line = f"{timestamp} {command_name} {line}"
 
-                components = line.split(" ")
+                components = line.split()
                 _timestamp = components[0]
                 _command_name = components[1]
                 _content = " ".join(components[2:])
@@ -151,7 +152,7 @@ class ScheduleCog(commands.Cog):
             return
 
         # check command is real and prevent recursive scheduling
-        command_name = command_name.removeprefix(self.bot.command_prefix)
+        command_name = command_name.removeprefix(str(self.bot.command_prefix))
         cmd: commands.Command = ctx.bot.get_command(command_name)
         if cmd is None:
             await send_message_and_file(
@@ -202,7 +203,6 @@ class ScheduleCog(commands.Cog):
     @commands.command(
         name="unschedule",
         brief="Unschedule a scheduled command",
-        description="Task IDs can be found from calling .view_schedule",
         aliases=["us", "unsched"],
         help="""
     Usage:
@@ -215,7 +215,7 @@ class ScheduleCog(commands.Cog):
         """Unschedule a currently scheduled command execution
 
         Usage: 
-            Used as `.schedule <task_id>`
+            Used as `.unschedule <task_id>`
 
         Note:
 
@@ -242,8 +242,8 @@ class ScheduleCog(commands.Cog):
                 for id, task in self.scheduled_tasks.items()
                 if task["guild_id"] == gid
             ]
-            for task_id in ids:
-                del self.scheduled_tasks[task_id]
+            for cur_task_id in ids:
+                del self.scheduled_tasks[cur_task_id]
                 await self.save_scheduled_tasks()
 
             await send_message_and_file(
@@ -310,7 +310,8 @@ class ScheduleCog(commands.Cog):
         out = ["(sorted by soonest)"]
         for task_id, task in guild_tasks.items():
             user = self.bot.get_user(task["invoking_user_id"])
-            s = f"Task ID = `{task_id}`:\n- [{user.mention if user else task['invoking_user_name']}] -> `{task['command']}` at <t:{int(task['execute_at'].timestamp())}:f>"
+            s = f"Task ID = `{task_id}`:\n- [{user.mention if user else task['invoking_user_name']}] " + \
+                f"-> `{task['command']}` at <t:{int(task['execute_at'].timestamp())}:f>"
             if len(task["args"]) != 0:
                 s += f"\n  - Arguments: {task['args']}"
 
@@ -437,8 +438,7 @@ class ScheduleCog(commands.Cog):
                 log_command_no_ctx(
                     logger,
                     task["full_command"],
-                    channel.guild.name,
-                    channel.name,
+                    channel,
                     user.name,
                     f"Executing command scheduled by '{task['invoking_user_name']}' at <t:{int(task['created_at'].timestamp())}:f>",
                 )
@@ -460,8 +460,8 @@ class ScheduleCog(commands.Cog):
         await self.bot.wait_until_ready()
 
     async def save_scheduled_tasks(self):
-        logger.info(f"Saving {len(self.scheduled_tasks)} stored scheduled tasks")
-        with open(self.scheduled_storage, "w") as f:
+        logger.info("Saving %s stored scheduled tasks", len(self.scheduled_tasks))
+        with open(self.scheduled_storage, "w", encoding="utf-8") as f:
             curr_tasks = deepcopy(self.scheduled_tasks)
             for _, task in curr_tasks.items():
                 task["created_at"] = task["created_at"].isoformat()
@@ -470,9 +470,9 @@ class ScheduleCog(commands.Cog):
             json.dump(curr_tasks, f)
 
     @staticmethod
-    def get_payload_user_from_user(user: User):
+    def get_payload_user_from_user(user: User) -> UserPayload:
         return {
-            "id": user.id,
+            "id": str(user.id),
             "username": user.name,
             "discriminator": user.discriminator,
             "avatar": user.avatar.url if user.avatar else None,
@@ -485,7 +485,7 @@ class ScheduleCog(commands.Cog):
             "email": None,
             "flags": 0,
             "premium_type": 0,
-            "public_flags": user.public_flags,
+            "public_flags": user.public_flags.value,
         }
 
 

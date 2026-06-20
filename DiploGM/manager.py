@@ -1,11 +1,12 @@
+import asyncio
 import logging
 import time
 import os
-from typing import Optional
 
 from discord import Member, User
 
 from DiploGM.utils.singleton import SingletonMeta
+from DiploGM.errors import MapRenderError, NoGameError
 from DiploGM.adjudicator.make_adjudicator import make_adjudicator
 from DiploGM.adjudicator.defs import Resolution
 from DiploGM.mapper.mapper import Mapper
@@ -19,15 +20,13 @@ from DiploGM.utils.sanitise import parse_variant_path, simple_player_name
 
 logger = logging.getLogger(__name__)
 
-SEVERENCE_A_ID = 1440703393369821248
-SEVERENCE_B_ID = 1440703645971644648
-
 class Manager(metaclass=SingletonMeta):
     """Manager acts as an intermediary between Bot (the Discord API), Board (the board state), the database."""
 
-    def __init__(self, board_ids: Optional[list[int]]=None):
+    def __init__(self):
         self._database = database.get_connection()
-        self._boards: dict[int, Board] = self._database.get_boards(board_ids)
+        self._boards: dict[int, Board] = {}
+        self._board_locks: dict[int, asyncio.Lock] = {}
         self._spec_requests: dict[int, list[SpecRequest]] = (
             self._database.get_spec_requests()
         )
@@ -39,14 +38,29 @@ class Manager(metaclass=SingletonMeta):
         # Ideally we should deepcopy the board, but it requires a custom implementation
         self.last_failed_orders: dict[int, set[str]] = {}
         self.last_dp_orders: dict[int, dict[str, tuple[str, str | None, str | None]]] = {}
-        # TODO: have multiple for each variant?
-        # do it like this so that the parser can cache data between board initializations
+
+        self.ctx_parameters: dict = self._database.load_ctx_parameters()
+
+    async def ensure_board_loaded(self, server_id: int) -> None:
+        """Ensures a board is loaded into memory for the given server.
+        Uses per-server locks to prevent race conditions from concurrent commands."""
+        if server_id in self._boards:
+            return
+        if server_id not in self._board_locks:
+            self._board_locks[server_id] = asyncio.Lock()
+
+        async with self._board_locks[server_id]:
+            if server_id in self._boards:
+                return
+            loaded = self._database.load_board(server_id)
+            if loaded is not None:
+                self._boards[server_id] = loaded
 
     def list_servers(self) -> set[int]:
         """Gets a list of server ids that have games."""
-        return set(self._boards.keys())
+        return self._database.get_active_board_ids()
 
-    def create_game(self, server_id: int, gametype: str = "classic") -> tuple[bool, str]:
+    def create_game(self, server_id: int, gametype: str = "classic", **kwargs) -> tuple[bool, str]:
         """Creates a new game in the specified server and of the specified variant."""
         if self._boards.get(server_id):
             return False, "A game already exists in this server."
@@ -58,8 +72,15 @@ class Manager(metaclass=SingletonMeta):
             return False, f"Game {gametype} does not exist."
 
         logger.info("Creating new game in server %s", server_id)
-        self._boards[server_id] = get_parser(gametype).parse()
+        parser_result = get_parser(gametype)
+        if isinstance(parser_result, str):
+            return False, parser_result
+        self._boards[server_id] = parser_result.parse(**kwargs)
         self._boards[server_id].board_id = server_id
+        if kwargs.get("fow"):
+            self._boards[server_id].set_data("fow", "enabled")
+        if kwargs.get("chaos"):
+            self._boards[server_id].set_data("chaos", "enabled")
         self._database.save_board(server_id, self._boards[server_id])
 
         return True, f"{self._boards[server_id].data['name']} game created"
@@ -96,17 +117,8 @@ class Manager(metaclass=SingletonMeta):
     def get_board(self, server_id: int) -> Board:
         """Gets the current board for a server.
         Raises a RuntimeError if there is no game in the server."""
-        # NOTE: Temporary for Meme's Severence Diplomacy Event
-        if server_id == SEVERENCE_B_ID:
-            server_id = SEVERENCE_A_ID
-
-        # try:
-        board = self._boards.get(server_id)
-        # except KeyError:
-            # board = self._database.get_latest_board(server_id)
-
-        if not board:
-            raise RuntimeError("There is no existing game this this server.")
+        if not (board := self._boards.get(server_id)):
+            raise NoGameError("There is no existing game in this server.")
         return board
 
     def get_board_from_db(self, server_id: int, turn: Turn) -> Board:
@@ -114,7 +126,7 @@ class Manager(metaclass=SingletonMeta):
         cur_board = self.get_board(server_id)
         board = self._database.get_board(cur_board.board_id, turn, cur_board.datafile)
         if board is None:
-            raise RuntimeError(f"There is no {turn} board for this server")
+            raise NoGameError(f"There is no {turn} board for this server")
         return board
 
     def apply_adjudication_results(self, server_id: int, board: Board) -> None:
@@ -131,11 +143,15 @@ class Manager(metaclass=SingletonMeta):
         for unit in board.units:
             if unit.order and unit.province.name in failed:
                 unit.order.has_failed = True
+        for player in board.players:
+            for order in player.build_orders:
+                if order.province.name in failed:
+                    order.has_failed = True
 
     def total_delete(self, server_id: int):
         """Completely wipes all data for a server."""
-        self._database.total_delete(self._boards[server_id])
-        del self._boards[server_id]
+        self._database.total_delete(server_id)
+        self._boards.pop(server_id, None)
 
     def draw_map(
         self,
@@ -160,7 +176,7 @@ class Manager(metaclass=SingletonMeta):
                 cur_board.datafile,
             )
             if board is None:
-                raise RuntimeError(
+                raise NoGameError(
                     f"There is no {turn} board for this server"
                 )
             if (
@@ -168,10 +184,9 @@ class Manager(metaclass=SingletonMeta):
                 or (board.turn.year == cur_board.turn.year
                     and board.turn.phase.value < cur_board.turn.phase.value)
             ):
-                if kwargs.get("is_severance"):
-                    board = cur_board
-                else:
-                    player_restriction = None
+                player_restriction = None
+            if kwargs.get("fow_player") is not None:
+                kwargs["fow_player"] = board.get_player(kwargs["fow_player"].name)
         svg, file_name = self.draw_map_for_board(
             board,
             player_restriction=player_restriction,
@@ -189,21 +204,31 @@ class Manager(metaclass=SingletonMeta):
     ) -> tuple[bytes, str]:
         """Gets the current map for a board."""
         start = time.time()
-        mapper = Mapper(board, restriction=kwargs.get("fow_player"), color_mode=kwargs.get("color_mode"))
-
-        if draw_moves:
-            svg, file_name = mapper.draw_moves_map(board.turn,
-                                                   player_restriction=player_restriction,
-                                                   movement_only=kwargs.get("movement_only", False),
+        try:
+            mapper = Mapper(
+                board,
+                restriction=kwargs.get("fow_player"),
+                color_mode=kwargs.get("color_mode"),
+                oil_spill_mode=kwargs.get("oil_spill_mode", False),
+                invert_color_mode=kwargs.get("invert_color_mode", False),
+                clean_map_mode=kwargs.get("clean_map_mode", False)
             )
-        else:
-            svg, file_name = mapper.draw_current_map()
+
+            if draw_moves:
+                svg, file_name = mapper.draw_moves_map(board.turn,
+                                                       player_restriction=player_restriction,
+                                                       movement_only=kwargs.get("movement_only", False),
+                )
+            else:
+                svg, file_name = mapper.draw_current_map()
+        except Exception as e:
+            raise MapRenderError("Failed to render map") from e
 
         elapsed = time.time() - start
         logger.info("manager.draw_map_for_board took %ss", elapsed)
         return svg, file_name
 
-    def adjudicate(self, server_id: int, test: bool = False) -> Board:
+    def adjudicate(self, server_id: int, test: bool = False) -> tuple[str | None, Board]:
         """Adjudicates the game for a given board, and saves the result if it's not a test adjudication."""
         start = time.time()
 
@@ -213,14 +238,19 @@ class Manager(metaclass=SingletonMeta):
         adjudicator = make_adjudicator(old_board)
         adjudicator.save_orders = not test
         new_board = adjudicator.run()
-        self.last_failed_orders[server_id] = {
-            order.current_province.name
-            for order in getattr(adjudicator, 'orders', [])
-            if order.resolution == Resolution.FAILS
-        }
+        if old_board.turn.is_builds():
+            self.last_failed_orders[server_id] = getattr(adjudicator, 'failed_build_provinces', set())
+        else:
+            self.last_failed_orders[server_id] = {
+                order.current_province.name
+                for order in getattr(adjudicator, 'orders', [])
+                if order.resolution == Resolution.FAILS
+            }
         self.last_dp_orders[server_id] = getattr(adjudicator, 'dp_order_strings', {})
         new_board.turn = new_board.turn.get_next_turn()
-        new_board.run_variant_scripts()
+        message = new_board.run_variant_scripts()
+        if message:
+            logger.info("Variant script result: %s", message)
         logger.info("Adjudicator ran successfully")
         if not test:
             self._boards[new_board.board_id] = new_board
@@ -228,7 +258,7 @@ class Manager(metaclass=SingletonMeta):
 
         elapsed = time.time() - start
         logger.info("manager.adjudicate.%s.%ss", server_id, elapsed)
-        return new_board
+        return message, new_board
 
     def draw_gui_map(
         self,
@@ -240,9 +270,12 @@ class Manager(metaclass=SingletonMeta):
         """Draws an GUI map for a board."""
         start = time.time()
 
-        svg, file_name = Mapper(
-            self._boards[server_id], fow_player, color_mode=color_mode
-        ).draw_gui_map(self._boards[server_id].turn, player_restriction)
+        try:
+            svg, file_name = Mapper(
+                self._boards[server_id], fow_player, color_mode=color_mode
+            ).draw_gui_map(self._boards[server_id].turn, player_restriction)
+        except Exception as e:
+            raise MapRenderError("Failed to render GUI map") from e
 
         elapsed = time.time() - start
         logger.info("manager.draw_moves_map.%s.%ss", server_id, elapsed)
@@ -311,7 +344,7 @@ class Manager(metaclass=SingletonMeta):
             return None
         try:
             players = self.get_board(member.guild.id).players
-        except RuntimeError:
+        except NoGameError:
             return None
         for role in member.roles:
             for player in players:
@@ -327,3 +360,34 @@ class Manager(metaclass=SingletonMeta):
             if server_id not in self.last_activity:
                 self.last_activity[server_id] = {}
             self.last_activity[server_id][player.name] = time.time()
+
+    def save_ctx_parameter(self, context_id: int, parameter_key: str, parameter_value: str) -> None:
+        """Saves a context parameter to the database."""
+        self.ctx_parameters[context_id] = self.ctx_parameters.get(context_id, {})
+        keys = parameter_key.split('/')
+        data = self.ctx_parameters[context_id]
+        for key in keys[:-1]:
+            data = data.setdefault(key, {})
+        data[keys[-1]] = parameter_value
+        self._database.execute_arbitrary_sql(
+            "INSERT OR REPLACE INTO ctx_parameters (context_id, parameter_key, parameter_value) VALUES (?, ?, ?)",
+            (context_id, parameter_key, parameter_value)
+        )
+
+    def delete_ctx_parameter(self, context_id: int, parameter_key: str) -> None:
+        """Deletes a context parameter from the database."""
+        if context_id not in self.ctx_parameters:
+            return
+        keys = parameter_key.split('/')
+        data = self.ctx_parameters[context_id]
+        for key in keys[:-1]:
+            if key in data:
+                data = data[key]
+            else:
+                return
+        if keys[-1] in data:
+            del data[keys[-1]]
+        self._database.execute_arbitrary_sql(
+            "DELETE FROM ctx_parameters WHERE context_id = ? AND parameter_key = ?",
+            (context_id, parameter_key)
+        )

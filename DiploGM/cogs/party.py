@@ -12,6 +12,7 @@ from discord.ext import commands
 from scipy.integrate import odeint
 
 from DiploGM.manager import Manager
+from DiploGM.errors import NoGameError
 from DiploGM import perms
 from DiploGM.config import is_bumble, temporary_bumbles, HUB_SERVER_ID
 from DiploGM.utils import log_command, send_message_and_file
@@ -178,7 +179,7 @@ class PartyCog(commands.Cog):
             word_of_bumble = "elbmub nesohc eht era uoY"
 
         board = manager.get_board(ctx.guild.id)
-        board.set_data("fish", board.data["fish"] - 1)
+        board.set_data("fish", int(board.data["fish"]) - 1)
         await send_message_and_file(channel=ctx.channel, title=word_of_bumble)
 
     @commands.command(hidden=True)
@@ -381,6 +382,7 @@ class PartyCog(commands.Cog):
         await ctx.message.add_reaction("🐟")
 
         board = manager.get_board(ctx.guild.id)
+        board.data["fish"] = int(board.data.get("fish", 0))
         fish_num = random.randrange(0, 20)
 
         # overfishing model
@@ -513,7 +515,7 @@ class PartyCog(commands.Cog):
         raw_boards = tuple(map(lambda b: b[1], sorted_boards))
         try:
             this_board = manager.get_board(ctx.guild.id)
-        except RuntimeError:
+        except NoGameError:
             this_board = None
         sorted_boards = sorted_boards[:9]
         text = ""
@@ -607,7 +609,8 @@ class PartyCog(commands.Cog):
                      or ctx.me.id not in self.eolhc_ed_members[ctx.guild.id])):
                 self.eolhc_ed_members.setdefault(ctx.guild.id, []).append(ctx.me.id)
                 await ctx.reply("*incoherent screaming*"[::-1])
-                await ctx.me.edit(nick = ctx.me.display_name[::-1])
+                if isinstance(ctx.me, discord.Member):
+                    await ctx.me.edit(nick = ctx.me.display_name[::-1])
             else:
                 await ctx.reply(random.choice(self.eolhc_gifs))
             return

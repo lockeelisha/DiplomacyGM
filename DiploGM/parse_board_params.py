@@ -1,10 +1,10 @@
 """Module to parse commands to edit the board parameters."""
+import string
 from DiploGM.config import ERROR_COLOUR, PARTIAL_ERROR_COLOUR
 from DiploGM.utils import get_keywords
 from DiploGM.mapper.mapper import Mapper
 from DiploGM.models.board import Board
 from DiploGM.db.database import get_connection
-import string
 
 def parse_board_params(message: str, board: Board) -> tuple[str, str, bytes | None, str | None, str | None]:
     """Parses a message containing commands to edit the board parameters,
@@ -118,9 +118,9 @@ def _set_capital(_, keywords: list[str], board: Board) -> tuple[str | None, str 
     if not (player := board.get_player(player_name)):
         raise ValueError(f"{player_name} was not found in the board")
     key_name = f"players/{player.name}/capital"
-    board.get_province(new_capital)
-    board.set_data(["players", player.name, "capital"], new_capital)
-    return key_name, new_capital
+    capital = board.get_province(new_capital)
+    board.set_data(["players", player.name, "capital"], capital.name)
+    return key_name, capital.name
 
 def _set_player_name(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
     player_name, new_name = (keywords[0].lower(), ' '.join(keywords[1:]))
@@ -179,11 +179,54 @@ def _toggle_game_option(command: str, keywords: list[str], board: Board) -> tupl
     board.set_data(key_name, new_value)
     return key_name, new_value
 
+_CORE_OPTIONS_PARAMS = {
+    "turns": {"options": ("1", "2"), "default": "2",
+        "description": "Number of turns required to core a province"},
+    "supportable": {"options": ("true", "false"), "default": "false",
+        "description": "Whether core orders can be support-held"},
+    "require_adjacent_ownership": {"options": ("false", "sc", "all"), "default": "false",
+        "description": "Whether to require ownership of adjacent SCs or provinces to core"},
+    "require_no_enemy_units": {"options": ("false", "sc", "all"), "default": "false",
+        "description": "Whether an enemy unit in an adjacent SC/province can be adjacent to the coring province"},
+    "require_no_interactions": {"options": ("true", "false"), "default": "false",
+        "description": "Core fails if any unit (friendly or enemy) support-holds it"},
+    "fail_on_adjacent_move": {"options": ("false", "sc", "all"), "default": "false",
+        "description": "Core fails if an enemy unit successfully moves into an adjacent SC/province"},
+}
+
+def _set_core_options(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
+    core_options = board.data.get("core_options", {})
+
+    if not keywords:
+        # Display current core_options and valid parameters
+        lines = ["To set a core option, use `.edit_game core options <param> <value>`."]
+        lines.append("Current parameters and valid options:")
+        for param, info in _CORE_OPTIONS_PARAMS.items():
+            current = core_options.get(param, info['default'])
+            lines.append(f"  `{param}`: {current} (valid: {', '.join(info['options'])})")
+            lines.append(f"    {info['description']}")
+        raise ValueError("\n".join(lines))
+
+    param = keywords[0].lower()
+    if param not in _CORE_OPTIONS_PARAMS:
+        raise ValueError(f"Unknown core_options parameter: {param}.")
+    if len(keywords) < 2:
+        raise ValueError(f"Missing value for {param}.")
+
+    value = keywords[1].lower()
+    valid = _CORE_OPTIONS_PARAMS[param]["options"]
+    if value not in valid:
+        raise ValueError(f"{value} is not a valid value for {param}.")
+
+    core_options[param] = value
+    board.set_data(["core_options", param], value)
+    key_name = f"core_options/{param}"
+    return key_name, value
+
 function_list = {
     "game name": _set_game_name,
     "building": _set_build_options,
     "convoyable islands": _toggle_game_option,
-    "supportable cores": _toggle_game_option,
     "transformation": _set_transformation,
     "dp": _toggle_game_option,
     "victory conditions": _set_victory_conditions,
@@ -194,7 +237,8 @@ function_list = {
     "player name": _set_player_name,
     "player color": _set_player_color,
     "hide player": _hide_player,
-    "add player": _add_player
+    "add player": _add_player,
+    "core options": _set_core_options
 }
 
 def _parse_command(command: str, board: Board) -> None:
@@ -204,7 +248,7 @@ def _parse_command(command: str, board: Board) -> None:
 
     if command_type not in function_list:
         raise RuntimeError("No command key phrases found")
-    if len(keywords) < 1:
+    if len(keywords) < 1 and command_type != "core options":
         raise RuntimeError("Missing command keywords")
     new_key, new_value = function_list[command_type](command_type, keywords, board)
     if new_key is not None:

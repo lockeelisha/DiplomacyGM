@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from DiploGM.models.unit import UnitType, DPAllocation
+from DiploGM.models.unit import DPAllocation
 from DiploGM.models.turn import Turn
 
 if TYPE_CHECKING:
@@ -15,11 +15,11 @@ def _parse_unit(board: Board, province: Province, unit_data: dict, is_dislodged:
     retreat_options = ({board.get_province_and_coast(loc)
                         for loc in unit_data.get("retreat_options", [])}
                         if is_dislodged else None)
-    unit = board.create_unit(UnitType(unit_data["type"]),
-                            board.get_player(unit_data.get("owner", "None")),
-                            province,
-                            unit_data.get("coast"),
-                            retreat_options)
+    unit = board.create_unit(unit_data["type"],
+                             board.get_player(unit_data.get("owner", "None")),
+                             province,
+                             unit_data.get("coast"),
+                             retreat_options)
     if "order" in unit_data:
         order_data = unit_data["order"]
         try:
@@ -42,7 +42,7 @@ def _parse_province(province: Province, province_data: dict, board: Board) -> No
     if province_data.get("is_impassable", False) is True:
         province.is_impassable = True
 
-    board.change_owner(province, board.get_player(province_data.get("owner", "None")))
+    board.change_owner(province, board.get_player(province_data.get("owner", "None")), force_change=True)
     province.core_data.core = board.get_player(province_data.get("core", "None"))
     province.core_data.half_core = board.get_player(province_data.get("half_core", "None"))
 
@@ -88,7 +88,17 @@ def import_game(board: Board, data: dict) -> str:
 
     # Apply custom parameters
     if "parameters" in data:
-        for key, value in data["parameters"].items():
+        def flatten_params(d: dict, parent_key: str = "", sep: str = "/") -> dict:
+            items = {}
+            for k, v in d.items():
+                new_key = f"{parent_key}{sep}{k}" if parent_key else k
+                if isinstance(v, dict):
+                    items.update(flatten_params(v, new_key, sep=sep))
+                else:
+                    items[new_key] = v
+            return items
+
+        for key, value in flatten_params(data["parameters"]).items():
             board.set_data(key.split("/"), value)
 
     return "Successfully imported board."

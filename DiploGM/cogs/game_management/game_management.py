@@ -1,3 +1,5 @@
+"""Cog for managing games, including creation, editing, and adjudication.
+This has a lot of commands, so logic has been split into separate modules."""
 import logging
 from typing import Optional
 import discord
@@ -16,15 +18,15 @@ logger = logging.getLogger(__name__)
 manager = Manager()
 
 class GameManagementCog(commands.Cog):
+    """Cog for managing games, including creation, editing, and adjudication."""
     def __init__(self, bot):
         self.bot = bot
 
     @commands.command(
         brief="Creates a new Diplomacy game.",
-        description="Creates a Diplomacy game of the chosen variant and optionally version.",
     )
     @perms.gm_only("create a game")
-    async def create_game(self, ctx: commands.Context) -> None:
+    async def create_game(self, ctx: commands.Context, *args) -> None:
         """Create a new game for the server.
 
         Usage: 
@@ -37,7 +39,7 @@ class GameManagementCog(commands.Cog):
             If a version is not provided, will default to the latest-numbered version.
             Available variants can be found by running .list_variants
         """
-        await game_creation.create_game(ctx)
+        await game_creation.create_game(ctx, *args)
 
     @commands.command(brief="Exports the current game state as JSON")
     @perms.gm_only("export the game")
@@ -45,8 +47,7 @@ class GameManagementCog(commands.Cog):
         """Exports the current game state (players, provinces, parameters) as a JSON file."""
         await game_creation.export_game(ctx)
 
-    @commands.command(brief="Imports a game from a JSON file",
-                      description="Imports a new game from an uploaded JSON file.")
+    @commands.command(brief="Imports a game from a JSON file")
     async def import_game(self, ctx: commands.Context) -> None:
         """Imports a game from an uploaded JSON file.
 
@@ -76,7 +77,38 @@ class GameManagementCog(commands.Cog):
     @commands.command(brief="lists all variants currently supported")
     @perms.gm_only("lists variants")
     async def list_variants(self, ctx: commands.Context) -> None:
+        """Lists all variants currently supported by the bot.
+        
+        Usage:
+            `.list_variants`
+        """
         await game_creation.list_variants(ctx)
+
+    @commands.command(brief="Creates channels and roles for a variant")
+    @perms.gm_only("create channels and roles")
+    async def setup_server(self, ctx: commands.Context) -> None:
+        """Creates channels and roles for a variant.
+
+        Usage:
+            `.setup_server <variant>`
+
+        Note:
+            Only one set of channels and roles per variant can be created.
+        """
+        await channel_management.setup_server(ctx)
+
+    @commands.command(hidden=True)
+    @perms.superuser_only("delete channels and roles")
+    async def reset_server(self, ctx: commands.Context) -> None:
+        """Deletes channels and roles for a variant.
+
+        Usage:
+            `.reset_server`
+
+        Note:
+            This command is very dangerous and should be used with caution.
+        """
+        await channel_management.reset_server(ctx)
 
     @commands.command(brief="Archives a comms category")
     @perms.gm_only("archive the category")
@@ -92,13 +124,7 @@ class GameManagementCog(commands.Cog):
         """
         await channel_management.archive(ctx)
 
-    @commands.command(
-        brief="Sets the current deadline",
-        description="""Manages the deadline for the current phase.
-        At the moment, this sets the default timestamp for the .ping_players command.
-        In the future, this might have more functionality.
-        """
-    )
+    @commands.command(brief="Sets the current deadline")
     @perms.gm_only("set deadline")
     async def set_deadline(self, ctx: commands.Context) -> None:
         """Manages the deadline for the current phase.
@@ -115,12 +141,6 @@ class GameManagementCog(commands.Cog):
 
     @commands.command(
         brief="Pings players who don't have the expected number of orders.",
-        description="""Pings all players in their orders channel that satisfy the following constraints:
-        1. They have too many build orders, or too little or too many disband orders.
-        2. They are missing move orders or retreat orders.
-        You may also specify a timestamp to send a deadline to the players.
-        * .ping_players <timestamp>
-        """,
         aliases=["pp"]
     )
     @perms.gm_only("ping players")
@@ -138,8 +158,6 @@ class GameManagementCog(commands.Cog):
 
     @commands.command(
         brief="Disables orders until .unlock_orders is run",
-        description="""Disables orders until .enable_orders is run.
-                 Note: Currently does not persist after the bot is restarted""",
         aliases=["lock"],
     )
     @perms.gm_only("lock orders")
@@ -178,7 +196,7 @@ class GameManagementCog(commands.Cog):
         """
         await send_message_and_file(channel=ctx.channel, message="Valid commands are: *log*, *delete*, and *view*")
 
-    @grace.command(name="log", brief="Logs a grace period", description="Usage: .grace <user> <hours> <reason>")
+    @grace.command(name="log", brief="Logs a grace period")
     @perms.gm_only("record a grace")
     async def grace_log(self,
                         ctx: commands.Context,
@@ -265,10 +283,7 @@ class GameManagementCog(commands.Cog):
         """
         await grace.grace_view_server(ctx, server_id)
 
-    @commands.command(
-        brief="Publishes orders to #orders-log",
-        description="For GM: Sends orders from previous phase to #orders-log",
-    )
+    @commands.command(brief="Publishes orders to #orders-log")
     @perms.gm_only("publish orders")
     async def publish_orders(self, ctx: commands.Context, *args) -> None:
         """Publishes orders to the orders log channel, uploads the map to the archive,
@@ -287,7 +302,6 @@ class GameManagementCog(commands.Cog):
 
     @commands.command(
         brief="Adjudicates the game",
-        description="Adjudicates the game and uploads maps.",
         aliases=["adju", "adjudication"]
     )
     @perms.gm_only("adjudicate")
@@ -336,32 +350,7 @@ class GameManagementCog(commands.Cog):
         """
         await game_editing.reload(ctx)
 
-    @commands.command(
-        brief="Edits the game state and outputs the results map",
-        description="""Edits the game state and outputs the results map.
-        There must be one and only one command per line.
-        Note: you cannot edit immalleable map state (eg. province adjacency).
-        The following are the supported sub-commands:
-        * set_phase {spring, fall, winter}_{moves, retreats, builds}
-        * set_core <province_name> <player_name>
-        * set_half_core <province_name> <player_name>
-        * set_province_owner <province_name> <player_name>
-        * create_unit {A, F} <player_name> <province_name>
-        * create_dislodged_unit {A, F} <player_name> <province_name> <retreat_option1> <retreat_option2>...
-        * delete_dislodged_unit <province_name>
-        * delete_unit <province_name>
-        * move_unit <province_name> <province_name>
-        * dislodge_unit <province_name> <retreat_option1> <retreat_option2>...
-        * make_units_claim_provinces {True|(False) - whether or not to claim SCs}
-        * set_player_points <player_name> <integer>
-        * set_player_vassal <liege> <vassal>
-        * remove_relationship <player1> <player2>
-        * load_state <server_id> <spring, fall, winter}_{moves, retreats, builds> <year>
-        * apocalypse {all OR army, fleet, core, province} !!! deletes everything specified !!!
-        * bulk <command> {<player_name> | nothing if you're using delete_units} <list_of_province_names> {use with commands like set_total_owner to use it repeatedly}
-        * bulk_create_units <player_name> {A, F} <list_of_province_names>
-        """,
-    )
+    @commands.command(brief="Edits the game state and outputs the results map")
     @perms.gm_only("edit")
     async def edit(self, ctx: commands.Context) -> None:
         """Edits the current board state
@@ -371,10 +360,7 @@ class GameManagementCog(commands.Cog):
         """
         await game_editing.edit(ctx)
 
-    @commands.command(
-        brief="Blitz game channel creation",
-        description="Creates all possible channels between two players for blitz in available comms channels.",
-    )
+    @commands.command(brief="Blitz game channel creation")
     @perms.gm_only("create blitz comms channels")
     async def blitz(self, ctx: commands.Context) -> None:
         """Creates all pairwise press channels between players in a game
@@ -387,8 +373,7 @@ class GameManagementCog(commands.Cog):
         """
         await channel_management.blitz(ctx)
 
-    @commands.command(brief="Gets player activity",
-                      description="""Gets the last time each player sent a message.""")
+    @commands.command(brief="Gets player activity")
     @perms.gm_only("get last message times")
     async def last_message(self, ctx: commands.Context) -> None:
         """Gets the last time each player sent a message.
@@ -428,29 +413,7 @@ class GameManagementCog(commands.Cog):
         """
         await chaos.publicize(ctx)
 
-    @commands.command(
-        brief="Edits game parameters",
-        description="""Modifies a game parameter to a certain value.
-        There must be one and only one command per line.
-        Note: you cannot edit immalleable map state (eg. province adjacency).
-        The following are the supported parameters and possible values:
-        * game_name <game_name>
-        * building ['classic', 'cores', 'control', 'anywhere']
-        * convoyable_islands ['disabled', 'enabled']
-        * supportable_cores ['disabled', 'enabled']
-        * transformation ['disabled', 'moves', 'builds', 'all']
-        * dp ['disabled', 'enabled']
-        * victory_conditions ['classic', 'vscc']
-        * victory_count [number] (only used with classic victory conditions)
-        * iscc [player] [starting scs]
-        * vscc [player] [victory scs] (only used with vscc victory conditions)
-        * capital [player] [province]
-        * player_name [original name] [new name]
-        * player_color [player_name] [hex_code]
-        * hide_player [player] ['true', 'false']
-        * add_player [player] [color] (Once added, a player cannot be removed)
-        """,
-    )
+    @commands.command(brief="Edits game parameters")
     @perms.gm_only("edit game")
     async def edit_game(self, ctx: commands.Context) -> None:
         """Edits game parameters.
@@ -460,8 +423,17 @@ class GameManagementCog(commands.Cog):
         """
         await game_editing.edit_game(ctx)
 
-    @commands.command(brief="Renames a player",
-                      description="Renames a player, and updates their role and channel names")
+    @commands.command(brief="Edits server settings")
+    @perms.gm_only("edit server")
+    async def edit_server(self, ctx: commands.Context) -> None:
+        """Edits server settings.
+
+        Usage: 
+            `.edit_server <commands>`
+        """
+        await game_editing.edit_server(ctx)
+
+    @commands.command(brief="Renames a player")
     @perms.gm_only("rename player")
     async def rename_player(self, ctx: commands.Context, old_name: str, new_name: str) -> None:
         """Renames a player, and updates their role and channel names if possible.

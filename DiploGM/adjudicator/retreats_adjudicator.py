@@ -1,12 +1,14 @@
+"""Adjudicator for retreat phases. A lot of the validation logic comes from retreat options generated
+by the moves adjudcator in the previous phase."""
 from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
 
 from DiploGM.adjudicator.adjudicator import Adjudicator
-from DiploGM.models.order import NMR, RetreatMove, RebellionMarker
-from DiploGM.models.player import PlayerClass
-from DiploGM.models.unit import Unit, UnitType
+from DiploGM.models.adjacency import Terrain
+from DiploGM.models.order import NMR, RetreatMove
+from DiploGM.models.unit import Unit
 
 if TYPE_CHECKING:
     from DiploGM.models.board import Board
@@ -14,6 +16,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 class RetreatsAdjudicator(Adjudicator):
+    """Adjudicator for retreat phases."""
     def __init__(self, board: Board):
         super().__init__(board)
 
@@ -28,13 +31,12 @@ class RetreatsAdjudicator(Adjudicator):
                 unit.order = NMR()
 
             if not isinstance(unit.order, RetreatMove):
-                logger.warning(f"Unit {unit.province} is doing an unexpected action during retreat phase")
+                logger.warning("Unit %s is doing an unexpected action during retreat phase", unit.province)
                 units_to_delete.add(unit)
                 continue
 
-            if unit.unit_type == UnitType.FLEET and not unit.order.destination_coast:
-                reachable_coasts = {c for c in unit.order.destination.get_multiple_coasts()
-                                    if unit.province.is_coastally_adjacent((unit.order.destination, c), unit.coast)}
+            if Terrain.COAST in unit.unit_type.moves_on and not unit.order.destination_coast:
+                reachable_coasts = unit.province.adjacencies.get_coasts(unit.order.destination, unit.coast)
                 if len(reachable_coasts) > 1:
                     units_to_delete.add(unit)
                 if reachable_coasts:
@@ -51,23 +53,6 @@ class RetreatsAdjudicator(Adjudicator):
 
         return retreats_by_destination, units_to_delete
 
-    def _handle_vassals(self):
-        for player in self._board.players:
-            if player.liege in player.vassals:
-                other = player.liege
-                if (player.get_class() != PlayerClass.KINGDOM) or (other.get_class() != PlayerClass.KINGDOM):
-                    # Dual Monarchy breaks
-                    for p in (player, other):
-                        p.vassals = []
-                        p.liege = None
-
-            elif player.liege:
-                if player.liege.get_class().value <= player.get_class().value:
-                    liege = player.liege
-                    player.liege = None
-                    liege.vassals.remove(player)
-                    player.build_orders.add(RebellionMarker(liege))
-
     def run(self) -> Board:
         retreats_by_destination, units_to_delete = self._validate_orders()
 
@@ -77,7 +62,7 @@ class RetreatsAdjudicator(Adjudicator):
             if len(retreating_units) != 1:
                 difficult_units = {u for u in retreating_units
                                    if isinstance(u.order, RetreatMove)
-                                       and u.order.destination.name in u.province.adjacency_data.difficult_adjacencies}
+                                      and u.province.adjacencies.is_difficult(u.order.destination)}
                 units_to_delete.update(difficult_units)
                 retreating_units.difference_update(difficult_units)
                 if len(retreating_units) != 1:
@@ -95,8 +80,7 @@ class RetreatsAdjudicator(Adjudicator):
             unit.province = destination_province
             unit.coast = destination_coast
             destination_province.unit = unit
-            if not destination_province.has_supply_center or self._board.turn.is_fall():
-                self._board.change_owner(destination_province, unit.player)
+            self._board.change_owner(destination_province, unit.player)
 
         for unit in units_to_delete:
             if unit.player is not None:
@@ -107,8 +91,5 @@ class RetreatsAdjudicator(Adjudicator):
         for unit in self._board.units:
             unit.order = None
             unit.retreat_options = None
-
-        if self._board.turn.is_fall() and self.parameters.get("has_vassals"):
-            self._handle_vassals()
 
         return self._board

@@ -17,6 +17,7 @@
     "order_stroke_width": 0.55,
     "neutral": "c7c7c7",
     "neutral_sc": "e1e1e1",
+    "impassable": "252528",
     "loc_x_offset": 7.7655,
     "loc_y_offset": 7.033,
     "delete_layer": ["army", "retreat_army", "fleet", "retreat_fleet"],
@@ -31,8 +32,15 @@
   "year": 1801,
   "build_options": "classic",
   "victory_conditions": "vscc",
+  "expected_loops": 2,
   "overrides": {
     "provinces": {
+      "Balochistan": {
+        "adjacencies": ["Rust"]
+      },
+      "Rust": {
+        "adjacencies": ["Balochistan"]
+      },
       "Aqui": {
         "coasts": {
           "ec": ["Provence", "Ligurian Sea", "Barcelona"],
@@ -48,7 +56,7 @@
       "Italy": {
         "coasts": {
           "ec": ["Croatia", "Adri Sea", "Naples"],
-          "wc": ["Naples", "West Med", "Ligurian Sea", "Provence"]
+          "wc": ["Naples", "Ligurian Sea", "Provence"]
         }
       },
       "Leeds": {

@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS units (
     location text,
     is_dislodged boolean,
     owner text,
-    is_army boolean,
+    unit_type text,
     order_type text,
     order_destination text,
     order_source text,
@@ -60,21 +60,11 @@ CREATE TABLE IF NOT EXISTS builds(
     location text,
     order_type text,
     unit_type text,
+    failed_order boolean,
     PRIMARY KEY (board_id, phase, player, location),
     FOREIGN KEY (board_id, phase) REFERENCES boards (board_id, phase),
     FOREIGN KEY (board_id, player) REFERENCES players (board_id, player_name),
     FOREIGN KEY (board_id, phase, location) REFERENCES provinces (board_id, phase, province_name)
-);
-
-CREATE TABLE IF NOT EXISTS vassal_orders (
-    board_id int,
-    phase text,
-    player text,
-    target_player text,
-    order_type text,
-    PRIMARY KEY (board_id, phase, player, target_player),
-    FOREIGN KEY (board_id, player) REFERENCES players (board_id, player),
-    FOREIGN KEY (board_id, target_player) REFERENCES players (board_id, player)
 );
 
 CREATE TABLE IF NOT EXISTS spec_requests (
@@ -90,6 +80,13 @@ CREATE TABLE IF NOT EXISTS board_parameters (
     parameter_key TEXT NOT NULL,
     parameter_value TEXT NOT NULL,
     PRIMARY KEY (board_id, parameter_key)
+);
+
+CREATE TABLE IF NOT EXISTS ctx_parameters (
+    context_id INTEGER NOT NULL,
+    parameter_key TEXT NOT NULL,
+    parameter_value TEXT NOT NULL,
+    PRIMARY KEY (context_id, parameter_key)
 );
 
 CREATE TABLE IF NOT EXISTS dp_orders (

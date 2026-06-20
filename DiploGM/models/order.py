@@ -14,7 +14,7 @@ class Order:
     """Order is a player's game state API."""
 
     def __init__(self):
-        pass
+        self.has_failed = False
 
 
 # moves, holds, etc.
@@ -29,7 +29,6 @@ class UnitOrder(Order):
                  destination: Province | None = None,
                  destination_coast: str | None = None):
         super().__init__()
-        self.has_failed = False
         self.destination = destination
         self.destination_coast = destination_coast
         self.source = source
@@ -228,7 +227,7 @@ class Build(PlayerOrder):
         self.coast: str | None = coast
 
     def __str__(self):
-        return f"Build {self.unit_type.value} {self.province}" + (f" {self.coast}" if self.coast else "")
+        return f"Build {self.unit_type.code} {self.province}" + (f" {self.coast}" if self.coast else "")
 
 
 class Disband(PlayerOrder):
@@ -254,55 +253,3 @@ class Waive(Order):
 
     def __str__(self):
         return f"Waive {self.quantity}"
-
-class RelationshipOrder(Order):
-    """Vassal, Dual Monarchy, etc"""
-
-    nameId: str | None = None
-
-    def __init__(self, player: Player):
-        super().__init__()
-        self.player = player
-        self.coast = None
-
-    def __hash__(self):
-        return hash(self.player)
-
-    def __eq__(self, other):
-        return isinstance(other, type(self)) and self.player == other.player
-
-class Vassal(RelationshipOrder):
-    """Specifies player to vassalize."""
-
-    def __str__(self):
-        return f"Vassalize {self.player}"
-
-class Liege(RelationshipOrder):
-    """Specifies player to swear allegiance to."""
-
-    def __str__(self):
-        return f"Liege {self.player}"
-
-class DualMonarchy(RelationshipOrder):
-    """Specifies player to swear allegiance to."""
-
-    def __str__(self):
-        return f"Dual Monarchy with {self.player}"
-
-class Disown(RelationshipOrder):
-    """Specifies player to drop as a vassal."""
-
-    def __str__(self):
-        return f"Disown {self.player}"
-
-class Defect(RelationshipOrder):
-    """Defect. Player is always your liege"""
-
-    def __str__(self):
-        return "Defect"
-
-class RebellionMarker(RelationshipOrder):
-    """Psudorder to mark rebellion from player due to class"""
-
-    def __str__(self):
-        return f"(Rebelling from {self.player})"

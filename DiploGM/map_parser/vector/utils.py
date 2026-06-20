@@ -1,13 +1,16 @@
+"""Utility functions for parsing SVGs."""
+import colorsys
 import logging
+import random
 import re
 from typing import Callable
 from xml.etree.ElementTree import Element, ElementTree
-import numpy as np
 from shapely.geometry import Point
 
 from DiploGM.map_parser.vector.transform import TransGL3
 from DiploGM.models.province import Province
 
+# TODO: Better way of doing custom units
 LAYER_DICTIONARY = {
     "land_layer": {"Region Colors", "Region Fills", "Provinces"},
     "island_borders": {"Island Adjacencies", "Hybrid Adjacencies"},
@@ -16,8 +19,8 @@ LAYER_DICTIONARY = {
     "sea_borders": {"Sea Adjacencies", "Sea Provinces"},
     "province_names": {"Titles", "Region Names"},
     "supply_center_icons": {"Supply Centers", "SC Markers", "SC markers"},
-    "titles": {"Titles", "Labels", "Region Names"},
-    "symbol_templates": {"Symbol Templates"}, # TODO: Add Capitals and change documentation
+    "titles": {"Titles", "Labels", "Region Names", "Province Names"},
+    "symbol_templates": {"Symbol Templates"},
     "army": {"Army Locations"},
     "retreat_army": {"Army Retreat Locations", "Army Locations (Retreats)"},
     "fleet": {"Fleet Locations"},
@@ -55,7 +58,7 @@ def find_svg_element(svg_root: Element | ElementTree, layer_name: str, config_da
     if layer_id is not None and isinstance(layer_id, str):
         if (element := svg_root.find(f'*[@id="{layer_id}"]')) is not None:
             return element
-    for element_label in LAYER_DICTIONARY.get(layer_name, set()):
+    for element_label in LAYER_DICTIONARY.get(layer_name, set()) | {layer_name}:
         if (element := svg_root.find(f'*[@inkscape:label="{element_label}"]',
             namespaces={"inkscape": "http://www.inkscape.org/namespaces/inkscape"})) is not None:
             return element
@@ -80,13 +83,21 @@ def get_element_color(element: Element, prefix="fill:") -> str | None:
             value = value[len(prefix):]
             if value.startswith("#"):
                 value = value[1:]
-            return value
+            return value.lower()
     return None
 
-def get_unit_coordinates(
-    unit_data: Element,
-) -> complex:
+def get_element_unit_coordinates(unit_data: Element) -> complex:
     """Gets the x, y coordinates of a unit."""
+    # Check for an image element first - if present, use its center
+    image = unit_data.find("{http://www.w3.org/2000/svg}image")
+    if image is not None:
+        x = float(image.get("x", 0))
+        y = float(image.get("y", 0))
+        w = float(image.get("width", 0))
+        h = float(image.get("height", 0))
+        center = complex(x + w / 2, y + h / 2)
+        return TransGL3(image).transform(center)
+
     subpath = unit_data.find("{http://www.w3.org/2000/svg}path")
     path = subpath if subpath is not None else unit_data
 
@@ -95,8 +106,10 @@ def get_unit_coordinates(
     if x is None or y is None:
         # find all the points the objects are at
         # take the center of the bounding box
-        path = unit_data.findall("{http://www.w3.org/2000/svg}path")[0]
         pathstr = path.get("d")
+        if pathstr is None:
+            path = unit_data.findall("{http://www.w3.org/2000/svg}path")[0]
+            pathstr = path.get("d")
         assert pathstr is not None
         coordinates = sum(parse_path(pathstr, TransGL3(path)), start = [])
         x_list = [p.real for p in coordinates]
@@ -108,19 +121,13 @@ def get_unit_coordinates(
 
 def get_sc_coordinates(supply_center_data: Element) -> complex:
     circles = supply_center_data.findall(".//svg:circle", namespaces=NAMESPACE)
-    if not circles:
-        logger.warning("SC Coordinate not found")
-        return complex(0)
-    cx = circles[0].get("cx")
-    cy = circles[0].get("cy")
+    circle = circles[0] if circles else supply_center_data
+    cx = circle.get("cx")
+    cy = circle.get("cy")
     if cx is None or cy is None:
-        logger.warning("SC Coordinate not found")
-        return complex(0)
+        return get_element_unit_coordinates(supply_center_data)
     base_coordinates = complex(float(cx), float(cy))
-    trans = TransGL3(supply_center_data) * TransGL3(circles[0])
-    return trans.transform(base_coordinates)
-
-
+    return TransGL3(circle).transform(base_coordinates)
 
 # returns:
 # new base_coordinate (= base_coordinate if not applicable),
@@ -166,6 +173,7 @@ def parse_path(path_string: str, translation: TransGL3) -> list[list[complex]]:
                 if start is None:
                     raise ValueError("Invalid geometry: got 'z' on first element in a subgeometry")
                 province_coordinates[-1].append(translation.transform(start))
+                coordinate = start
                 start = None
                 current_index += 1
                 if current_index < len(path):
@@ -222,18 +230,23 @@ def initialize_province_resident_data(
         # found = False
         for resident_data in resident_dataset:
             point = get_coordinates(resident_data)
-
             if not point:
                 remove.add(resident_data)
                 continue
-
-            if province.geometry.contains(Point(point.real, point.imag)):
+            if province.geometry is not None and province.geometry.contains(Point(point.real, point.imag)):
                 # found = True
                 resident_data_callback(province, resident_data, None)
                 remove.add(resident_data)
 
-        # if not found:
-        #     print("Not found!")
-
         for resident_data in remove:
             resident_dataset.remove(resident_data)
+
+def weighted_random_color(seed: str | None = None) -> str:
+    """Generates a random color, avoiding colors too close to black or white.
+    If a seed is provided, the same color will be generated for the same seed."""
+    rng = random if seed is None else random.Random(seed)
+    hue = rng.random()
+    sat = rng.uniform(0.15, 1)
+    lit = rng.uniform(0.30, 0.70)
+    r, g, b = colorsys.hls_to_rgb(hue, lit, sat)
+    return f"{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"

@@ -7,7 +7,6 @@ from unittest.mock import MagicMock
 from discord.ext import commands
 
 from DiploGM.models.turn import Turn, PhaseName
-from DiploGM.models.unit import UnitType
 from test.DiploGM.cogs.utils import (
     CogTestCase,
     create_mock_context,
@@ -21,7 +20,7 @@ from DiploGM.errors import CommandPermissionError
 
 
 class PlayerCogTestCase(CogTestCase):
-    """Base class for PlayerCog tests — patches send and DB."""
+    """Base class for PlayerCog tests"""
 
     send_patch_targets = [
         "DiploGM.cogs.player.send_message_and_file",
@@ -53,6 +52,7 @@ class TestOrder(PlayerCogTestCase):
         self.builder.army("Par", self.players["France"])
 
     async def test_order_locked_as_player(self):
+        """Player cannot submit orders when orders are locked."""
         self.board.orders_enabled = False
         ctx = create_mock_player_context(message_content=".order Paris hold")
         await self.invoke(self.cog, "order", ctx, None)
@@ -60,12 +60,15 @@ class TestOrder(PlayerCogTestCase):
         self.assert_message_contains("Orders locked")
 
     async def test_order_success(self):
+        """Player can submit orders when orders are enabled."""
+        self.board.orders_enabled = True
         ctx = create_mock_player_context(message_content=".order Paris hold")
         await self.invoke(self.cog, "order", ctx, None)
         self.mock_send.assert_called()
         self.assert_message_contains("Orders validated successfully")
 
     async def test_order_invalid_order(self):
+        """Submitting an invalid order shows an error message."""
         ctx = create_mock_player_context(message_content=".order Paris - The Moon")
         await self.invoke(self.cog, "order", ctx, None)
         self.mock_send.assert_called()
@@ -73,12 +76,14 @@ class TestOrder(PlayerCogTestCase):
         self.assert_message_contains("does not match any known provinces")
 
     async def test_order_no_text(self):
+        """Submitting .order with no text shows an informational message."""
         ctx = create_mock_player_context(message_content=".order")
         await self.invoke(self.cog, "order", ctx, None)
         self.mock_send.assert_called()
         self.assert_message_contains("For information about entering orders")
 
     async def test_gm_can_order_when_locked(self):
+        """GM can submit orders even when orders are locked."""
         self.board.orders_enabled = False
         ctx = create_mock_gm_context(message_content=".order Paris hold")
         await self.invoke(self.cog, "order", ctx, None)
@@ -87,6 +92,7 @@ class TestOrder(PlayerCogTestCase):
         self.assert_message_contains("Orders validated successfully")
 
     async def test_order_from_gm_in_player_channel(self):
+        """GM can submit orders from a player channel."""
         channel = create_mock_channel("france-orders", category_name="orders")
         author = create_mock_member(roles=["GM Team"])
         ctx = create_mock_context(
@@ -100,6 +106,7 @@ class TestOrder(PlayerCogTestCase):
         self.assert_message_contains("Orders validated successfully")
 
     async def test_order_from_arbitrary_channel(self):
+        """GM cannot submit orders from an arbitrary channel."""
         author = create_mock_member(roles=["GM Team"])
         ctx = create_mock_context(author=author, message_content=".order Paris hold")
         with self.assertRaises(CommandPermissionError):
@@ -116,6 +123,7 @@ class TestRemoveOrder(PlayerCogTestCase):
         parse_order(".order\nParis hold", self.players["France"], self.board)
 
     async def test_remove_order_locked(self):
+        """Player cannot remove orders when orders are locked."""
         self.board.orders_enabled = False
         ctx = create_mock_player_context(message_content=".remove_order Paris")
         await self.invoke(self.cog, "remove_order", ctx, None)
@@ -124,6 +132,7 @@ class TestRemoveOrder(PlayerCogTestCase):
         self.assert_message_contains("Orders locked")
 
     async def test_remove_order_success(self):
+        """Player can remove orders when orders are enabled."""
         ctx = create_mock_player_context(message_content=".remove_order Paris")
         await self.invoke(self.cog, "remove_order", ctx, None)
 
@@ -131,6 +140,7 @@ class TestRemoveOrder(PlayerCogTestCase):
         self.assert_message_contains("Orders removed successfully")
 
     async def test_remove_order_invalid_province(self):
+        """Submitting .remove_order with an invalid province shows an error message."""
         ctx = create_mock_player_context(player_name="germany", message_content=".remove_order Paris")
         await self.invoke(self.cog, "remove_order", ctx, None)
 
@@ -144,8 +154,8 @@ class TestRemoveAll(PlayerCogTestCase):
 
     def setUp(self):
         super().setUp()
-        self.a_paris = self.builder.hold(self.players["France"], UnitType.ARMY, "Paris")
-        self.a_london = self.builder.hold(self.players["England"], UnitType.ARMY, "London")
+        self.a_paris = self.builder.hold(self.players["France"], "A", "Paris")
+        self.a_london = self.builder.hold(self.players["England"], "A", "London")
 
     async def test_remove_all_as_player(self):
         """Player removes only their own orders."""
@@ -173,7 +183,7 @@ class TestViewOrdersMoves(PlayerCogTestCase):
     def setUp(self):
         super().setUp()
         # France: A Paris (hold order), A Marseilles (no order)
-        self.builder.hold(self.players["France"], UnitType.ARMY, "Paris")
+        self.builder.hold(self.players["France"], "A", "Paris")
         self.builder.army("Mar", self.players["France"])
 
     async def test_view_full(self):
@@ -226,7 +236,7 @@ class TestViewOrdersRetreats(PlayerCogTestCase):
     def setUp(self):
         super().setUp()
         self.board.turn = Turn(1901, PhaseName.SPRING_RETREATS)
-        self.a_paris = self.board.create_unit(UnitType.ARMY,
+        self.a_paris = self.board.create_unit("A",
                                               self.players["France"],
                                               self.board.get_province("Paris"),
                                               None,
@@ -267,9 +277,9 @@ class TestViewOrdersBuilds(PlayerCogTestCase):
         """France orders builds → .view shows them."""
         self.builder.build(
             self.players["France"],
-            (UnitType.FLEET, "Brest"),
-            (UnitType.ARMY, "Paris"),
-            (UnitType.ARMY, "Marseilles"),
+            ("F", "Brest"),
+            ("A", "Paris"),
+            ("A", "Marseilles"),
         )
         ctx = create_mock_player_context(message_content=".view_orders")
         await self.invoke(self.cog, "view_orders", ctx, self.players["France"])
@@ -282,9 +292,9 @@ class TestViewOrdersBuilds(PlayerCogTestCase):
         """.view missing returns nothing when all builds are submitted."""
         self.builder.build(
             self.players["France"],
-            (UnitType.FLEET, "Brest"),
-            (UnitType.ARMY, "Paris"),
-            (UnitType.ARMY, "Marseilles"),
+            ("F", "Brest"),
+            ("A", "Paris"),
+            ("A", "Marseilles"),
         )
         ctx = create_mock_player_context(message_content=".view_orders missing")
         await self.invoke(self.cog, "view_orders", ctx, self.players["France"])
@@ -303,7 +313,7 @@ class TestViewOrdersPermissions(PlayerCogTestCase):
 
     def setUp(self):
         super().setUp()
-        self.builder.hold(self.players["France"], UnitType.ARMY, "Paris")
+        self.builder.hold(self.players["France"], "A", "Paris")
 
     async def test_gm_in_player_channel(self):
         """GM in France's channel sees only France's orders."""
@@ -381,12 +391,3 @@ class TestViewMap(PlayerCogTestCase):
         self.mock_send.assert_called()
         kwargs = self.get_sent_kwargs()
         self.assertFalse(kwargs["convert_svg"])
-
-    async def test_vm_svg_as_player_still_converts(self):
-        """Player passing 'svg' still gets convert_svg=True (only GM gets raw SVG)."""
-        ctx = create_mock_player_context(message_content=".vm svg")
-        await self.invoke(self.cog, "view_map", ctx, self.players["France"])
-
-        self.mock_send.assert_called()
-        kwargs = self.get_sent_kwargs()
-        self.assertTrue(kwargs["convert_svg"])

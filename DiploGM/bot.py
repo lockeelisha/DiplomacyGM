@@ -1,3 +1,4 @@
+"""Main bot class for DiploGM."""
 import asyncio
 import datetime
 import inspect
@@ -15,6 +16,7 @@ import discord
 from discord.ext import commands
 
 from DiploGM.events.base_listener import BaseListener
+from DiploGM.errors import NoGameError
 from DiploGM.config import (
     BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID,
     EMBED_STANDARD_COLOUR,
@@ -28,6 +30,7 @@ from DiploGM.config import (
 )
 from DiploGM.events.eventbus import EventBus
 from DiploGM.errors import CommandPermissionError
+from DiploGM.help import HelpCommand
 from DiploGM.utils import file_hexdigest, send_message_and_file
 from DiploGM.manager import Manager
 
@@ -58,8 +61,9 @@ WELCOME_MESSAGES = [
 
 
 class DiploGM(commands.Bot):
+    """Main bot class for DiploGM."""
     def __init__(self, command_prefix, intents):
-        super().__init__(command_prefix=command_prefix, intents=intents)
+        super().__init__(command_prefix=command_prefix, intents=intents, help_command=HelpCommand())
         self.creation_time = datetime.datetime.now(datetime.timezone.utc)
         self.last_command_time = None
 
@@ -67,9 +71,9 @@ class DiploGM(commands.Bot):
         # bind command invocation handling methods
         self.before_invoke(self.before_any_command)
         self.after_invoke(self.after_any_command)
+        self.tree.interaction_check = self.before_any_slash_command
 
-        current_servers = [g.id async for g in self.fetch_guilds()]
-        self.manager = Manager(board_ids=current_servers)
+        self.manager = Manager()
 
         self.eventbus = EventBus()
         for module_path in DiploGM.get_all_listeners():
@@ -86,16 +90,19 @@ class DiploGM(commands.Bot):
             logger.info("Loaded app commands: %s", [cmd.name for cmd in self.tree.get_commands()])
         except discord.app_commands.CommandAlreadyRegistered as e:
             logger.warning("Command already registered: %s", e)
-        except Exception as e:
+        except discord.HTTPException as e:
             logger.warning("Failed to sync commands: %s", e, exc_info=True)
 
     async def load_diplogm_extension(self, name: str, *, package: Optional[str] = None):
+        """Loads a DiploGM cog."""
         await self.load_extension(f"{_EXTENSION_PATH}{name}", package=package)
 
     async def unload_diplogm_extension(self, name: str, *, package: Optional[str] = None):
+        """Unloads a DiploGM cog."""
         await self.unload_extension(f"{_EXTENSION_PATH}{name}", package=package)
 
     async def reload_diplogm_extension(self, name: str, *, package: Optional[str] = None):
+        """Reloads a DiploGM cog. Will roll back to the previous version if it fails to load."""
         await self.reload_extension(f"{_EXTENSION_PATH}{name}", package=package)
 
     @staticmethod
@@ -116,7 +123,7 @@ class DiploGM(commands.Bot):
             start = datetime.datetime.now()
             await super().load_extension(f"{name}", package=package)
             logger.info("Successfully loaded Cog: %s in %s", name, datetime.datetime.now() - start)
-        except Exception as e:
+        except commands.ExtensionError as e:
             logger.info("Failed to load Cog %s", name)
             raise e
 
@@ -126,7 +133,7 @@ class DiploGM(commands.Bot):
             start = datetime.datetime.now()
             await super().unload_extension(f"{name}", package=package)
             logger.info("Successfully unloaded Cog: %s in %s", name, datetime.datetime.now() - start)
-        except Exception as e:
+        except commands.ExtensionError as e:
             logger.info("Failed to unload Cog %s", name)
             raise e
 
@@ -136,7 +143,7 @@ class DiploGM(commands.Bot):
             start = datetime.datetime.now()
             await super().reload_extension(f"{name}", package=package)
             logger.info("Successfully reloaded Cog: %s in %s", name, datetime.datetime.now() - start)
-        except Exception as e:
+        except commands.ExtensionError as e:
             logger.info("Failed to reload Cog %s", name)
             raise e
 
@@ -151,7 +158,7 @@ class DiploGM(commands.Bot):
     async def load_listener(self, bus: EventBus, module_path: str):
         try:
             module = importlib.import_module(module_path)
-        except Exception as e:
+        except ImportError as e:
             logger.error("Failed to import %s: %s", module_path, e)
             return
 
@@ -185,20 +192,19 @@ class DiploGM(commands.Bot):
 
         # Get the specific channel
         channel = self.get_channel(HUB_SERVER_BOT_STATUS_CHANNEL_ID)
-        if not channel or not isinstance(channel, discord.TextChannel):
+        if not channel or not isinstance(channel, discord.abc.Messageable):
             logger.warning("Cannot find Bot Status Channel [id=%s]", HUB_SERVER_BOT_STATUS_CHANNEL_ID)
         else:
             message = random.choice(WELCOME_MESSAGES)
             await send_message_and_file(channel=channel, message=message, embed_colour=EMBED_STANDARD_COLOUR)
             await self._post_changelog(channel)
-            
 
         # Set bot's presence (optional)
         await self.change_presence(activity=discord.Game(name=GAME_PLAYING))
 
-    async def _post_changelog(self, channel) -> None:
+    async def _post_changelog(self, channel: discord.abc.Messageable) -> None:
         def _get_recent_changelog(filepath: Path) -> tuple[str, str]:
-            with open(filepath) as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 lines = f.readlines()
 
             version = lines[0]
@@ -234,7 +240,9 @@ class DiploGM(commands.Bot):
 
         if changed:
             version, changes = _get_recent_changelog(changelog)
-            await send_message_and_file(channel=channel, embed_colour="#aabb00", title=f"Changelog Version: {version}\n___", message=changes)
+            await send_message_and_file(channel=channel,
+                                        embed_colour="#aabb00",
+                                        title=f"Changelog Version: {version}\n___", message=changes)
 
     async def close(self):
         logger.info("Shutting down gracefully.")
@@ -261,6 +269,7 @@ class DiploGM(commands.Bot):
         if isinstance(ctx.channel, (discord.DMChannel, discord.PartialMessageable)) or not ctx.guild:
             return
         assert isinstance(ctx.guild, discord.Guild)
+        await self.manager.ensure_board_loaded(ctx.guild.id)
 
         logger.debug(
             "[%s][#%s](%s) - '%s'",
@@ -274,6 +283,12 @@ class DiploGM(commands.Bot):
         # ctx.message.content = re.sub(r"[‘’`´′‛]", "'", ctx.message.content)
 
         asyncio.create_task(ctx.message.add_reaction("👍"))
+
+    async def before_any_slash_command(self, interaction: discord.Interaction) -> bool:
+        """Before any slash command, ensure the board is loaded."""
+        if interaction.guild:
+            await self.manager.ensure_board_loaded(interaction.guild.id)
+        return True
 
     async def after_any_command(self, ctx: commands.Context):
         """After any command, log the time taken to execute the command."""
@@ -314,12 +329,12 @@ class DiploGM(commands.Bot):
             # mark the message as failed
             await context.message.add_reaction("❌")
             await context.message.remove_reaction("👍", self.user)
-        except Exception:
+        except discord.HTTPException:
             # if reactions fail, ignore and continue handling existing exception
             pass
 
         if getattr(context, "handled", False):
-            logger.info(f"global on_command_error skipped a {type(exception)} that was previously handled...")
+            logger.info("global on_command_error skipped a %s that was previously handled...", type(exception))
             return
 
         time_spent = (
@@ -393,8 +408,15 @@ class DiploGM(commands.Bot):
             )
             return
 
-        # HACK: Seems really wrong to catch this here
-        # Just in the moment it seems like a lot of work to fix the RuntimeError raises throughout the project
+        if isinstance(original, NoGameError):
+            out = f"`{original}`\n"
+            await send_message_and_file(
+                channel=context.channel,
+                title="A game does not exist in this server.",
+                message=out,
+            )
+            return
+
         if isinstance(original, RuntimeError):
             out = f"`{original}`\n"
             await send_message_and_file(
@@ -435,7 +457,7 @@ class DiploGM(commands.Bot):
 
         # Out to Bot Dev Server
         bot_error_channel = self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID)
-        if bot_error_channel and isinstance(bot_error_channel, discord.TextChannel):
+        if bot_error_channel and isinstance(bot_error_channel, discord.abc.Messageable):
             channel_category = (context.channel.category
                                 if isinstance(context.channel, (discord.TextChannel, discord.Thread))
                                 else context.channel.id)
@@ -469,9 +491,11 @@ class DiploGM(commands.Bot):
         )
 
     async def on_guild_join(self, guild: discord.Guild):
-        channel = self.get_channel(HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID) or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID)
-        if channel is None:
-            logger.warning(f"Bot joined a Guild({guild.id}) but could not find a location to log to.")
+        """When the bot joins a new server, log it and report back to the hub server."""
+        channel = (self.get_channel(HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID)
+                   or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID))
+        if channel is None or not isinstance(channel, discord.abc.Messageable):
+            logger.warning("Bot joined a Guild(%s) but could not find a location to log to.", guild.id)
             return
 
         out = (
@@ -502,12 +526,17 @@ class DiploGM(commands.Bot):
         else:
             out += ("\n-- Inviter unidentified --")
 
-        await send_message_and_file(channel=channel, embed_colour="#00FF00", title="DiploGM joined a server", message=out)
+        await send_message_and_file(channel=channel,
+                                    embed_colour="#00FF00",
+                                    title="DiploGM joined a server",
+                                    message=out)
 
     async def on_guild_remove(self, guild: discord.Guild):
-        channel = self.get_channel(HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID) or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID)
-        if channel is None:
-            logger.warning(f"Bot was removed from Guild({guild.id}) but could not find a location to log to.")
+        """When the bot is removed from a server, log it and report back to the hub server."""
+        channel = (self.get_channel(HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID)
+                   or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID))
+        if channel is None or not isinstance(channel, discord.abc.Messageable):
+            logger.warning("Bot was removed from Guild(%s) but could not find a location to log to.", guild.id)
             return
 
         out = (

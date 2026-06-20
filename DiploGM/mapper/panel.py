@@ -47,7 +47,7 @@ class PanelDrawer:
         self._draw_side_panel_scoreboard(svg)
 
     def _draw_power_banner(self, power_element: Element, player: Player,
-                           banner_index: int, high_player_count: bool) -> bool:
+                           banner_index: int, high_player_count: bool, display_scs: bool) -> bool:
         if len(power_element) == 0:
             return False
         initial_pretransform_coordinates = TransGL3(power_element[0]).transform(get_coordinates(power_element[0]))
@@ -62,31 +62,41 @@ class PanelDrawer:
             return True
 
         MapperUtils.color_element(power_element[0], self.player_colors[player.name])
-        if self.board_svg_data.get("scoreboard", {}).get("sort", True):
-            new_translation = self.scoreboard_power_locations[banner_index] - initial_pretransform_coordinates
-            power_element.set("transform", f"translate({new_translation.real}, {new_translation.imag})")
+        sort_powers = self.board_svg_data.get("scoreboard", {}).get("sort", True)
+        sort_powers &= self.board.data.get("fow", "disabled") != "enabled" or self.restriction is None
+        if sort_powers:
+            original_trans = TransGL3(power_element)
+            translation = self.scoreboard_power_locations[banner_index] \
+                        - original_trans.transform(initial_pretransform_coordinates)
+            offset = TransGL3().init(x_c=translation.real, y_c=translation.imag)
+            power_element.set("transform", str(original_trans * offset))
 
         for index, value in self.board_svg_data["scoreboard"].get("indexes", {}).items():
-            if not index.isnumeric() or int(index) >= len(power_element):
+            if not index.isnumeric() or (i := int(index)) >= len(power_element):
                 continue
             if value == "__name__" and not high_player_count and not player_data.get("nickname"):
                 continue
 
             # Fix for Poland-Lithuanian Commonwealth
-            if index == 1 and len(power_element[index]) > 1:
-                power_element[index][1].text = ""
-                power_element[index].set("y", "237.67107")
-                power_element[index][0].set("y", "237.67107")
-                style = power_element[index].get("style")
+            if i == 1 and len(power_element[i]) > 1:
+                power_element[i][1].text = ""
+                power_element[i].set("y", "237.67107")
+                power_element[i][0].set("y", "237.67107")
+                style = power_element[i].get("style")
                 assert style is not None
                 style = re.sub(r"font-size:[0-9.]+px", "font-size:42.6667px", style)
-                power_element[index].set("style", style)
+                power_element[i].set("style", style)
 
+            score = str(len(player.centers)) if display_scs else "?"
             value = value.replace("__name__", player.get_name())
-            value = value.replace("__score__", str(len(player.centers)))
+            value = value.replace("__score__", score)
+            value = value.replace("__pct__", "{:.0f}%".format(self.board.get_score(player) * 100))
             value = value.replace("__iscc__", str(player_data["iscc"]))
-            value = value.replace("__vscc__", str(player_data["vscc"]))
-            power_element[int(index)][0].text = value
+            if self.board.data.get("victory_conditions", "classic") == "classic":
+                value = value.replace("__vscc__", str(self.board.data["victory_count"]))
+            else:
+                value = value.replace("__vscc__", str(player_data["vscc"]))
+            power_element[int(i)][0].text = value
         return True
 
     def _draw_side_panel_scoreboard(self, svg: ElementTree) -> None:
@@ -97,21 +107,15 @@ class PanelDrawer:
         if all_power_banners_element is None:
             return
 
-        if self.board.data.get("fow", "disabled") == "enabled" and self.restriction is not None:
-            # don't get info
-            players = sorted(self.board.get_players(), key=lambda sort_player: sort_player.name)
-        else:
-            players = self.board.get_players_sorted_by_score()
-        players = sorted(players, key=lambda hidden_player:
-                                  self.board.is_player_hidden(hidden_player))
-
         high_player_count = (len(self.board.get_players()) > len(self.scoreboard_power_locations)
-                             or self.board.data.get("vassals") == "enabled")
+                             or self.board.is_chaos())
         for i, player in enumerate(self.board.get_players_sorted_by_score()):
             if i >= len(self.scoreboard_power_locations):
                 break
             for power_element in all_power_banners_element:
-                if self._draw_power_banner(power_element, player, i, high_player_count):
+                display_scs = (self.board.data.get("fow", "disabled") != "enabled"
+                               or self.restriction in {player, None})
+                if self._draw_power_banner(power_element, player, i, high_player_count, display_scs):
                     break
 
     def _draw_side_panel_date(self, svg: ElementTree) -> None:

@@ -13,21 +13,22 @@ from DiploGM.utils import (
     send_message_and_file,
 )
 from DiploGM.manager import Manager
-from DiploGM.utils.sanitise import remove_prefix
 
 logger = logging.getLogger(__name__)
 manager = Manager()
 
-async def create_game(ctx: commands.Context) -> None:
+async def create_game(ctx: commands.Context, *args) -> None:
     """Create a new game for the server."""
     assert ctx.guild is not None
-    gametype = remove_prefix(ctx)
-    if gametype == "":
+    args = [arg.lower() for arg in args]
+    if len(args) == 0 or args[0] in {"fow", "chaos"}:
         gametype = "classic"
     else:
-        gametype = gametype.removeprefix(" ")
+        gametype = args[0]
+    fow = "fow" in args
+    chaos = "chaos" in args
 
-    success, message = manager.create_game(ctx.guild.id, gametype)
+    success, message = manager.create_game(ctx.guild.id, gametype, fow=fow, chaos=chaos)
 
     welcome_message = "Welcome to the game!\n" + \
         "To submit orders, use the .order command, entering one order per line.\n" + \

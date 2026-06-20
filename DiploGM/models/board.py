@@ -9,11 +9,11 @@ from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from rapidfuzz.distance import DamerauLevenshtein
 
+from DiploGM.models.adjacency import Terrain
 from DiploGM.models.order import NMR, Move, Hold, Support, ConvoyTransport, Core, Transform, RetreatMove, RetreatDisband
-from DiploGM.models.province import ProvinceType
 from DiploGM.models.unit import Unit, UnitType, DPAllocation
 from DiploGM.models.turn import Turn
-from DiploGM.utils.sanitise import parse_variant_path, sanitise_name, simple_player_name
+from DiploGM.utils.sanitise import parse_variant_path, remove_special_characters, sanitise_name, simple_player_name
 
 if TYPE_CHECKING:
     from DiploGM.models.player import Player
@@ -29,6 +29,7 @@ class Board:
         self,
         players: set[Player],
         provinces: set[Province],
+        unit_types: dict[str, UnitType],
         units: set[Unit],
         turn: Turn,
         data: dict,
@@ -36,6 +37,7 @@ class Board:
     ):
         self.players: set[Player] = players
         self.provinces: set[Province] = provinces
+        self.unit_types: dict[str, UnitType] = unit_types
         self.units: set[Unit] = units
         self.turn: Turn = turn
         self.board_id = 0
@@ -56,9 +58,10 @@ class Board:
         self.name_to_province: Dict[str, Province] = {}
         self.name_to_coast: Dict[str, tuple[Province, str | None]] = {}
         for location in self.provinces:
-            self.name_to_province[location.name.lower()] = location
-            for coast in location.get_multiple_coasts():
-                self.name_to_coast[location.get_name(coast)] = (location, coast)
+            filtered_name = remove_special_characters(location.name)
+            self.name_to_province[filtered_name] = location
+            for coast in location.adjacencies.coasts:
+                self.name_to_coast[remove_special_characters(location.get_name(coast))] = (location, coast)
 
         for player in self.players:
             player.board = self
@@ -79,8 +82,9 @@ class Board:
         if "vscc" not in self.data["players"][name]:
             self.set_data(["players", name, "vscc"], self.data["victory_count"])
 
-    def run_variant_scripts(self):
-        """Runs the variant's scripts.py if it exists, in a sandboxed environment."""
+    def run_variant_scripts(self) -> str | None:
+        """Runs the variant's scripts.py if it exists, in a sandboxed environment.
+        The script can set a 'message' variable to return a string as desired."""
         variant_path = parse_variant_path(self.datafile)
         scripts_path = os.path.join(variant_path, "scripts.py")
         if os.path.isfile(scripts_path):
@@ -88,6 +92,10 @@ class Board:
                 script_code = f.read()
             allowed_globals = {"__builtins__": __builtins__, "board": self}
             exec(compile(script_code, scripts_path, "exec"), allowed_globals)
+            message = allowed_globals.get("message")
+            if isinstance(message, str):
+                return message
+        return None
 
     def update_players(self):
         """Goes through the datafile and adds any missing players/nicknames."""
@@ -153,8 +161,8 @@ class Board:
         if self.data["victory_conditions"] == "classic":
             return len(player.centers) / int(self.data["victory_count"])
         if self.data["victory_conditions"] == "vscc":
-            if (centers:= len(player.centers)) > (iscc := int(self.data["players"][player.name]["iscc"])):
-                return (centers - iscc) / (int(self.data["players"][player.name]["vscc"]) - iscc)
+            if (centers:= len(player.centers)) > (iscc := int(self.data["players"][player.name].get("iscc", 1))):
+                return (centers - iscc) / (int(self.data["players"][player.name].get("vscc", self.data["victory_count"])) - iscc)
             return (centers / iscc) - 1
         raise ValueError("Unknown scoring system found")
 
@@ -165,12 +173,15 @@ class Board:
                                     -self.get_score(sort_player),
                                     sort_player.get_name().lower()))
 
-    def get_players_sorted_by_points(self) -> list[Player]:
-        """Gets a list of players sorted by their points."""
-        return sorted(self.get_players(),
-            key=lambda sort_player: (-sort_player.points,
-                                    -len(sort_player.centers),
-                                    sort_player.get_name().lower()))
+    def fetch_unit_types(self) -> dict[str, UnitType]:
+        """Gets a dictionary of unit types, with keys being the unit code, name, and aliases."""
+        str_to_unit_type = {}
+        for unit_type in self.unit_types.values():
+            str_to_unit_type[unit_type.code.lower()] = unit_type
+            str_to_unit_type[unit_type.name.lower()] = unit_type
+            for alias in unit_type.aliases:
+                str_to_unit_type[alias.lower()] = unit_type
+        return str_to_unit_type
 
     def get_province(self, name: str) -> Province:
         """Gets a province by its name, ignoring coasts."""
@@ -180,12 +191,9 @@ class Board:
     def get_province_and_coast(self, name: str) -> tuple[Province, str | None]:
         """Given a string, attempts to find a matching province and coast.
         If an exact match is not found, will see if any provinces being with the string."""
-        # FIXME: This should not be raising exceptions many places already assume it returns None on failure.
         # TODO: (BETA) we build this everywhere, let's just have one live on the Board on init
         # we ignore capitalization because this is primarily used for user input
-        # People input apostrophes that don't match what the province names are
-        name = re.sub(r"[‘’`´′‛]", "'", name)
-        name = name.lower()
+        name = remove_special_characters(name)
 
         # Legacy back-compatibility for coasts
         if name.endswith(" coast") and name not in self.name_to_province:
@@ -208,35 +216,24 @@ class Board:
                 f'The location {name} is ambiguous. Possible matches: ' +
                 f'{", ".join([loc[0].name for loc in potential_locations])}.'
             )
-        elif len(potential_locations) == 0:
+        if len(potential_locations) == 0:
             suggestion = self._suggest_province(name)
             message = f"The location {name} does not match any known provinces."
             if suggestion:
                 message += f" {suggestion}"
             raise ValueError(message)
-        else:
-            return potential_locations[0]
+        return potential_locations[0]
 
     def get_visible_provinces(self, player: Player) -> set[Province]:
         """Gets a set of provinces that a player can see in Fog of War games."""
         visible: set[Province] = set()
-        for province in self.provinces:
-            for unit in player.units:
-                if (unit.unit_type == UnitType.ARMY
-                    and province in unit.province.adjacency_data.adjacent
-                    and province.type != ProvinceType.SEA):
-                    visible.add(province)
+        visible = {p for unit in player.units
+                     for p in unit.province.adjacencies.get_all(unit.unit_type.moves_on, unit.coast)}
 
-                if (unit.unit_type == UnitType.FLEET
-                    and unit.province.is_coastally_adjacent((province, None), unit.coast)):
-                    visible.add(province)
-
-        for unit in player.units:
-            visible.add(unit.province)
-
+        visible.update(unit.province for unit in player.units)
         for province in player.centers:
             if province.core_data.core == player:
-                visible.update(province.adjacency_data.adjacent)
+                visible.update(province.adjacencies.get_all())
             visible.add(province)
 
         return visible
@@ -248,7 +245,7 @@ class Board:
             if re.search(pattern, province.name.lower()):
                 matches.append((province, None))
             else:
-                matches += [(province, coast) for coast in province.get_multiple_coasts()
+                matches += [(province, coast) for coast in province.adjacencies.coasts
                             if re.search(pattern, province.get_name(coast).lower())]
         return matches
 
@@ -285,8 +282,13 @@ class Board:
         close = [display for dist, display in candidates if dist <= best_dist + CONFIDENT_GAP][:3]
         return f"Did you mean one of: {', '.join(close)}?"
 
-    def change_owner(self, province: Province, player: Player | None):
+    def change_owner(self, province: Province, player: Player | None, force_change: bool = False):
         """Changes the owner of a province, including supply center, if applicable."""
+        would_claim = (province.unit is not None
+                       and province.unit.unit_type.can_capture
+                       and (not province.has_supply_center or self.turn.is_fall()))
+        if not (force_change or would_claim):
+            return
         if province.has_supply_center:
             if province.owner:
                 province.owner.centers.remove(province)
@@ -296,18 +298,22 @@ class Board:
 
     def create_unit(
         self,
-        unit_type: UnitType,
+        unit_type: UnitType | str,
         player: Player | None,
         province: Province,
         coast: str | None,
         retreat_options: set[tuple[Province, str | None]] | None,
     ) -> Unit:
         """Creates a new unit on the board."""
-        if (unit_type == UnitType.FLEET
-            and province.get_multiple_coasts()
-            and coast not in province.get_multiple_coasts()):
+        if isinstance(unit_type, str):
+            if unit_type.strip()[0].upper() not in self.unit_types:
+                raise ValueError(f"Unit type {unit_type} not found")
+            unit_type = self.unit_types[unit_type.strip()[0].upper()]
+        if (Terrain.COAST in unit_type.moves_on
+            and province.adjacencies.coasts
+            and coast not in province.adjacencies.coasts):
             raise RuntimeError(f"Cannot create unit. Province '{province.name}' requires a valid coast.")
-        if not province.get_multiple_coasts():
+        if not province.adjacencies.coasts:
             coast = None
         unit = Unit(unit_type, player, province, coast)
         if retreat_options is not None:
@@ -444,7 +450,7 @@ class Board:
 
     def is_chaos(self) -> bool:
         """Checks to see if this is a Chaos game."""
-        return self.data["players"] == "chaos"
+        return self.data["players"] == "chaos" or self.data.get("chaos") == "enabled"
 
     def parse_order(self, order_type: str, destination: Optional[str], source: Optional[str]) -> Optional[UnitOrder]:
         """Given an order type and source/destination strings, attempts to parse it into an Order object."""
@@ -452,13 +458,15 @@ class Board:
             NMR, Hold, Core, Transform, Move, ConvoyTransport, Support,
             RetreatMove, RetreatDisband
             ]
+        if order_type == "ConvoyMove":
+            order_type = "Move"
         order_class = next(
             _class
             for _class in order_classes
             if _class.__name__ == order_type
         )
         source_province, destination_province, destination_coast = None, None, None
-        if destination is not None:
+        if destination:
             if len(destination) == 2 and destination[1] == "c":
                 destination_coast = destination
             else:
@@ -491,7 +499,7 @@ class Board:
 
         def export_unit(u: Unit) -> dict:
             result: dict = {
-                "type": u.unit_type.value,
+                "type": u.unit_type.code,
             }
             add_if_exists(result, "owner", u.player)
             add_if_exists(result, "coast", u.coast)

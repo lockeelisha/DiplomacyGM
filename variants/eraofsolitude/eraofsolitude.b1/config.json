@@ -36,6 +36,7 @@
   "victory_conditions": "classic",
   "victory_count": 20,
   "convoyable_islands": "enabled",
+  "expected_loops": 2,
   "overrides": {
     "provinces": {
       "Arak": {

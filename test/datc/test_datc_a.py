@@ -1,14 +1,14 @@
+"""DATC A: TEST CASES, BASIC CHECKS"""
 import unittest
 
-from DiploGM.models.unit import UnitType
 from test.utils import BoardBuilder
 
 # These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with
 # https://github.com/diplomacy/diplomacy/blob/master/diplomacy/tests/test_datc.py being used as a reference as well.
 
 # 6.A. TEST CASES, BASIC CHECKS
-class TestDATC_A(unittest.TestCase):
-
+class TestDatcA(unittest.TestCase):
+    """DATC A: TEST CASES, BASIC CHECKS"""
     def test_6_a_1(self):
         """ 6.A.1 TEST CASE, MOVING TO AN AREA THAT IS NOT A NEIGHBOUR
             Check if an illegal move (without convoy) will fail.
@@ -16,7 +16,7 @@ class TestDATC_A(unittest.TestCase):
             Order should fail.
         """
         b = BoardBuilder()
-        f_north_sea = b.move(b.players["England"], UnitType.FLEET, "North Sea", "Picardy")
+        f_north_sea = b.move(b.players["England"], "F", "North Sea", "Picardy")
 
         b.assert_illegal(f_north_sea)
         b.moves_adjudicate(self)
@@ -28,9 +28,9 @@ class TestDATC_A(unittest.TestCase):
             Order should fail.
         """
         b = BoardBuilder()
-        f_liverpool = b.move(b.players["England"], UnitType.ARMY, "Liverpool", "Irish Sea")
+        a_liverpool = b.move(b.players["England"], "A", "Liverpool", "Irish Sea")
 
-        b.assert_illegal(f_liverpool)
+        b.assert_illegal(a_liverpool)
         b.moves_adjudicate(self)
 
     def test_6_a_3(self):
@@ -40,7 +40,7 @@ class TestDATC_A(unittest.TestCase):
             Order should fail.
         """
         b = BoardBuilder()
-        f_kiel = b.move(b.players["Germany"], UnitType.FLEET, "Kiel", "Munich")
+        f_kiel = b.move(b.players["Germany"], "F", "Kiel", "Munich")
         b.assert_illegal(f_kiel)
         b.moves_adjudicate(self)
 
@@ -52,7 +52,7 @@ class TestDATC_A(unittest.TestCase):
             Program should not crash.
         """
         b = BoardBuilder()
-        f_kiel = b.move(b.players["Germany"], UnitType.FLEET, "Kiel", "Kiel")
+        f_kiel = b.move(b.players["Germany"], "F", "Kiel", "Kiel")
 
         b.assert_illegal(f_kiel)
         b.moves_adjudicate(self)
@@ -70,17 +70,18 @@ class TestDATC_A(unittest.TestCase):
             the support, the Germans have a stronger force. The army in London dislodges the army in Yorkshire.
         """
         b = BoardBuilder()
-        a_yorkshire = b.move(b.players["England"], UnitType.ARMY, "Yorkshire", "Yorkshire")
+        a_yorkshire = b.move(b.players["England"], "A", "Yorkshire", "Yorkshire")
         f_north_sea = b.convoy(b.players["England"], "North Sea", a_yorkshire, "Yorkshire")
-        a_liverpool = b.support_move(b.players["England"], UnitType.ARMY, "Liverpool", a_yorkshire, "Yorkshire")
-        f_london = b.move(b.players["Germany"], UnitType.FLEET, "London", "Yorkshire")
-        b.support_move(b.players["Germany"], UnitType.ARMY, "Wales", f_london, "Yorkshire")
+        a_liverpool = b.support_move(b.players["England"], "A", "Liverpool", a_yorkshire, "Yorkshire")
+        f_london = b.move(b.players["Germany"], "F", "London", "Yorkshire")
+        b.support_move(b.players["Germany"], "A", "Wales", f_london, "Yorkshire")
 
         b.assert_illegal(a_yorkshire, f_north_sea, a_liverpool)
         b.assert_success(f_london)
         b.moves_adjudicate(self)
 
     # NOT APPLICABLE 6_a_6; TEST CASE, ORDERING A UNIT OF ANOTHER COUNTRY
+    # This is handled by the order parser instead
 
     def test_6_a_7(self):
         """ 6.A.7. TEST CASE, ONLY ARMIES CAN BE CONVOYED
@@ -90,7 +91,7 @@ class TestDATC_A(unittest.TestCase):
             Move from London to Belgium should fail.
         """
         b = BoardBuilder()
-        f_london = b.move(b.players["England"], UnitType.FLEET, "London", "Belgium")
+        f_london = b.move(b.players["England"], "F", "London", "Belgium")
         f_north_sea = b.convoy(b.players["England"], "North Sea", f_london, "Belgium")
 
         b.assert_illegal(f_london, f_north_sea)
@@ -105,10 +106,10 @@ class TestDATC_A(unittest.TestCase):
             The army in Trieste should be dislodged.
         """
         b = BoardBuilder()
-        a_venice = b.move(b.players["Italy"], UnitType.ARMY, "Venice", "Trieste")
-        b.support_move(b.players["Italy"], UnitType.ARMY, "Tyrolia", a_venice, "Trieste")
+        a_venice = b.move(b.players["Italy"], "A", "Venice", "Trieste")
+        b.support_move(b.players["Italy"], "A", "Tyrolia", a_venice, "Trieste")
         f_trieste = b.fleet("Trieste", b.players["Austria"])
-        f_trieste = b.support_hold(b.players["Austria"], UnitType.FLEET, "Trieste", f_trieste)
+        f_trieste = b.support_hold(b.players["Austria"], "F", "Trieste", f_trieste)
 
         b.assert_dislodge(f_trieste)
         b.moves_adjudicate(self)
@@ -121,7 +122,7 @@ class TestDATC_A(unittest.TestCase):
             Move fails. An army can go from Rome to Venice, but a fleet can not.
         """
         b = BoardBuilder()
-        f_rome = b.move(b.players["Italy"], UnitType.FLEET, "Rome", "Venice")
+        f_rome = b.move(b.players["Italy"], "F", "Rome", "Venice")
 
         b.assert_illegal(f_rome)
         b.moves_adjudicate(self)
@@ -136,9 +137,9 @@ class TestDATC_A(unittest.TestCase):
             Venice is not dislodged.
         """
         b = BoardBuilder()
-        a_venice = b.hold(b.players["Austria"], UnitType.ARMY, "Venice")
-        a_apulia = b.move(b.players["Austria"], UnitType.ARMY, "Apulia", "Venice")
-        f_rome = b.support_move(b.players["Italy"], UnitType.FLEET, "Rome", a_apulia, "Venice")
+        a_venice = b.hold(b.players["Austria"], "A", "Venice")
+        a_apulia = b.move(b.players["Austria"], "A", "Apulia", "Venice")
+        f_rome = b.support_move(b.players["Italy"], "F", "Rome", a_apulia, "Venice")
 
         b.assert_illegal(f_rome)
         b.assert_fail(a_apulia)
@@ -153,8 +154,8 @@ class TestDATC_A(unittest.TestCase):
             The two units bounce.
         """
         b = BoardBuilder()
-        a_vienna = b.move(b.players["Austria"], UnitType.ARMY, "Vienna", "Tyrolia")
-        a_venice = b.move(b.players["Italy"], UnitType.ARMY, "Venice", "Tyrolia")
+        a_vienna = b.move(b.players["Austria"], "A", "Vienna", "Tyrolia")
+        a_venice = b.move(b.players["Italy"], "A", "Venice", "Tyrolia")
 
         b.assert_fail(a_vienna)
         b.assert_fail(a_venice)
@@ -170,9 +171,9 @@ class TestDATC_A(unittest.TestCase):
             The three units bounce.
         """
         b = BoardBuilder()
-        a_vienna = b.move(b.players["Austria"], UnitType.ARMY, "Vienna", "Tyrolia")
-        a_venice = b.move(b.players["Italy"], UnitType.ARMY, "Venice", "Tyrolia")
-        a_munich = b.move(b.players["Germany"], UnitType.ARMY, "Munich", "Tyrolia")
+        a_vienna = b.move(b.players["Austria"], "A", "Vienna", "Tyrolia")
+        a_venice = b.move(b.players["Italy"], "A", "Venice", "Tyrolia")
+        a_munich = b.move(b.players["Germany"], "A", "Munich", "Tyrolia")
 
         b.assert_fail(a_vienna)
         b.assert_fail(a_venice)

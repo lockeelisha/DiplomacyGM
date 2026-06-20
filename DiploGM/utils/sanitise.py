@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import os
 import re
+from discord.ext import commands
+from packaging.version import Version, InvalidVersion
 from typing import Optional, Sequence, TYPE_CHECKING
 
 from DiploGM.models.turn import PhaseName, Turn
-from DiploGM.models.unit import UnitType
-from discord.ext import commands
 
 if TYPE_CHECKING:
     import discord
@@ -20,20 +20,15 @@ coast_dict = {
     "wc": ["wc", "west coast", "(wc)"],
 }
 
-ARMY = "army"
-FLEET = "fleet"
-
-unit_dict = {
-    ARMY: ["a", "army", "cannon"],
-    FLEET: ["f", "fleet", "boat", "ship"],
-}
-
 def sanitise_name(name: str) -> str:
     """Removes apostrophes and replaces hyphens with spaces."""
     name = re.sub(r"[‘’`´′‛.']", "", name)
     name = re.sub(r"-", " ", name)
     return name
 
+def remove_special_characters(name: str) -> str:
+    """Removes all special characters from a string and makes it lowercase."""
+    return re.sub(r"[^a-zA-Z0-9\s]", "", name).lower()
 
 # I'm sorry this is a bad function name. I couldn't think of anything better and I'm in a rush
 def simple_player_name(name: str) -> str:
@@ -44,7 +39,7 @@ def simple_player_name(name: str) -> str:
 def get_keywords(command: str) -> list[str]:
     """Command is split by whitespace with '_' representing whitespace in a concept to be stuck in one word.
     e.g. 'A New_York - Boston' becomes ['A', 'New York', '-', 'Boston']"""
-    keywords = command.split(" ")
+    keywords = command.split()
     for i, _ in enumerate(keywords):
         for j, _ in enumerate(keywords[i]):
             if keywords[i][j] == "_":
@@ -67,17 +62,6 @@ def _manage_coast_signature(keyword: str) -> str:
             new_suffix = f" {coast_key}"
             keyword += f" {new_suffix}"
     return keyword
-
-
-def get_unit_type(command: str) -> UnitType | None:
-    """Gets the unit type from its string."""
-    command = command.strip()
-    if command in unit_dict[ARMY]:
-        return UnitType.ARMY
-    if command in unit_dict[FLEET]:
-        return UnitType.FLEET
-    return None
-
 
 def parse_season(
     arguments: list[str], default_turn: Turn
@@ -142,10 +126,16 @@ def find_discord_role(user: Player,
 
 def parse_variant_path(variant: str, as_filename: bool = True, return_parent: bool = False) -> str:
     """Parses the variant path to get the correct path for the parser."""
+    def _version_key(v: str) -> Version:
+        try:
+            return Version(v.split(".", 1)[1])
+        except (InvalidVersion, IndexError):
+            return Version("0")
+
     if os.path.isdir(f"variants/{variant}"):
         if return_parent:
             return f"variants/{variant}"
-        variant_list = sorted(os.listdir(f"variants/{variant}"), reverse=True)
+        variant_list = sorted(os.listdir(f"variants/{variant}"), key=_version_key, reverse=True)
         for v in variant_list:
             if os.path.isdir(f"variants/{variant}/{v}") and os.path.isfile(f"variants/{variant}/{v}/config.json"):
                 return f"variants/{variant}/{v}" if as_filename else v
@@ -168,6 +158,7 @@ def get_colour_option(board, args) -> str | None:
     """Gets the colour option from the arguments, defaulting to None."""
     color_options: list[str] = board.data["svg config"].get("color_options", ["standard"])
     color_options.append("custom")
+    color_options.append("random")
     if (color_arguments := list(set(color_options) & set(args))):
         return color_arguments[0]
     return None

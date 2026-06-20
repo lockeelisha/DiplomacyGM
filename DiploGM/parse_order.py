@@ -9,18 +9,27 @@ from lark import Lark, Transformer, UnexpectedEOF, UnexpectedCharacters, v_args
 from lark.exceptions import VisitError
 
 from DiploGM.config import ERROR_COLOUR, PARTIAL_ERROR_COLOUR
-from DiploGM.utils import get_unit_type, _manage_coast_signature
+from DiploGM.models.adjacency import Terrain
+from DiploGM.utils import _manage_coast_signature
 from DiploGM.models import order
 from DiploGM.models.board import Board
 from DiploGM.models.player import Player
 from DiploGM.models.province import Province
-from DiploGM.models.unit import DPAllocation, Unit, UnitType
+from DiploGM.models.unit import DPAllocation, Unit
 
 logger = logging.getLogger(__name__)
 
 @v_args(inline=True)
 class TreeToOrder(Transformer):
     """The order parser. Each function takes in tokens (sans whitespace) as arguments."""
+    def __init__(self):
+        super().__init__()
+        self.board: Board
+        self.build_options: str = "classic"
+        self.transform_options: str = "disabled"
+        self.dp_options: str = "disabled"
+        self.player_restriction: Player | None = None
+
     def set_state(self, board: Board, player_restriction: Player | None):
         """Passes the board information into the parser."""
         self.board = board
@@ -109,22 +118,21 @@ class TreeToOrder(Transformer):
         """Build order, of the form Build [Unit Type] [Province] or Build [Province] [Unit Type]."""
         if isinstance(a, tuple) and isinstance(b, str):
             province, coast = a
-            unit_type = b
+            unit_type_string = b.strip()
         elif isinstance(a, str) and isinstance(b, tuple):
             province, coast = b
-            unit_type = a
+            unit_type_string = a.strip()
         else:
             raise ValueError("Invalid build order format")
 
-        unit_type = get_unit_type(unit_type)
-        if unit_type is None:
-            raise ValueError(f"{unit_type} isn't a valid unit type")
+        if (unit_type := self.board.fetch_unit_types().get(unit_type_string)) is None:
+            raise ValueError(f"{unit_type_string} isn't a valid unit type")
 
         if not province.has_supply_center:
             raise ValueError(f"{province} does not have a supply center.")
-        if (unit_type == UnitType.FLEET
-            and province.get_multiple_coasts()
-            and coast not in province.get_multiple_coasts()):
+        if (Terrain.COAST in unit_type.moves_on
+            and province.adjacencies.coasts
+            and coast not in province.adjacencies.coasts):
             raise ValueError(f"You did not specify a coast for {province}")
         if self.player_restriction:
             if province.owner != self.player_restriction:
@@ -165,78 +173,6 @@ class TreeToOrder(Transformer):
             raise ValueError("Please order waives in the appropriate player's orders channel.")
         return None, self.player_restriction, order.Waive(int(waive_num))
 
-    def vassal_order(self, a: Province | str, b: Province | str) -> tuple[Player, Player, order.Vassal]:
-        """Vassal order, of the form Vassalize [Province] or [Province] Vassalize."""
-        if isinstance(a, Province) and isinstance(b, str):
-            province = a
-        elif isinstance(a, str) and isinstance(b, Province):
-            province = b
-        else:
-            raise ValueError("Invalid vassal order format")
-        referenced_player = None
-        for player in self.board.players:
-            if player.name == province.name:
-                referenced_player = player
-        if referenced_player is None:
-            raise ValueError(f"{province.name} doesn't match the name of any player")
-        if self.player_restriction is None:
-            raise ValueError("A vassal_order currently must be made in a orders channel due to ambiguity")
-        return referenced_player, self.player_restriction, order.Vassal(referenced_player)
-
-    def liege_order(self, a: Province | str, b: Province | str) -> tuple[Player, Player, order.Liege]:
-        """Liege order, of the form Allegiance [Province] or [Province] Allegiance."""
-        if isinstance(a, Province) and isinstance(b, str):
-            province = a
-        elif isinstance(a, str) and isinstance(b, Province):
-            province = b
-        else:
-            raise ValueError("Invalid liege order format")
-        referenced_player = None
-        for player in self.board.players:
-            if player.name == province.name:
-                referenced_player = player
-        if referenced_player is None:
-            raise ValueError(f"{province.name} doesn't match the name of any player")
-        if self.player_restriction is None:
-            raise ValueError("A liege_order currently must be made in a orders channel due to ambiguity")
-        return referenced_player, self.player_restriction, order.Liege(referenced_player)
-
-    def monarchy_order(self, a: Province | str, b: Province | str) -> tuple[Player, Player, order.DualMonarchy]:
-        """Dual Monarchy order, of the form Monarchy [Province] or [Province] Monarchy."""
-        if isinstance(a, Province) and isinstance(b, str):
-            province = a
-        elif isinstance(a, str) and isinstance(b, Province):
-            province = b
-        else:
-            raise ValueError("Invalid dual monarchy order format")
-        referenced_player = None
-        for player in self.board.players:
-            if player.name == province.name:
-                referenced_player = player
-        if referenced_player is None:
-            raise ValueError(f"{province.name} doesn't match the name of any player")
-        if self.player_restriction is None:
-            raise ValueError("A dual_monarchy_order currently must be made in a orders channel due to ambiguity")
-        return referenced_player, self.player_restriction, order.DualMonarchy(referenced_player)
-
-    def disown_order(self, a: Province | str, b: Province | str) -> tuple[Player, Player, order.Disown]:
-        """Disown order, of the form Disown [Province] or [Province] Disown."""
-        if isinstance(a, Province) and isinstance(b, str):
-            province = a
-        elif isinstance(a, str) and isinstance(b, Province):
-            province = b
-        else:
-            raise ValueError("Invalid disown order format")
-        referenced_player = None
-        for player in self.board.players:
-            if player.name == province.name:
-                referenced_player = player
-        if referenced_player is None:
-            raise ValueError(f"{province.name} doesn't match the name of any player")
-        if self.player_restriction is None:
-            raise ValueError("A disown_order currently must be made in a orders channel due to ambiguity")
-        return referenced_player, self.player_restriction, order.Disown(referenced_player)
-
     def build(self, order_data: tuple[Province | Player, Player, order.Order]) -> Province | Player:
         """Handles winter builds orders, taking in a tuple of what was returned by the above."""
         target, player, player_order = order_data
@@ -247,18 +183,9 @@ class TreeToOrder(Transformer):
         elif isinstance(player_order, order.PlayerOrder) and isinstance(target, Province):
             remove_player_order_for_province(player, target)
             player.build_orders.add(player_order)
-        elif isinstance(player_order, order.RelationshipOrder) and isinstance(target, Player):
-            remove_relationship_order(player_order, player)
-            player.vassal_orders[target] = player_order
         else:
             raise ValueError("Invalid build order data")
         return target
-
-    def defect_order(self, _) -> tuple[Player, Player, order.Defect]:
-        """Defect order, which doesn't need any arguments."""
-        if self.player_restriction is None or self.player_restriction.liege is None:
-            raise ValueError("No liege to defect from!")
-        return self.player_restriction.liege, self.player_restriction, order.Defect(self.player_restriction.liege)
 
     def non_build_order(self, _) -> None:
         """Handles when someone tries to issue a non-build order during builds."""
@@ -339,29 +266,44 @@ class TreeToOrder(Transformer):
         return unit
 
 generator = TreeToOrder()
-
+parser_cache: dict[str, Lark] = {}
 with open("DiploGM/orders.ebnf", "r", encoding="utf-8") as f:
     ebnf = f.read()
 
-movement_parser = Lark(ebnf, start="order", parser="earley")
-retreats_parser = Lark(ebnf, start="retreat", parser="earley")
-builds_parser   = Lark(ebnf, start="build", parser="earley")
+def _get_parser(board: Board) -> Lark:
+    cache_key = f"{board.datafile}:{board.turn.phase}:{''.join(sorted(board.unit_types.keys()))}"
+    if cache_key in parser_cache:
+        return parser_cache[cache_key]
+    unit_strings = board.fetch_unit_types().keys()
+    ebnf_with_units = ebnf.replace("{{UNIT_TYPE_STRINGS}}", "|".join(unit_strings))
+    unit_codes = [unit_type.code.lower() for unit_type in board.unit_types.values()]
+    unit_codes.extend([c.upper() for c in unit_codes])
+    ebnf_with_units = ebnf_with_units.replace("{{UNIT_TYPE_CODES}}", "".join(unit_codes))
+    start = "order" if board.turn.is_moves() else "retreat" if board.turn.is_retreats() else "build"
+    parser = Lark(ebnf_with_units, start=start, parser="earley")
+    parser_cache[cache_key] = parser
+    return parser
 
 def _check_for_warnings(unit: Unit) -> str | None:
     if isinstance(unit.order, (order.Move, order.RetreatMove)):
-        if unit.order.destination not in unit.province.adjacency_data.adjacent:
+        if not unit.province.adjacencies.get(unit.order.destination):
             return "This move is not to an adjacent province. This will fail unless there is a convoy."
-        if (unit.unit_type == UnitType.FLEET
-            and unit.order.destination.get_multiple_coasts()
+        if (Terrain.COAST in unit.unit_type.moves_on
+            and unit.order.destination.adjacencies.coasts
             and not unit.order.destination_coast):
-            return "Destination province has multiple coasts. " + \
-                   "This might cause your order to fail if the fleet can reach more than one."
+            reachable_coasts = unit.province.adjacencies.get_coasts(unit.order.destination, unit.coast)
+            if len(reachable_coasts) > 1:
+                return "Destination province has multiple reachable coasts, so this order will fail."
+            if reachable_coasts:
+                unit.order.destination_coast = reachable_coasts.pop()
+                return "Destination province has one reachable coast. " + \
+                      f"Assigning {unit.order.destination_coast} as the destination coast."
     if isinstance(unit.order, order.Support):
-        if unit.order.destination not in unit.province.adjacency_data.adjacent:
+        if not unit.province.adjacencies.get(unit.order.destination):
             return "This support is not to an adjacent province and will fail."
         if (unit.order.source != unit.order.destination
-            and unit.order.destination not in unit.order.source.adjacency_data.adjacent):
-            return "This support is is between two non-adjacent provinces, and will fail unless there is a convoy."
+            and not unit.order.source.adjacencies.get(unit.order.destination)):
+            return "This support is between two non-adjacent provinces, and will fail unless there is a convoy."
     return None
 
 def _handle_individual_order(current_order: str,
@@ -405,19 +347,7 @@ def parse_order(message: str, player_restriction: Player | None, board: Board) -
     orderoutput = []
     warnings = []
     errors = []
-    if board.turn.is_moves():
-        parser = movement_parser
-    elif board.turn.is_retreats():
-        parser = retreats_parser
-    elif board.turn.is_builds():
-        parser = builds_parser
-    else:
-        return {
-            "message": "The game is in an unknown phase. "
-                       "Something has gone very wrong with the bot. "
-                       "Please report this to a gm",
-            "embed_colour": ERROR_COLOUR,
-        }
+    parser = _get_parser(board)
 
     generator.set_state(board, player_restriction)
     for current_order in orderlist:
@@ -487,7 +417,7 @@ def parse_remove_order(message: str, player_restriction: Player | None, board: B
                 updated_units.add(removed)
             elif isinstance(removed, str):
                 provinces_with_removed_builds.add(removed)
-        except Exception as error:
+        except (ValueError, RuntimeError) as error:
             invalid.append((command, error))
 
     if not invalid:
@@ -505,25 +435,11 @@ def parse_remove_order(message: str, player_restriction: Player | None, board: B
 
 def _parse_remove_order(command: str, player_restriction: Player | None, board: Board) -> Player | Unit | str:
     command = command.lower().strip()
-    components = command.split(" ")
-    if components[0] in ["a", "f", "army", "fleet"]:
-        command = " ".join(components[1:])
+    components = command.split()
 
+    if components[0] in board.fetch_unit_types():
+        command = " ".join(components[1:])
     province, _ = board.get_province_and_coast(command)
-    if command.startswith("relationship"):
-        if player_restriction is None:
-            raise RuntimeError("Relationship orders can only be removed in a player's orders channel")
-        command = command.split(" ", 1)[1]
-        target_player = None
-        for player in board.players:
-            if player.name.lower() == command.lower().strip() or player.get_name().lower() == command.lower().strip():
-                target_player = player
-        if target_player is None:
-            raise RuntimeError(f"No such player: {command}")
-        if target_player not in player_restriction.vassal_orders:
-            raise RuntimeError(f"No relationship order with {target_player}")
-        remove_relationship_order(player_restriction.vassal_orders[target_player], player_restriction)
-        return target_player
 
     if board.turn.is_builds():
         # remove build order
@@ -563,8 +479,3 @@ def remove_player_order_for_province(player: Player, province: Province):
             player.build_orders.remove(player_order)
             return True
     return False
-
-def remove_relationship_order(old_order: order.RelationshipOrder, player: Player):
-    """Removes a relationship order (vassal/liege/monarchy/disown) for a player."""
-    if old_order.player in player.vassal_orders:
-        del player.vassal_orders[old_order.player]

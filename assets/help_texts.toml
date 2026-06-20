@@ -1,0 +1,460 @@
+# Help texts for bot commands.
+# Each section is keyed by the command's qualified_name.
+# "description" is the main help text. Other keys are parameter descriptions.
+
+# Administration Cog
+[announce]
+description = "Sends an announcement message to the admin chat channel of all servers in which the bot is a member."
+message = "The message text of the announcement"
+
+[servers]
+description = "Gets a list of servers that the bot is in, as well as the current game status."
+id = "Includes the id of each server."
+invite = "Includes an invite link to each server."
+
+[leave_server]
+description = "Causes the bot to leave a server, given by its id."
+usage = "<server_id>"
+server_id = "The id of the server to leave."
+
+[bulk_allocate_role]
+description = "Grants the specified role(s) to the given list of users."
+usage = "<@role> <usernames...>"
+role = "The role(s) to grant. Should be a role mention."
+users = "The list of Discord usernames to assign to said role(s)."
+
+[archive_upload]
+description = "Uploads a moves map to Azure storage. Uses gamelist.csv to fetch game metadata."
+usage = "<server_id> <season>"
+server_id = "The ID of the server."
+season = "The turn of the map to upload."
+
+[exec_py]
+description = """
+Executes arbitrary Python code. The current board can be used as the variable 'board'.
+This command saves the board after execution.
+"""
+
+
+# Command Cog
+[all_province_data]
+description = "Outputs all provinces on the board, grouped by owner."
+
+[dev]
+description = """
+Returns developer information for a command, including its Python docstring and method signature.
+Useful for getting insight into how a command works internally.
+"""
+usage = "<cmd>"
+cmd = "The name of the command to look up (e.g. 'order', 'create_game')."
+
+[get_deadline]
+description = "Outputs the current deadline for the phase as a Discord timestamp."
+
+[info]
+description = "Gets basic information about the current game, including the turn, game type, and upcoming deadline."
+
+[nick]
+description = "Changes your Discord nickname in this server. Preserves any existing prefix, such as power names in Chaos."
+name = "The new nickname to set."
+
+[player_info]
+description = "Outputs information about a specific player, including their supply centers and score."
+usage = "<player|@player>"
+player = "The name or role of the player to look up."
+
+[province_info]
+description = "Outputs detailed information about a province."
+usage = "<province>"
+province = "The name of the province to look up. The bot will attempt to find a matching province if a shortened name is given."
+
+[scoreboard]
+description = """
+Prints the current scoreboard of all players.
+By default, players are ordered by percentage towards their victory condition, with ties broken alphabetically.
+Each row is of the format '<Power> <number of builds/disbands available> <SCs gained/lost>'.
+Supply center gain/loss is compared with the previous Fall Moves.
+"""
+alpha = "Outputs the result alphabetically instead of sorted by score."
+csv = "Outputs a list of SC counts with no additional decorators. Used for copy-pasting into spreadsheets."
+
+[uptime]
+description = "Displays how long the bot has been running and how long it has been since the last executed command."
+
+[version]
+description = "Gets the current version of the bot, as determined by the Changelog."
+
+[edit_prefs]
+description = """
+Edits your user preferences. One parameter per line.
+Edits here will persist through game servers.
+Use '.edit_prefs' followed by one or more lines, each setting a parameter.
+"""
+"color_mode" = "<color mode> - for all games of the currently loaded variant, will default to outputting maps in that color mode when you run '.view_map' or '.view_current'. Must be set for each variant, and requires a loaded game."
+
+
+# Player Cog
+[create_press_channel]
+description = """
+Creates a new private press channel between you and the power(s) of your choosing, in the specified category.
+You must include the category and at least one other power, but you do not need to include your own power role.
+If the category is full, you may need to try a different category.
+"""
+usage = "<#category> <channel-name> <@power> [@power...]"
+category = "The 'comms-#' channel in the category in which you want to create your channel. This must be a link to said channel."
+channel-name = "The name of the press channel to create. Discord convention is to use hyphens in place of spaces."
+power = "The Discord role(s) of the player(s) you wish to talk to. These must be mentions of the target role. You can include as many roles as you wish, but you need not include your own role."
+
+[order]
+description = """
+Submits orders into the bot.
+There must be one and only one order per line.
+Orders are formatted similar to how they are formatted in the standard Diplomay rulebook.
+Shortened forms of province names are allowed as long as there is a unique province that matches it.
+Supplying the unit type is fine but not required: e.g. 'A London - Wales' and 'London - Wales' are the same.
+The parser does accept illegal moves, so it is recommended to use '.view_map' to verify your orders.
+
+The following is a valid order command:
+.order
+A Paris - Burgundy
+Picardy -> Wales
+Engli Cha c Picardy - Wales
+F Portugal moves to Spain sc
+A Mar s Por - Spa
+Piedmont supports Marseilles
+
+Build orders should be of the format '<B/D> <unit_type> <province>'.
+To waive a build, use 'Waive <number>' to specify how many builds to waive.
+
+To remove orders, use the '.remove_order' command, or '.remove_all' to remove all orders.
+"""
+
+[press_directory]
+description = "Provides a list of press channels, along with links and who else can see each channel."
+global = "If specified by a GM, prints a press directory in each player's orders channel."
+power = "If the GM specifies one or more power role mentions, the press directory will be posted for those countries."
+
+[remove_all]
+description = """
+Removes all currently submitted orders for this phase.
+If used by a GM in the #gm-bot-commands channel, this will clear all orders globally.
+"""
+
+[remove_order]
+description = """
+Resets orders for the given units. Also is used for clearing build/disband orders.
+There must be one and only one unit per line.
+"""
+
+[view_current]
+description = "Draws and outputs a map of the board."
+turn = "Year and/or season of the map to view. Default is the current season."
+svg = "Outputs the map as an editable SVG."
+color = "Outputs the map in the specified color schema."
+oil = "Outputs the map and colours sea provinces with ownership."
+invert = "Invert the colours for the chosen map mode."
+clean = "Hide some layers to produce a cleaner visual output."
+
+[view_gui]
+description = """
+Draws and outputs an interactive GUI map of the board.
+To use, download the SVG and open it in a desktop browser.
+From there, you can left-click and right-click on units and provinces to draw orders on the map.
+In addition, the list of generated orders will be displayed on the sidebar, which can then be copy-pasted into Discord as orders.
+"""
+color = "Outputs the map in the specified color schema."
+
+[view_map]
+description = "Draws and outputs a map of the board with submitted orders."
+turn = "Year and/or season of the map to view. Default is the current season."
+svg = "Outputs the map as an editable SVG."
+color = "Outputs the map in the specified color schema."
+oil = "Outputs the map and colours sea provinces with ownership."
+invert = "Invert the colours for the chosen map mode."
+clean = "Hide some layers to produce a cleaner visual output."
+
+[view_open_cores]
+description = "Outputs the list of supply centers that can be built in that do not have an occupying unit."
+blind = "Show only the number of open cores."
+
+[view_orders]
+description = """
+Outputs your current submitted orders.
+Use '.view_map' to view a sample moves map of your orders.
+"""
+missing = "Show only units without submitted orders."
+submitted = "Show only units with submitted orders."
+blind = "Show only the count of submitted orders, but not the orders themselves."
+"forced-disband" = "Mark dislodged units that have no valid retreat options (retreat phases only)."
+"free-retreats" = "Show only dislodged units that can retreat (retreat phases only)."
+"open-cores" = "Show buildable supply centers with no occupying unit (winter only)."
+explain = "Augment the output with an explanation of each column."
+
+[visible_provinces]
+description = "Outputs the provinces you can see. Used mainly for fog of war games."
+
+
+# Fog of War Cog
+[publish_fow_moves]
+description = "Sends fog of war maps to each player's orders channel, showing only visible provinces."
+country = "If specified, only sends the map for that power."
+
+[publish_fow_order_logs]
+description = "Sends fog of war order logs to each player's orders channel, showing only visible orders."
+country = "If specified, only sends the log for that country."
+
+
+# Game Management Cog
+[adjudicate]
+description = """
+Adjudicates the current phase and publishes maps.
+By default, will not adjudicate if any player has missing orders.
+"""
+test = "Run a test adjudication without modifying game state."
+full = "Lock orders, adjudicate, upload maps, publish orders, and unlock orders in one step."
+confirm = "Adjudicate even if some players have missing orders."
+svg = "Upload maps as SVGs instead of PNGs."
+movement = "Creates an additional map that only shows successful moves. Useful when playing with a physical board."
+color = "Publish maps with a specific color scheme."
+
+[archive]
+description = "Sets all channels within a category to read-only. Used when closing a game."
+usage = "<#category>"
+category = "A link to the category channel to archive (e.g. #comms-1)."
+
+[blitz]
+description = "Creates all pairwise press channels between players in the game."
+
+[create_game]
+description = """
+Creates a new Diplomacy game of the chosen variant.
+Only one game can exist per server. Use '<variant>.<version>' to specify a version (e.g. 'impdip.2.4').
+If no version is specified, the latest version is used.
+"""
+usage = "<variant>"
+variant = "The variant to create (e.g. 'classic', 'impdip.2.4'). Defaults to 'classic'."
+
+[delete_game]
+description = "Permanently deletes the game in this server. This cannot be undone."
+
+[edit]
+description = """
+Edits the game state directly. One sub-command per line.
+Use '.edit' followed by one or more lines, each containing a sub-command.
+In these commands, 'Player' can be set to 'None' to indicate no ownership.
+"""
+"set_core" = "<province> <player> - Sets the core of a province."
+"set_half_core" = "<province> <player> - Sets the half-core of a province."
+"set_province_owner" = "<province> <player> - Changes the owner of a province."
+"set_total_owner" = "<province> <player> - Changes the owner and sets the core."
+"create_unit" = "<unit_type> <player> <province> - Creates a unit on the board."
+"create_dislodged unit" = "<unit_type> <player> <province> <retreat_options...> - Creates a dislodged unit (retreats only)."
+"delete_unit" = "<province> - Deletes the unit in a province."
+"delete_dislodged_unit" = "<province> - Deletes the dislodged unit in a province."
+"move_unit" = "<from_province> <to_province> - Moves a unit from one province to another."
+"transform_unit" = "[unit_type] <province> - Transforms a unit to a different type."
+"dislodge_unit" = "<province> <retreat_options...> - Dislodges a unit and sets its retreat options (retreats only)."
+"make_units_claim_provinces" = "[true] - All units claim their current province. If 'true', also claims supply centers."
+"bulk" = "<sub-command> <player> <provinces...> - Runs a sub-command for multiple provinces."
+"bulk_create_units" = "<player> <unit_type> <provinces...> - Creates units for a player in multiple provinces."
+"apocalypse" = "[all|army|fleet|core|province] - Mass-deletes units, cores, or ownership."
+
+[edit_game]
+description = """
+Edits game-wide parameters. One parameter per line.
+Use '.edit_game' followed by one or more lines, each setting a parameter.
+"""
+"game_name" = "<name> - Sets the display name of the game. Use 'None' to clear."
+"building" = "<classic|cores|control|anywhere> - Sets the build rule."
+"convoyable_islands" = "<true|false> - Whether island provinces can be convoyed through."
+"core_options" = "Configure coring requirements. Use '.edit_game core_options' for more information."
+"transformation" = "<disabled|moves|builds|all> - When units can be ordered to transform."
+"dp" = "<true|false> - Enables or disables Diplomacy Points."
+"victory_conditions" = "<classic|vscc> - Sets the victory condition type."
+"victory_count" = "<number> - Sets the number of SCs needed to win."
+"iscc" = "<player> <number> - Sets a player's initial supply center count."
+"vscc" = "<player> <number> - Sets a player's victory supply center count."
+"capital" = "<player> <province> - Sets a player's capital province."
+"player_name" = "<player> <new_name> - Sets a display nickname for a player."
+"player_color" = "<player> <hex_color> - Sets a player's custom color (6-digit hex)."
+"hide_player" = "<player> <true|false> - Hides or unhides a player from the scoreboard."
+"add_player" = "<name> <hex_color> - Adds a new player to the game."
+
+[edit_server]
+description = """
+Edits server-wide parameters. One parameter per line.
+Edits here will persist through game creation and deletion.
+Use '.edit_server' followed by one or more lines, each setting a parameter.
+"""
+"maps_channel" = "<channel> <(optional) color mode|None> - adds a specific text channel as an output channel for maps during '.adjudicate full'. Optionally set a color mode, or None to remove it."
+
+
+[export_game]
+description = "Exports the current game state as a JSON file."
+
+["grace"]
+description = """
+Command to log and view graces, which occur when adjudication is delayed due to a player missing orders.
+Use one of the following subcommands to manage graces:
+
+Usage: 
+    `.grace log <user> <hours> <reason>`
+    `.grace view user <user>`
+    `.grace view server <server_id?>`
+    `.grace delete <grace_id>`
+
+Note: 
+    For more detailed information on each subcommand, use `.help grace <subcommand>`
+"""
+
+["grace log"]
+description = "Logs a grace period for a player."
+usage = "<@user> <hours> [reason]"
+user = "The Discord user to log the grace for."
+hours = "The number of hours of grace."
+reason = "The reason for the grace (default: 'Unspecified')."
+
+["grace delete"]
+description = "Deletes a grace record by its ID."
+usage = "<id>"
+id = "The ID of the grace record to delete."
+
+["grace view user"]
+description = "Views the grace history of a specific user across all servers."
+usage = "<user>"
+user = "The Discord user to look up."
+
+["grace view server"]
+description = "Views the grace history of a server."
+usage = "<server_id>"
+server_id = "The server ID to look up. Defaults to the current server."
+
+[import_game]
+description = "Imports a game from an uploaded JSON file. The file should be one produced by '.export_game'."
+
+[last_message]
+description = "Gets the last time each player sent a message. Data does not persist across bot restarts."
+
+[list_variants]
+description = "Lists all variants currently supported by the bot."
+
+[lock_orders]
+description = "Disables order submission until '.unlock_orders' is run."
+
+[ping_players]
+description = """
+Pings all players in their orders channel that satisfy the following constraints:
+1. They have too many build orders, or too little or too many disband orders.
+2. They are missing move orders or retreat orders.
+If a deadline has been set, the timestamp will be sent. Otherwise you may also specify one manually.
+"""
+timestamp = "Optional Discord timestamp to display as the deadline reminder."
+
+[publish_orders]
+description = "Publishes orders to the #orders-log channel, uploads the map to archive, and informs players about the phase change."
+silent = "If specified, suppresses player notifications."
+
+[reload]
+description = "Reloads the current board from the database. Useful if the board state has been manually modified."
+
+[rename_player]
+description = "Renames a player and updates their role and channel names."
+usage = "<old_name> <new_name>"
+old_name = "The current player name."
+new_name = "The new player name."
+
+[rollback]
+description = "Rolls the game back to the previous phase. Clears any orders in the current phase."
+
+[set_deadline]
+description = """
+Sets or adjusts the deadline for the current phase.
+Use a Unix timestamp to set an absolute deadline, 'adjust <relative time>' to shift it, or 'cancel' to remove it.
+Presently, the deadline will be automatically advanced by 1 or 2 days per adjudication, depending on the phase.
+"""
+usage = "<timestamp> | adjust <relative_time> | cancel"
+timestamp = "The Unix timestamp of the new deadline"
+relative_time = "A relative time to adjust the new deadline by (e.g. '3h', '1 day')"
+
+[setup_server]
+description = """
+Creates channels and roles for a variant.
+The bot will attempt to create Player, Country Spectator, Spectator, and Dead roles, as well as one role per player.
+The bot will then try creating Orders, Voids, and Communications channels for each player.
+If a role or channel already exists, the bot will skip creating it.
+"""
+usage = "<variant>"
+variant = "The variant name to set up channels for."
+
+[unlock_orders]
+description = "Re-enables order submission after '.lock_orders'."
+
+# Moderation Cog
+[membership]
+description = "Returns all servers shared between the bot and a given user."
+user = "The Discord user to check."
+
+# Party Cog
+[botsay]
+description = "Has the bot send a message in a specified channel."
+usage = "<#channel> <message>"
+channel = "A link to the channel to send the message in."
+message = "The message text to send."
+
+[global_leaderboard]
+description = "Shows the top fishing servers globally, plus the current server's position."
+
+[ping]
+description = "Checks that the bot is listening and responds."
+
+
+# Schedule Cog
+[schedule]
+description = """
+Schedules a command for execution at a future time.
+The scheduled command will run as if you had typed it at the specified time.
+Commands that cannot be scheduled: 'schedule', 'create_game', 'delete_game'.
+"""
+usage = "<timestamp> <command>"
+timestamp = "A Discord-formatted Unix timestamp for when to execute."
+command = "The command name to schedule."
+content = "The arguments for the scheduled command."
+
+[unschedule]
+description = "Cancels a scheduled command. Task IDs can be found from calling '.view_schedule.'"
+task_id = "'all' to cancel all scheduled commands, or the unique message ID of the task."
+
+[view_schedule]
+description = "Views all currently scheduled commands for this server, sorted by soonest first."
+
+# Spectator Cog
+[record_spec]
+description = "Records the approval of a spectator request manually (for use when /spec fails)."
+usage = "<@user> <@nation>"
+user = "A mention of the user to approve."
+nation = "A mention of the nation role."
+
+["spec_ban add"]
+description = "Bans a user from using /spec to spectate games."
+user = "The Discord user to ban."
+end_timestamp = "Optional Discord timestamp for when the ban expires. Defaults to permanent."
+
+["spec_ban remove"]
+description = "Removes a spectator ban from a user."
+user = "The Discord user to unban."
+
+["spec_ban view"]
+description = "Views active spectator bans. If no user is specified, lists all outstanding bans."
+user = "Optional Discord user to check."
+
+
+# Variant Development Cog
+[reload_variant]
+description = "Reloads the map parser for a given variant. Useful if the map SVG has been updated."
+usage = "<variant>"
+variant = "The variant name to reload."
+
+[verify_adjacencies]
+description = "Checks the adjacencies of a variant to find potential issues."
+usage = "<variant>"
+variant = "The variant name to check. Defaults to 'classic'."

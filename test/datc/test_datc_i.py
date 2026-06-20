@@ -1,13 +1,14 @@
+"""DATC I: TEST CASES, BUILDING"""
 import unittest
 
 from test.utils import BoardBuilder
-from DiploGM.models.unit import UnitType
 
 # These tests are based off https://webdiplomacy.net/doc/DATC_v3_0.html, with
 # https://github.com/diplomacy/diplomacy/blob/master/diplomacy/tests/test_datc.py being used as a reference as well.
 
 # 6.I. TEST CASES, BUILDING
-class TestDATC_I(unittest.TestCase):
+class TestDatcI(unittest.TestCase):
+    """DATC I: TEST CASES, BUILDING"""
     # DEVIATES since currently build orders are unordered
     def test_6_i_1(self):
         """ 6.I.1. TEST CASE, TOO MANY BUILD ORDERS
@@ -23,7 +24,7 @@ class TestDATC_I(unittest.TestCase):
         b = BoardBuilder()
         b.army("Silesia", b.players["Germany"])
         b.army("Prussia", b.players["Germany"])
-        b.build(b.players["Germany"], (UnitType.ARMY, "Berlin"), (UnitType.ARMY, "Kiel"), (UnitType.ARMY, "Munich"))
+        b.build(b.players["Germany"], ("A", "Berlin"), ("A", "Kiel"), ("A", "Munich"))
         b.assert_build_count(1)
         b.builds_adjudicate(self)
 
@@ -37,7 +38,7 @@ class TestDATC_I(unittest.TestCase):
         """
         b = BoardBuilder()
         b.player_core(b.players["Russia"], "Moscow")
-        b.build(b.players["Russia"], (UnitType.FLEET, "Moscow"))
+        b.build(b.players["Russia"], ("F", "Moscow"))
         b.assert_build_count(0)
         b.builds_adjudicate(self)
 
@@ -51,7 +52,7 @@ class TestDATC_I(unittest.TestCase):
         b = BoardBuilder()
         b.player_core(b.players["Germany"], "Berlin")
         b.army("Berlin", b.players["Germany"])
-        b.build(b.players["Germany"], (UnitType.ARMY, "Berlin"))
+        b.build(b.players["Germany"], ("A", "Berlin"))
         b.assert_build_count(0)
         b.builds_adjudicate(self)
 
@@ -65,7 +66,7 @@ class TestDATC_I(unittest.TestCase):
         b = BoardBuilder()
         b.fleet("St. Petersburg sc", b.players["Russia"])
         b.player_core(b.players["Russia"], "St. Petersburg")
-        b.build(b.players["Russia"], (UnitType.FLEET, "St. Petersburg nc"))
+        b.build(b.players["Russia"], ("F", "St. Petersburg nc"))
         b.assert_build_count(1)
         b.builds_adjudicate(self)
 
@@ -81,7 +82,7 @@ class TestDATC_I(unittest.TestCase):
         p_berlin = b.board.get_province("Berlin")
         p_berlin.owner = b.players["Russia"]
         p_berlin.core_data.core = b.players["Germany"]
-        b.build(b.players["Germany"], (UnitType.ARMY, "Berlin"))
+        b.build(b.players["Germany"], ("A", "Berlin"))
         b.assert_build_count(0)
         b.builds_adjudicate(self)
 
@@ -98,7 +99,7 @@ class TestDATC_I(unittest.TestCase):
         p_warsaw = b.board.get_province("Warsaw")
         p_warsaw.owner = b.players["Germany"]
         p_warsaw.core_data.core = b.players["Russia"]
-        b.build(b.players["Germany"], (UnitType.ARMY, "Warsaw"))
+        b.build(b.players["Germany"], ("A", "Warsaw"))
         b.assert_build_count(0)
         b.builds_adjudicate(self)
 
@@ -113,6 +114,6 @@ class TestDATC_I(unittest.TestCase):
         b = BoardBuilder()
         b.player_core(b.players["Russia"], "Moscow")
         b.board.get_province("Moscow").core_data.core = b.players["Russia"]
-        b.build(b.players["Russia"], (UnitType.ARMY, "Moscow"), (UnitType.ARMY, "Moscow"))
+        b.build(b.players["Russia"], ("A", "Moscow"), ("A", "Moscow"))
         b.assert_build_count(1)
         b.builds_adjudicate(self)

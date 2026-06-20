@@ -3,7 +3,6 @@ import unittest
 
 from test.utils import BoardBuilder
 from DiploGM.models.turn import PhaseName, Turn
-from DiploGM.models.unit import UnitType
 from DiploGM.parse_edit_state import _parse_command
 
 class TestParseEditState(unittest.TestCase):
@@ -58,14 +57,14 @@ class TestParseEditState(unittest.TestCase):
         a_silesia = p_silesia.unit
         self.assertIsNotNone(a_silesia, "Failed to create Army unit in Silesia")
         assert a_silesia is not None
-        self.assertEqual(a_silesia.unit_type, UnitType.ARMY, "Created unit in Silesia is not an Army")
+        self.assertEqual(a_silesia.unit_type.code, "A", "Created unit in Silesia is not an Army")
         self.assertEqual(a_silesia.player, b.players["Germany"], "Created unit in Silesia does not belong to Germany")
 
         _parse_command("create_unit F Germany Kiel", b.board)
         f_kiel = p_kiel.unit
         self.assertIsNotNone(f_kiel, "Failed to create Fleet unit in Kiel")
         assert f_kiel is not None
-        self.assertEqual(f_kiel.unit_type, UnitType.FLEET, "Created unit in Kiel is not a Fleet")
+        self.assertEqual(f_kiel.unit_type.code, "F", "Created unit in Kiel is not a Fleet")
         self.assertEqual(f_kiel.player, b.players["Germany"], "Created unit in Kiel does not belong to Germany")
 
     def test_create_dislodged_unit(self):
@@ -81,7 +80,7 @@ class TestParseEditState(unittest.TestCase):
         a_serbia = p_serbia.dislodged_unit
         self.assertIsNotNone(a_serbia, "Failed to create dislodged Army unit in Serbia")
         assert a_serbia is not None
-        self.assertEqual(a_serbia.unit_type, UnitType.ARMY, "Created dislodged unit in Serbia is not an Army")
+        self.assertEqual(a_serbia.unit_type.code, "A", "Created dislodged unit in Serbia is not an Army")
         self.assertEqual(a_serbia.player, b.players["Germany"],
                          "Created dislodged unit in Serbia does not belong to Germany")
         self.assertIsNotNone(a_serbia.retreat_options, "Dislodged unit in Serbia has no retreat options initialized")
@@ -96,7 +95,7 @@ class TestParseEditState(unittest.TestCase):
         self.assertIsNotNone(f_bulgaria, "Failed to create dislodged Fleet unit in Bulgaria_ec")
         assert f_bulgaria is not None
         self.assertEqual(f_bulgaria.coast, "ec", "Created dislodged Fleet in Bulgaria does not have correct coast 'ec'")
-        self.assertEqual(f_bulgaria.unit_type, UnitType.FLEET, "Created dislodged unit in Bulgaria_ec is not a Fleet")
+        self.assertEqual(f_bulgaria.unit_type.code, "F", "Created dislodged unit in Bulgaria_ec is not a Fleet")
         self.assertEqual(f_bulgaria.player, b.players["Austria"],
                          "Created dislodged unit in Bulgaria_ec does not belong to Austria")
         self.assertFalse(f_bulgaria.retreat_options,
@@ -112,9 +111,9 @@ class TestParseEditState(unittest.TestCase):
     def test_delete_dislodged_unit(self):
         """Tests the delete_dislodged_unit command."""
         b = BoardBuilder()
-        a_burgundy = b.move(b.players["Germany"], UnitType.ARMY, "Burgundy", "Paris")
-        b.support_move(b.players["Germany"], UnitType.ARMY, "Gascony", a_burgundy, "Paris")
-        b.hold(b.players["France"], UnitType.ARMY, "Paris")
+        a_burgundy = b.move(b.players["Germany"], "A", "Burgundy", "Paris")
+        b.support_move(b.players["Germany"], "A", "Gascony", a_burgundy, "Paris")
+        b.hold(b.players["France"], "A", "Paris")
         p_paris = b.board.get_province("Paris")
         b.moves_adjudicate(self)
         b.board.turn = Turn(1901, PhaseName.SPRING_RETREATS)
