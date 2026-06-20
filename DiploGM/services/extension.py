@@ -1,10 +1,11 @@
 from DiploGM.models.extension import ExtensionEvent
-from DiploGM.repositories.extension_repo import extension_repo
+from DiploGM.repositories.extension import extension_repo
 from DiploGM.services.base import BaseService
 
 class ExtensionService(BaseService):
     def __init__(self) -> None:
-        self.count = max(e.id for e in extension_repo.all() if e.id)
+        ids = [e.id for e in extension_repo.all() if e.id]
+        self.count = max(ids) if len(ids) > 0 else 0
 
     def record_extension(self, user_id: int, game_id: int, hours: float = 1.0, reason: str = "Unspecified") -> int | None:
         event = ExtensionEvent(

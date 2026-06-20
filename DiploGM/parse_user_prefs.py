@@ -45,8 +45,18 @@ def _set_color_mode(_, keywords: list[str], board: Board | None) -> tuple[str | 
         raise ValueError(f"Unknown color mode: {color_mode}")
     return f"{board.datafile}/color_mode", color_mode
 
+def _set_pronouns(_, keywords: list[str], board: Board | None) -> tuple[str | None, str | None]:
+    content = " ".join(keywords).lower()
+    return "pronouns", content
+
+def _set_timezone(_, keywords: list[str], board: Board | None) -> tuple[str | None, str | None]:
+    content = " ".join(keywords).upper()
+    return "timezone", content
+
 function_list = {
-    "color mode": _set_color_mode
+    "color mode": _set_color_mode,
+    "pronouns": _set_pronouns,
+    "timezone": _set_timezone
 }
 
 def _parse_command(user_id: int, command: str, board: Board | None) -> None:

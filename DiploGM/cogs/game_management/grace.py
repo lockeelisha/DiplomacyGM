@@ -5,8 +5,7 @@ import discord
 from discord.ext import commands
 from DiploGM.config import ERROR_COLOUR
 from DiploGM.utils import send_message_and_file
-from DiploGM.repositories.extension_repo import extension_repo
-from DiploGM.services.extension_service import extension_service
+from DiploGM.services.extension import extension_service
 from DiploGM.manager import Manager
 
 logger = logging.getLogger(__name__)

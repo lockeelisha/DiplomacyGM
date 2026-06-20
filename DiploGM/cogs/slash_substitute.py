@@ -8,6 +8,7 @@ from discord.ext import commands
 from discord.utils import find as discord_find
 
 from DiploGM import config, perms
+from DiploGM.services import reputation_service
 from DiploGM.utils import send_message_and_file
 from DiploGM.manager import Manager
 
@@ -20,6 +21,7 @@ SERVER_OVERRIDE = True
 class SlashSubstituteCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.service = reputation_service
 
     @app_commands.command(
         name="advertise",
@@ -433,6 +435,7 @@ class SlashSubstituteCog(commands.Cog):
             f"Phase: {board.turn}\n"
             f"Reason: {reason}"
         )
+        self.service.create_delta(incoming_user.id, delta=3, reason=f"Substituted into: {guild.name}")
 
         if recommended_penalty:
             out += f"\nRecommended Penalty: {recommended_penalty}"

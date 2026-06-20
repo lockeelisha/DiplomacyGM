@@ -5,9 +5,10 @@ import random
 from typing import TYPE_CHECKING
 from collections import defaultdict
 from discord import Member
+import discord
 from discord.ext import commands
 
-from DiploGM.config import ERROR_COLOUR
+from DiploGM.config import ERROR_COLOUR, PARTIAL_ERROR_COLOUR
 from DiploGM import perms
 from DiploGM.errors import NoGameError
 from DiploGM.models.adjacency import Terrain
@@ -240,6 +241,56 @@ class CommandCog(commands.Cog):
         await send_message_and_file(
             channel=ctx.channel, title=f"Developer Info for {cmd_name}", message=out
         )
+
+    @commands.command(
+        brief="outputs information for which user is playing which power",
+        aliases=["vp"]
+    )
+    async def view_players(self, ctx: commands.Context) -> None:
+        assert ctx.guild is not None
+        board = manager.get_board(ctx.guild.id)
+        players = board.get_players()
+
+        player_role = discord.utils.get(ctx.guild.roles, name="Player")
+        if player_role is None:
+            await send_message_and_file(
+                channel=ctx.channel, 
+                message="Could not find an @Player role to search for.", 
+                embed_colour=PARTIAL_ERROR_COLOUR
+            )
+            return
+
+        power_roles = set(map(lambda p: find_discord_role(p, ctx.guild.roles), players))
+        active_players = {
+            role: [] for role in power_roles
+        }
+
+        for member in ctx.guild.members:
+            if not any(r == player_role for r in member.roles):
+                continue
+
+            player_powers = power_roles & set(member.roles)
+            for role in player_powers:
+                active_players[role].append(member)
+
+        active_players = dict(
+            sorted(
+                [(k, v) for (k, v) in active_players.items() if k is not None],
+                key=lambda pair: pair[0].name
+            )
+        )
+        
+        out = ""
+        for role, members in active_players.items():
+            out += f"{role.mention}:\n"
+            for member in members:
+                pronouns = manager.ctx_parameters.get(member.id, {}).get("pronouns", "?/?")
+                timezone = manager.ctx_parameters.get(member.id, {}).get("timezone", "UTC+?")
+                out += f"\- {member.mention} PN={pronouns} TZ={timezone}\n"
+
+
+        await send_message_and_file(channel=ctx.channel, title=f"{ctx.guild.name}\nPlayer List", message=out)
+
 
     @commands.command(
         brief="outputs information about a specific province",
