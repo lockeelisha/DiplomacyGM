@@ -35,6 +35,13 @@ class TestBoardIsolation(unittest.TestCase):
             prov_b = self.board_b.get_province(prov_a.name)
             self.assertIsNot(prov_a, prov_b, f"{prov_a.name} should be a distinct Province per board")
 
+    def test_tiles_are_shared(self):
+        """Boards of the same variant must share the exact same Tile objects."""
+        for prov_a in self.board_a.provinces:
+            prov_b = self.board_b.get_province(prov_a.name)
+            self.assertIs(prov_a.tile, prov_b.tile,
+                          f"{prov_a.name} should share one Tile across boards of the same variant")
+
     def test_owner_change_is_isolated(self):
         """Changing a province's owner on one board must not change it on the other."""
         paris_a = self.board_a.get_province("Paris")

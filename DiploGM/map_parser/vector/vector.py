@@ -57,8 +57,7 @@ class Parser:
         self.name_to_province: dict[str, Province] = {}
         self.name_to_tile: dict[str, Tile] = {}
 
-        self.cache_tiles: set[Tile] | None = None
-        self.cache_adjacencies: set[tuple[str, str]] | None = None
+        self.tiles: set[Tile] | None = None
 
         self.players: set[Player] = set()
         self.is_chaos = False
@@ -210,7 +209,6 @@ class Parser:
         self.players = set()
         self.color_to_player = {}
         self.name_to_province = {}
-        self.name_to_tile = {}
 
         # Get the players and their colors from the config, provided it's not a chaos game.
         self.is_chaos = kwargs.get("chaos", False)
@@ -232,8 +230,8 @@ class Parser:
                 self.color_to_player[neutral_colors.lower()] = None
             self.color_to_player[self.data[SVG_CONFIG_KEY]["neutral_sc"].lower()] = None
 
-        tiles, adjacencies = self._read_map()
-        provinces = self._get_provinces(tiles, adjacencies)
+        tiles = self._build_tiles()
+        provinces = self._get_provinces(tiles)
 
         units = {province.unit for province in provinces if province.unit}
 
@@ -263,35 +261,57 @@ class Parser:
 
         return Board(self.players, provinces, self.unit_types, units, initial_turn, game_data, self.datafile)
 
-    def _read_map(self) -> tuple[set[Tile], set[tuple[str, str]]]:
-        """Reads the SVG, gets province geometry information and coordinates,
-        and returns a set of Tiles and a set of adjacencies between province names."""
-        if self.cache_tiles is None:
-            # set coordinates and names
-            raw_tiles: set[Tile] = self._get_tile_coordinates()
-            cache = []
-            self.cache_tiles = set()
-            for tile in raw_tiles:
-                if tile.name in cache:
-                    logger.warning("%s: %s repeats in map, ignoring...", self.datafile, tile.name)
-                    continue
-                cache.append(tile.name)
-                self.cache_tiles.add(tile)
 
-            if not self.layers["province_labels"]:
-                self._initialize_province_names(self.cache_tiles)
+    def _build_tiles(self) -> set[Tile]:
+        """Creates Tiles for the variant. If they already exist, we can skip this step."""
+        if self.tiles is not None:
+            return self.tiles
 
-        tiles = copy.deepcopy(self.cache_tiles)
-        # Stores the tiles in the Parser.
+        raw_tiles: set[Tile] = self._get_tile_coordinates()
+        cache: list[str] = []
+        tiles: set[Tile] = set()
+        for tile in raw_tiles:
+            if tile.name in cache:
+                logger.warning("%s: %s repeats in map, ignoring...", self.datafile, tile.name)
+                continue
+            cache.append(tile.name)
+            tiles.add(tile)
+
+        if not self.layers["province_labels"]:
+            self._initialize_province_names(tiles)
+
         for tile in tiles:
             self.name_to_tile[tile.name] = tile
 
-        if self.cache_adjacencies is None:
-            # set adjacencies
-            self.cache_adjacencies = self._get_adjacencies(tiles)
-        adjacencies = copy.deepcopy(self.cache_adjacencies)
+        # Sets adjacencies for each tile based on the adjacencies file
+        for name1, name2 in self._get_adjacencies(tiles):
+            self.name_to_tile[name1].adjacencies.add(self.name_to_tile[name2])
+            self.name_to_tile[name2].adjacencies.add(self.name_to_tile[name1])
 
-        return (tiles, adjacencies)
+        # Apply any manual overrides from the config file (e.g. adding adjacencies, multiple coasts, etc.)
+        self._json_cheats(tiles)
+
+        # Set fleet adjacencies
+        for tile in tiles:
+            tile.set_coasts()
+        # We set land-land fleet adjacencies afterwards, since we need to figure out which adjacencies are valid
+        for tile in tiles:
+            tile.set_adjacent_coasts()
+        self._remove_unit_adjacencies(tiles)
+
+        # Set phantom unit coordinates for optimal unit placements
+        self._set_phantom_unit_coordinates()
+
+        # Add a default unit coordinate to tiles without one, just in case
+        for tile in tiles:
+            center = shapely.centroid(tile.geometry)
+            center = complex(center.x, center.y) if center else complex(0)
+            tile.unit_coordinates["default"] = UnitLocation(center, center)
+            for unit in tile.unit_coordinates.keys():
+                tile.all_coordinates.setdefault(unit, set()).add(tile.unit_coordinates[unit])
+
+        self.tiles = tiles
+        return tiles
 
     def _json_cheats(self, tiles: set[Tile]) -> set[Tile]:
         if "overrides" not in self.data:
@@ -353,13 +373,7 @@ class Parser:
         return tiles
 
 
-    def _get_provinces(self, tiles: set[Tile], adjacencies: set[tuple[str, str]]) -> set[Province]:
-        # Sets adjacencies for each tile based on the adjacencies file
-        for name1, name2 in adjacencies:
-            self.name_to_tile[name1].adjacencies.add(self.name_to_tile[name2])
-            self.name_to_tile[name2].adjacencies.add(self.name_to_tile[name1])
-
-        # Creates the Province from the Tile
+    def _get_provinces(self, tiles: set[Tile]) -> set[Province]:
         province_map: dict[Tile, Province] = {}
         provinces: set[Province] = set()
         convoyable_islands = self.data.get("convoyable_islands") == "enabled"
@@ -371,34 +385,12 @@ class Parser:
             self.name_to_province[province.name] = province
             provinces.add(province)
 
-        # Apply any manual overrides from the config file (e.g. adding adjacencies, multiple coasts, etc.)
-        tiles = self._json_cheats(tiles)
-
-        # Set fleet adjacencies
-        for tile in tiles:
-            tile.set_coasts()
-        # We set land-land fleet adjacencies afterwards, since we need to figure out which adjacencies are valid
-        for tile in tiles:
-            tile.set_adjacent_coasts()
-        tiles = self._remove_unit_adjacencies(tiles)
-
         self._initialize_supply_centers()
         self._initialize_province_owners()
 
         # set units
         if "starting_units" in self.layer_data and not self.is_chaos:
             self._initialize_units()
-
-        # set phantom unit coordinates for optimal unit placements
-        self._set_phantom_unit_coordinates()
-
-        # Add a default unit coordinate to provinces without one, just in case
-        for tile in tiles:
-            center = shapely.centroid(tile.geometry)
-            center = complex(center.x, center.y) if center else complex(0)
-            tile.unit_coordinates["default"] = UnitLocation(center, center)
-            for unit in tile.unit_coordinates.keys():
-                tile.all_coordinates.setdefault(unit, set()).add(tile.unit_coordinates[unit])
 
         for province in provinces:
             # For Chaos games, remove ownership of non-SC provinces
@@ -496,6 +488,7 @@ class Parser:
             sc_coords = sc_layer_transformation.transform(TransGL3(center_data)
                                                .transform(get_sc_coordinates(center_data)))
             sc_point = shapely.Point(sc_coords.real, sc_coords.imag)
+            # TODO: We might want to move this to Parser init since it's tile-based
             if not shapely.dwithin(sc_point, province.tile.geometry, self.data[SVG_CONFIG_KEY].get("unit_radius", 10)):
                 logger.warning("%s: Supply center icon for '%s' is not within its province", self.datafile, name)
 
