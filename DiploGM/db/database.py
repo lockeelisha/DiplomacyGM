@@ -205,7 +205,7 @@ class _DatabaseConnection:
         province.core_data.half_core = board.get_player(half_core) if half_core is not None else None
         province.unit = None
         province.dislodged_unit = None
-        province.geometry = None
+        province.tile.geometry = None
 
     def _load_unit(self, board: Board, board_id: int, unit_info: tuple, cursor):
         (location, is_dislodged, owner, unit_type, order_type, destination, source, has_failed) = unit_info

@@ -22,7 +22,8 @@ from DiploGM.models.adjacency import Terrain
 from DiploGM.models.turn import PhaseName, Turn
 from DiploGM.models.board import Board
 from DiploGM.models.player import Player
-from DiploGM.models.province import Province, ProvinceType, UnitLocation
+from DiploGM.models.province import Province
+from DiploGM.models.tile import Tile, ProvinceType, UnitLocation
 from DiploGM.models.unit import Unit, UnitType
 from DiploGM.utils.sanitise import parse_variant_path
 
@@ -54,8 +55,9 @@ class Parser:
 
         self.color_to_player: dict[str, Player | None] = {}
         self.name_to_province: dict[str, Province] = {}
+        self.name_to_tile: dict[str, Tile] = {}
 
-        self.cache_provinces: set[Province] | None = None
+        self.cache_tiles: set[Tile] | None = None
         self.cache_adjacencies: set[tuple[str, str]] | None = None
 
         self.players: set[Player] = set()
@@ -208,6 +210,7 @@ class Parser:
         self.players = set()
         self.color_to_player = {}
         self.name_to_province = {}
+        self.name_to_tile = {}
 
         # Get the players and their colors from the config, provided it's not a chaos game.
         self.is_chaos = kwargs.get("chaos", False)
@@ -229,8 +232,8 @@ class Parser:
                 self.color_to_player[neutral_colors.lower()] = None
             self.color_to_player[self.data[SVG_CONFIG_KEY]["neutral_sc"].lower()] = None
 
-        provinces, adjacencies = self._read_map()
-        provinces = self._get_provinces(provinces, adjacencies)
+        tiles, adjacencies = self._read_map()
+        provinces = self._get_provinces(tiles, adjacencies)
 
         units = {province.unit for province in provinces if province.unit}
 
@@ -260,69 +263,67 @@ class Parser:
 
         return Board(self.players, provinces, self.unit_types, units, initial_turn, game_data, self.datafile)
 
-    def _read_map(self) -> tuple[set[Province], set[tuple[str, str]]]:
-        """Reads the SVG, gets provinces information and coordinates,
-        and returns a set of Provinces and a set of adjacencies between province names."""
-        if self.cache_provinces is None:
+    def _read_map(self) -> tuple[set[Tile], set[tuple[str, str]]]:
+        """Reads the SVG, gets province geometry information and coordinates,
+        and returns a set of Tiles and a set of adjacencies between province names."""
+        if self.cache_tiles is None:
             # set coordinates and names
-            raw_provinces: set[Province] = self._get_province_coordinates()
+            raw_tiles: set[Tile] = self._get_tile_coordinates()
             cache = []
-            self.cache_provinces = set()
-            for province in raw_provinces:
-                if province.name in cache:
-                    logger.warning("%s: %s repeats in map, ignoring...", self.datafile, province.name)
+            self.cache_tiles = set()
+            for tile in raw_tiles:
+                if tile.name in cache:
+                    logger.warning("%s: %s repeats in map, ignoring...", self.datafile, tile.name)
                     continue
-                cache.append(province.name)
-                self.cache_provinces.add(province)
+                cache.append(tile.name)
+                self.cache_tiles.add(tile)
 
             if not self.layers["province_labels"]:
-                self._initialize_province_names(self.cache_provinces)
+                self._initialize_province_names(self.cache_tiles)
 
-        provinces = copy.deepcopy(self.cache_provinces)
-        # Stores the Provinces in the Parser, and applies Convoyable Islands if applicable
-        for province in provinces:
-            self.name_to_province[province.name] = province
-            if self.data.get("convoyable_islands") == "enabled" and province.type == ProvinceType.ISLAND:
-                province.can_convoy = True
+        tiles = copy.deepcopy(self.cache_tiles)
+        # Stores the tiles in the Parser.
+        for tile in tiles:
+            self.name_to_tile[tile.name] = tile
 
         if self.cache_adjacencies is None:
             # set adjacencies
-            self.cache_adjacencies = self._get_adjacencies(provinces)
+            self.cache_adjacencies = self._get_adjacencies(tiles)
         adjacencies = copy.deepcopy(self.cache_adjacencies)
 
-        return (provinces, adjacencies)
+        return (tiles, adjacencies)
 
-    def _json_cheats(self, provinces: set[Province]) -> set[Province]:
+    def _json_cheats(self, tiles: set[Tile]) -> set[Tile]:
         if "overrides" not in self.data:
-            return provinces
+            return tiles
 
         offset = complex(self.data[SVG_CONFIG_KEY].get("loc_x_offset", 0),
                          self.data[SVG_CONFIG_KEY].get("loc_y_offset", 0))
 
         for name, data in self.data["overrides"].get("provinces", {}).items():
-            province = self.name_to_province.get(name)
-            if not province:
+            tile = self.name_to_tile.get(name)
+            if not tile:
                 logger.debug("Province %s in overrides not found in map, skipping...", name)
                 continue
             # Add/remove adjacencies and coasts
             for n in data.get("adjacencies", []):
-                if (target := self.name_to_province.get(n)) is not None:
-                    province.adjacencies.add(target)
+                if (target := self.name_to_tile.get(n)) is not None:
+                    tile.adjacencies.add(target)
             for n in data.get("coastal_adjacencies", []):
-                if (target := self.name_to_province.get(n)) is not None:
-                    province.adjacencies.add_terrain(target, Terrain.COAST)
+                if (target := self.name_to_tile.get(n)) is not None:
+                    tile.adjacencies.add_terrain(target, Terrain.COAST)
             for n in data.get("remove_adjacencies", []):
-                if (target := self.name_to_province.get(n)) is not None:
-                    province.adjacencies.remove(target)
+                if (target := self.name_to_tile.get(n)) is not None:
+                    tile.adjacencies.remove(target)
             for n in data.get("difficult_adjacency", []):
-                if (target := self.name_to_province.get(n)) is not None:
-                    if (adj := province.adjacencies.get(target)) is not None:
+                if (target := self.name_to_tile.get(n)) is not None:
+                    if (adj := tile.adjacencies.get(target)) is not None:
                         adj.is_difficult = True
             if "coasts" in data:
                 for coast_name, coast_adjacent in data.get("coasts", {}).items():
                     for adjacent_name in coast_adjacent:
-                        p, c = self._get_province_and_coast(adjacent_name)
-                        province.adjacencies.add_coast(p, coast_name, c)
+                        adj_tile, c = self._get_tile_and_coast(adjacent_name)
+                        tile.adjacencies.add_coast(adj_tile, coast_name, c)
             # Add extra unit locations for provinces that wrap around or have weird shapes
             # For compatability reasons, we assume these are sea tiles
             # TODO: Add support for other unit types
@@ -333,43 +334,53 @@ class Parser:
                 retreat_coord = retreat_locs[index] if index < len(retreat_locs) else coordinate
                 retreat = complex(*retreat_coord) + offset
                 loc = UnitLocation(primary, retreat)
-                province.all_coordinates.setdefault("Fleet", set()).add(loc)
-                province.unit_coordinates["Fleet"] = loc
-        return provinces
+                tile.all_coordinates.setdefault("Fleet", set()).add(loc)
+                tile.unit_coordinates["Fleet"] = loc
+        return tiles
 
-    def _remove_unit_adjacencies(self, provinces: set[Province]) -> set[Province]:
+    def _remove_unit_adjacencies(self, tiles: set[Tile]) -> set[Tile]:
         if "overrides" not in self.data:
-            return provinces
+            return tiles
         for name, data in self.data["overrides"].get("provinces", {}).items():
-            province = self.name_to_province.get(name)
-            if not province:
+            tile = self.name_to_tile.get(name)
+            if not tile:
                 logger.debug("Province %s in overrides not found in map, skipping...", name)
                 continue
             for n in data.get("remove_adjacent_coasts", []):
-                province.adjacencies.remove(self.name_to_province[n], Terrain.COAST)
+                tile.adjacencies.remove(self.name_to_tile[n], Terrain.COAST)
             for n in data.get("remove_adjacent_land", []):
-                province.adjacencies.remove(self.name_to_province[n], Terrain.LAND)
-        return provinces
+                tile.adjacencies.remove(self.name_to_tile[n], Terrain.LAND)
+        return tiles
 
 
-    def _get_provinces(self, provinces: set[Province], adjacencies: set[tuple[str, str]]) -> set[Province]:
-        # Sets adjacencies for each province based on the adjacencies file
+    def _get_provinces(self, tiles: set[Tile], adjacencies: set[tuple[str, str]]) -> set[Province]:
+        # Sets adjacencies for each tile based on the adjacencies file
         for name1, name2 in adjacencies:
-            province1 = self.name_to_province[name1]
-            province2 = self.name_to_province[name2]
-            province1.adjacencies.add(province2)
-            province2.adjacencies.add(province1)
+            self.name_to_tile[name1].adjacencies.add(self.name_to_tile[name2])
+            self.name_to_tile[name2].adjacencies.add(self.name_to_tile[name1])
+
+        # Creates the Province from the Tile
+        province_map: dict[Tile, Province] = {}
+        provinces: set[Province] = set()
+        convoyable_islands = self.data.get("convoyable_islands") == "enabled"
+        for tile in tiles:
+            province = Province(tile, province_map)
+            if convoyable_islands and tile.type == ProvinceType.ISLAND:
+                province.can_convoy = True
+            province_map[tile] = province # All provinces share the same province_map, so it's fine
+            self.name_to_province[province.name] = province
+            provinces.add(province)
 
         # Apply any manual overrides from the config file (e.g. adding adjacencies, multiple coasts, etc.)
-        provinces = self._json_cheats(provinces)
+        tiles = self._json_cheats(tiles)
 
         # Set fleet adjacencies
-        for province in provinces:
-            province.set_coasts()
+        for tile in tiles:
+            tile.set_coasts()
         # We set land-land fleet adjacencies afterwards, since we need to figure out which adjacencies are valid
-        for province in provinces:
-            province.set_adjacent_coasts()
-        provinces = self._remove_unit_adjacencies(provinces)
+        for tile in tiles:
+            tile.set_adjacent_coasts()
+        tiles = self._remove_unit_adjacencies(tiles)
 
         self._initialize_supply_centers()
         self._initialize_province_owners()
@@ -382,14 +393,14 @@ class Parser:
         self._set_phantom_unit_coordinates()
 
         # Add a default unit coordinate to provinces without one, just in case
-        for province in provinces:
-            center = shapely.centroid(province.geometry)
+        for tile in tiles:
+            center = shapely.centroid(tile.geometry)
             center = complex(center.x, center.y) if center else complex(0)
-            province.unit_coordinates["default"] = UnitLocation(primary_coordinate=center,
-                                                                retreat_coordinate=center)
-            for unit in province.unit_coordinates.keys():
-                province.all_coordinates.setdefault(unit, set()).add(province.unit_coordinates[unit])
+            tile.unit_coordinates["default"] = UnitLocation(center, center)
+            for unit in tile.unit_coordinates.keys():
+                tile.all_coordinates.setdefault(unit, set()).add(tile.unit_coordinates[unit])
 
+        for province in provinces:
             # For Chaos games, remove ownership of non-SC provinces
             if self.is_chaos and not province.has_supply_center:
                 province.owner = None
@@ -398,11 +409,11 @@ class Parser:
 
         return provinces
 
-    def _get_province_coordinates(self) -> set[Province]:
-        # Creates Provinces objects for each province element in the SVG, and stores them in a set.
+    def _get_tile_coordinates(self) -> set[Tile]:
+        # Creates Tile objects for each province element in the SVG, and stores them in a set.
         # This includes the geometry of the province, its name, and its type.
         # Adjacency, ownership, and other information is added later.
-        provinces = set()
+        tiles = set()
         province_types = {"land_layer": ProvinceType.LAND,
                           "island_borders": ProvinceType.ISLAND,
                           "sea_borders": ProvinceType.SEA}
@@ -411,16 +422,16 @@ class Parser:
                 continue
             layer_transformation = TransGL3(cur_layer)
             for province_data in list(cur_layer):
-                provinces.add(self._create_province(province_data, province_type, layer_transformation))
-        return provinces
+                tiles.add(self._create_tile(province_data, province_type, layer_transformation))
+        return tiles
 
     # TODO: (BETA) can a library do all of this for us? more safety from needing to support wild SVG legal syntax
-    def _create_province(
+    def _create_tile(
         self,
         province_data: Element,
         province_type: ProvinceType,
         layer_transformation: TransGL3
-    ) -> Province:
+    ) -> Tile:
         # Given an SVG element for a province, creates a Province object with the correct geometry and name.
         path_string = province_data.get("d")
         if not path_string:
@@ -442,14 +453,15 @@ class Parser:
             if name == "":
                 raise RuntimeError(f"Province name not found in province with data {tostring(province_data)}")
 
-        province = Province(name, poly, province_type)
+        tile = Tile(name, poly, province_type)
 
-        # We set impassability here, though it might be better to do it elsewhere
+        # The starting impassability is static per variant, so it lives on the Tile.
+        # Province takes the live value from it and games can change it from there.
         color = get_element_color(province_data)
         if color == self.impassable_color:
-            province.is_impassable = True
+            tile.default_impassable = True
 
-        return province
+        return tile
 
     def _initialize_province_owners(self) -> None:
         land = self.layer_data.get("land_layer")
@@ -458,20 +470,20 @@ class Parser:
             layers.extend(islands)
         for province_data in layers:
             name = self.get_province_name(province_data)
-            if self.name_to_province[name].is_impassable:
+            if self.name_to_tile[name].default_impassable:
                 continue
             self.name_to_province[name].owner = self._get_element_player(province_data, province_name=name)
 
     # Sets province names given the names layer
-    def _initialize_province_names(self, provinces: set[Province]) -> None:
-        def set_province_name(province: Province, name_data: etree.Element, _: str | None) -> None:
-            if province.name != "":
-                raise RuntimeError(f"Province already has name: {province.name}")
+    def _initialize_province_names(self, tiles: set[Tile]) -> None:
+        def set_province_name(tile: Tile, name_data: etree.Element, _: str | None) -> None:
+            if tile.name != "":
+                raise RuntimeError(f"Province already has name: {tile.name}")
             new_name = name_data.findall(".//svg:tspan", namespaces=NAMESPACE)[0].text
             assert new_name is not None
-            province.name = new_name
+            tile.name = new_name
 
-        initialize_province_resident_data(provinces,
+        initialize_province_resident_data(tiles,
                                           list(self.layer_data["names_layer"]),
                                           get_coordinates,
                                           set_province_name)
@@ -484,7 +496,7 @@ class Parser:
             sc_coords = sc_layer_transformation.transform(TransGL3(center_data)
                                                .transform(get_sc_coordinates(center_data)))
             sc_point = shapely.Point(sc_coords.real, sc_coords.imag)
-            if not shapely.dwithin(sc_point, province.geometry, self.data[SVG_CONFIG_KEY].get("unit_radius", 10)):
+            if not shapely.dwithin(sc_point, province.tile.geometry, self.data[SVG_CONFIG_KEY].get("unit_radius", 10)):
                 logger.warning("%s: Supply center icon for '%s' is not within its province", self.datafile, name)
 
             if province.has_supply_center:
@@ -525,8 +537,8 @@ class Parser:
                 continue
             if self.data[SVG_CONFIG_KEY]["unit_type_labeled"]:
                 province_name = province_name[1:]
-            province, coast = self._get_province_and_coast(province_name)
-            self._set_province_unit(province, unit_data, coast)
+            tile, coast = self._get_tile_and_coast(province_name)
+            self._set_province_unit(self.name_to_province[tile.name], unit_data, coast)
 
     def _set_phantom_unit_coordinates(self) -> None:
         layers = []
@@ -540,10 +552,10 @@ class Parser:
             layer_translation = TransGL3(layer)
             for unit_data in list(layer):
                 unit_translation = TransGL3(unit_data)
-                province, coast = self._get_province_and_coast(self.get_province_name(unit_data))
+                tile, coast = self._get_tile_and_coast(self.get_province_name(unit_data))
                 coordinate = get_element_unit_coordinates(unit_data)
                 translated_coordinate = layer_translation.transform(unit_translation.transform(coordinate))
-                province.set_unit_coordinate(translated_coordinate, unit_type, is_retreat, coast)
+                tile.set_unit_coordinate(translated_coordinate, unit_type, is_retreat, coast)
 
     @staticmethod
     def get_province_name(province_data: Element) -> str:
@@ -551,7 +563,7 @@ class Parser:
         province_name = province_data.get(INKSCAPE_LABEL)
         return province_name or ""
 
-    def _get_province_and_coast(self, province_name: str) -> tuple[Province, str | None]:
+    def _get_tile_and_coast(self, province_name: str) -> tuple[Tile, str | None]:
         coast_suffix: str | None = None
 
         pattern = re.compile(
@@ -564,13 +576,13 @@ class Parser:
             province_name = match.group(1).strip()
             coast_suffix = (match.group(2) or match.group(3)).lower()
 
-        province = self.name_to_province[province_name]
-        return province, coast_suffix
+        tile = self.name_to_tile[province_name]
+        return tile, coast_suffix
 
     # Attempts to get adjacencies from the cache file
     # If one doesn't exist, we go through each pair of provinces and see if they're within a certain distance
     # If they are, we add them to the adjacencies and write that to the cache file for next time
-    def _get_adjacencies(self, provinces: set[Province]) -> set[tuple[str, str]]:
+    def _get_adjacencies(self, tiles: set[Tile]) -> set[tuple[str, str]]:
         adjacencies = set()
         try:
             f = open(f"assets/{self.datafile}_adjacencies.txt", "r", encoding="utf-8")
@@ -579,10 +591,10 @@ class Parser:
         except FileNotFoundError:
             f = open(f"assets/{self.datafile}_adjacencies.txt", "w", encoding="utf-8")
             # Combinations so that we only have (A, B) and not (B, A) or (A, A)
-            for province1, province2 in itertools.combinations(provinces, 2):
-                if shapely.dwithin(province1.geometry, province2.geometry, self.layers["border_margin_hint"]):
-                    adjacencies.add((province1.name, province2.name))
-                    f.write(f"{province1.name},{province2.name}\n")
+            for tile1, tile2 in itertools.combinations(tiles, 2):
+                if shapely.dwithin(tile1.geometry, tile2.geometry, self.layers["border_margin_hint"]):
+                    adjacencies.add((tile1.name, tile2.name))
+                    f.write(f"{tile1.name},{tile2.name}\n")
         f.close()
         return adjacencies
 

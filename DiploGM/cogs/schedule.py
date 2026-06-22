@@ -3,10 +3,13 @@ import datetime
 import json
 import logging
 import uuid
+from typing import TYPE_CHECKING
 
 from discord.ext import commands, tasks
 from discord import Message, TextChannel, User
-from discord.types.user import User as UserPayload
+
+if TYPE_CHECKING:
+    from discord.types.user import User as UserPayload
 
 from DiploGM.bot import DiploGM
 from DiploGM import perms
@@ -470,7 +473,7 @@ class ScheduleCog(commands.Cog):
             json.dump(curr_tasks, f)
 
     @staticmethod
-    def get_payload_user_from_user(user: User) -> UserPayload:
+    def get_payload_user_from_user(user: User):
         return {
             "id": str(user.id),
             "username": user.name,

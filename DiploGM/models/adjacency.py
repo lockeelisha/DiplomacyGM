@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from DiploGM.models.province import Province
+    from DiploGM.models.tile import Tile
 
 class Terrain(Enum):
     """Types of province crossings. For default play, armies can move across land, while fleets can move
@@ -40,11 +40,11 @@ class Adjacency:
 class AdjacencyData:
     """Class to represent all adjacencies for a given province, and store helper functions to access them."""
     def __init__(self):
-        self.adjacencies: dict[Province, Adjacency] = {}
-        self.adjacent_by_type: dict[str | Terrain, set[Province]] = {u: set() for u in Terrain}
+        self.adjacencies: dict[Tile, Adjacency] = {}
+        self.adjacent_by_type: dict[str | Terrain, set[Tile]] = {u: set() for u in Terrain}
         self.coasts: set[str] = set()
 
-    def add(self, province: Province) -> Adjacency:
+    def add(self, province: Tile) -> Adjacency:
         """Adds an adjacency to the given province if it doesn't exist, and returns it.
         No unit type or coast information is added by this function, so add_unit_type or add_coast should be called
         at some point after this to add that information."""
@@ -52,7 +52,7 @@ class AdjacencyData:
             self.adjacencies[province] = Adjacency()
         return self.adjacencies[province]
 
-    def add_terrain(self, province: Province, terrain: Terrain) -> Adjacency:
+    def add_terrain(self, province: Tile, terrain: Terrain) -> Adjacency:
         """Sets the terrain type for the adjacency to the given province.
         If the adjacency doesn't exist, it is created with this terrain type."""
         adj = self.add(province)
@@ -60,7 +60,7 @@ class AdjacencyData:
         self.adjacent_by_type[terrain].add(province)
         return adj
 
-    def add_coast(self, province: Province, origin_coast: str | None, dest_coast: str | None):
+    def add_coast(self, province: Tile, origin_coast: str | None, dest_coast: str | None):
         """Adds a coastal adjacency to the given province.
         If the adjacency doesn't exist, it is created with this coastal adjacency as the only coastal adjacency.
         This also allows fleets to move across this adjacency."""
@@ -70,7 +70,7 @@ class AdjacencyData:
             self.coasts.add(origin_coast)
             self.adjacent_by_type.setdefault(origin_coast, set()).add(province)
 
-    def remove(self, province: Province, terrain: Terrain | None = None):
+    def remove(self, province: Tile, terrain: Terrain | None = None):
         """Removes an adjacency to the given province. If terrain is specified, only removes that terrain type.
         This method also updates caches accordingly."""
         if province not in self.adjacencies:
@@ -88,11 +88,11 @@ class AdjacencyData:
             for origin_coast in origin_coasts:
                 self.adjacent_by_type[origin_coast].discard(province)
 
-    def get(self, province: Province) -> Adjacency | None:
+    def get(self, province: Tile) -> Adjacency | None:
         """Gets the Adjacency object for the given province, or None if there is no adjacency."""
         return self.adjacencies.get(province)
 
-    def get_coasts(self, province: Province, coast: str | None = None) -> set[str | None]:
+    def get_coasts(self, province: Tile, coast: str | None = None) -> set[str | None]:
         """Gets the coasts of the given province that are adjacent to the given coast of this province.
         If coast is unset or None, gets all coasts of the given province that are adjacent."""
         adj = self.get(province)
@@ -102,7 +102,7 @@ class AdjacencyData:
             return {dest_coast for origin_coast, dest_coast in adj.coasts if origin_coast == coast}
         return {dest_coast for _, dest_coast in adj.coasts if dest_coast is not None}
 
-    def get_all(self, terrain: Terrain | set[Terrain]| None = None, coast: str | None = None) -> set[Province]:
+    def get_all(self, terrain: Terrain | set[Terrain]| None = None, coast: str | None = None) -> set[Tile]:
         """Gets all adjacent provinces, optionally filtered by terrain and coast."""
         if coast is not None:
             terrain = Terrain.COAST
@@ -113,10 +113,10 @@ class AdjacencyData:
         keys = {coast} if coast in self.adjacent_by_type else terrain
         return {province for key in keys for province in self.adjacent_by_type.get(key, set())}
 
-    def get_all_with_coasts(self, coast: str | None) -> set[tuple[Province, str | None]]:
+    def get_all_with_coasts(self, coast: str | None) -> set[tuple[Tile, str | None]]:
         """Gets all adjacent provinces with coasts, filtered by the given coast of this province."""
         provinces = self.get_all(Terrain.COAST, coast)
-        coastal_adjacencies: set[tuple[Province, str | None]] = set()
+        coastal_adjacencies: set[tuple[Tile, str | None]] = set()
         for province in provinces:
             if not (adj_coasts := self.adjacencies[province].coasts):
                 coastal_adjacencies.add((province, None))
@@ -126,7 +126,7 @@ class AdjacencyData:
                     coastal_adjacencies.add((province, dest_coast))
         return coastal_adjacencies
 
-    def is_difficult(self, province: Province) -> bool:
+    def is_difficult(self, province: Tile) -> bool:
         """Checks if the adjacency to the given province is difficult."""
         adjacency = self.get(province)
         return adjacency.is_difficult if adjacency else False
