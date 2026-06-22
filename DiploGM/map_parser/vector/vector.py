@@ -31,6 +31,7 @@ from DiploGM.utils.sanitise import parse_variant_path
 # TODO: (BETA) consistent in bracket formatting
 LAYER_NAMES = set(LAYER_DICTIONARY.keys())
 INKSCAPE_LABEL = f"{NAMESPACE.get('inkscape')}label"
+COAST_REGEX_PATTERN = re.compile(r"^(.*?)\s*(?: \(([neswc]+c)\)| ([neswc]+c))$", re.IGNORECASE)
 
 logger = logging.getLogger(__name__)
 
@@ -289,7 +290,7 @@ class Parser:
             self.name_to_tile[name2].adjacencies.add(self.name_to_tile[name1])
 
         # Apply any manual overrides from the config file (e.g. adding adjacencies, multiple coasts, etc.)
-        self._json_cheats(tiles)
+        self._json_cheats()
 
         # Set fleet adjacencies
         for tile in tiles:
@@ -297,7 +298,7 @@ class Parser:
         # We set land-land fleet adjacencies afterwards, since we need to figure out which adjacencies are valid
         for tile in tiles:
             tile.set_adjacent_coasts()
-        self._remove_unit_adjacencies(tiles)
+        self._remove_unit_adjacencies()
 
         # Set phantom unit coordinates for optimal unit placements
         self._set_phantom_unit_coordinates()
@@ -310,12 +311,32 @@ class Parser:
             for unit in tile.unit_coordinates.keys():
                 tile.all_coordinates.setdefault(unit, set()).add(tile.unit_coordinates[unit])
 
+        # Do a pass-through to ensure that SC markers are in the right spot
+        self._verify_supply_center_locations()
+
         self.tiles = tiles
         return tiles
 
-    def _json_cheats(self, tiles: set[Tile]) -> set[Tile]:
+    def _verify_supply_center_locations(self) -> None:
+        """Warns if any supply center icon sits outside its province's geometry.
+        This doesn't break anything, but it can be an indication of a mis-labeled SC."""
+        sc_layer_transformation = TransGL3(self.layer_data["supply_center_icons"])
+        unit_radius = self.data[SVG_CONFIG_KEY].get("unit_radius", 10)
+        for center_data in self.layer_data["supply_center_icons"]:
+            name = self.get_province_name(center_data)
+            tile = self.name_to_tile.get(name)
+            if tile is None or tile.geometry is None:
+                continue
+            sc_coords = sc_layer_transformation.transform(
+                TransGL3(center_data).transform(get_sc_coordinates(center_data)))
+            sc_point = shapely.Point(sc_coords.real, sc_coords.imag)
+            if not shapely.dwithin(sc_point, tile.geometry, unit_radius):
+                logger.warning("%s: Supply center icon for '%s' is not within its province",
+                               self.datafile, name)
+
+    def _json_cheats(self):
         if "overrides" not in self.data:
-            return tiles
+            return
 
         offset = complex(self.data[SVG_CONFIG_KEY].get("loc_x_offset", 0),
                          self.data[SVG_CONFIG_KEY].get("loc_y_offset", 0))
@@ -356,11 +377,10 @@ class Parser:
                 loc = UnitLocation(primary, retreat)
                 tile.all_coordinates.setdefault("Fleet", set()).add(loc)
                 tile.unit_coordinates["Fleet"] = loc
-        return tiles
 
-    def _remove_unit_adjacencies(self, tiles: set[Tile]) -> set[Tile]:
+    def _remove_unit_adjacencies(self):
         if "overrides" not in self.data:
-            return tiles
+            return
         for name, data in self.data["overrides"].get("provinces", {}).items():
             tile = self.name_to_tile.get(name)
             if not tile:
@@ -370,8 +390,6 @@ class Parser:
                 tile.adjacencies.remove(self.name_to_tile[n], Terrain.COAST)
             for n in data.get("remove_adjacent_land", []):
                 tile.adjacencies.remove(self.name_to_tile[n], Terrain.LAND)
-        return tiles
-
 
     def _get_provinces(self, tiles: set[Tile]) -> set[Province]:
         province_map: dict[Tile, Province] = {}
@@ -424,7 +442,7 @@ class Parser:
         province_type: ProvinceType,
         layer_transformation: TransGL3
     ) -> Tile:
-        # Given an SVG element for a province, creates a Province object with the correct geometry and name.
+        # Given an SVG element for a province, creates a Tile object with the correct geometry and name.
         path_string = province_data.get("d")
         if not path_string:
             logger.error("Province path data not found in province with data %s", tostring(province_data))
@@ -481,16 +499,9 @@ class Parser:
                                           set_province_name)
 
     def _initialize_supply_centers(self) -> None:
-        sc_layer_transformation = TransGL3(self.layer_data["supply_center_icons"])
         for center_data in self.layer_data["supply_center_icons"]:
             name = self.get_province_name(center_data)
             province = self.name_to_province[name]
-            sc_coords = sc_layer_transformation.transform(TransGL3(center_data)
-                                               .transform(get_sc_coordinates(center_data)))
-            sc_point = shapely.Point(sc_coords.real, sc_coords.imag)
-            # TODO: We might want to move this to Parser init since it's tile-based
-            if not shapely.dwithin(sc_point, province.tile.geometry, self.data[SVG_CONFIG_KEY].get("unit_radius", 10)):
-                logger.warning("%s: Supply center icon for '%s' is not within its province", self.datafile, name)
 
             if province.has_supply_center:
                 raise RuntimeError(f"{name} already has a supply center")
@@ -559,12 +570,7 @@ class Parser:
     def _get_tile_and_coast(self, province_name: str) -> tuple[Tile, str | None]:
         coast_suffix: str | None = None
 
-        pattern = re.compile(
-            r"^(.*?)\s*(?: \(([neswc]+c)\)| ([neswc]+c))$",
-            re.IGNORECASE
-        )
-
-        match = pattern.match(province_name)
+        match = COAST_REGEX_PATTERN.match(province_name)
         if match:
             province_name = match.group(1).strip()
             coast_suffix = (match.group(2) or match.group(3)).lower()
