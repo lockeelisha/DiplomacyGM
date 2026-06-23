@@ -27,6 +27,7 @@ async def upload_map_to_archive(
 	board: Board,
 	game_map: bytes,
 	turn: Turn | None = None,
+	draw_moves: bool = True,
 ) -> None:
 	"""Uploads a map to the archive given a server ID and the map as a PNG."""
 	if not MAP_ARCHIVE_SAS_TOKEN:
@@ -39,7 +40,7 @@ async def upload_map_to_archive(
 			if str(server_id) == server_info[0]:
 				url = (
 					f"{MAP_ARCHIVE_UPLOAD_URL}/{server_info[1]}/{server_info[2]}/"
-					+ f"{turnstr}m.png{MAP_ARCHIVE_SAS_TOKEN}"
+					+ f"{turnstr}{'m' if draw_moves else 'r'}.png{MAP_ARCHIVE_SAS_TOKEN}"
 				)
 				break
 	if url is None:

@@ -1,5 +1,6 @@
 """Bot administration commands, to be used by superusers only."""
 
+from asyncio import sleep
 import logging
 import re
 
@@ -285,12 +286,42 @@ class AdminCog(commands.Cog):
 		server_id = int(arguments[0])
 		board = manager.get_board(server_id)
 		season = parse_season(arguments[1:], board.turn)
+		draw_moves = "results" not in arguments
 		file, _ = manager.draw_map(
 			server_id,
-			draw_moves=True,
+			draw_moves=draw_moves,
 			turn=season,
 		)
-		await upload_map_to_archive(ctx, server_id, board, file, season)
+		await upload_map_to_archive(ctx, server_id, board, file, season, draw_moves)
+
+	@commands.command(hidden=True)
+	@perms.superuser_only("Uploads all maps to archive")
+	async def archive_upload_all(self, ctx: commands.Context) -> None:
+		"""Uploads all maps from a server to the map archive."""
+		arguments = remove_prefix(ctx).lower().split()
+		server_id = int(arguments[0])
+		board = manager.get_board(server_id)
+		current_turn = board.turn
+		if "finished" in arguments:
+			file, _ = manager.draw_map(
+				server_id,
+				draw_moves=False,
+				turn=current_turn,
+			)
+			await upload_map_to_archive(ctx, server_id, board, file, current_turn, False)
+
+		while True:
+			await sleep(0)
+			current_turn = current_turn.get_previous_turn()
+			try:
+				file, _ = manager.draw_map(
+					server_id,
+					draw_moves=True,
+					turn=current_turn,
+				)
+			except NoGameError:
+				break
+			await upload_map_to_archive(ctx, server_id, board, file, current_turn, True)
 
 	@commands.command(brief="Execute Arbitrary Python")
 	@perms.superuser_only("Execute arbitrary python code")
