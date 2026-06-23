@@ -88,7 +88,17 @@ def import_game(board: Board, data: dict) -> str:
 
     # Apply custom parameters
     if "parameters" in data:
-        for key, value in data["parameters"].items():
+        def flatten_params(d: dict, parent_key: str = "", sep: str = "/") -> dict:
+            items = {}
+            for k, v in d.items():
+                new_key = f"{parent_key}{sep}{k}" if parent_key else k
+                if isinstance(v, dict):
+                    items.update(flatten_params(v, new_key, sep=sep))
+                else:
+                    items[new_key] = v
+            return items
+
+        for key, value in flatten_params(data["parameters"]).items():
             board.set_data(key.split("/"), value)
 
     return "Successfully imported board."

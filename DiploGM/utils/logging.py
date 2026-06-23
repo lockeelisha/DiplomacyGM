@@ -11,17 +11,16 @@ if TYPE_CHECKING:
 
 def log_command(
     remote_logger: logging.Logger,
-    ctx: discord.ext.commands.Context,
+    ctx: commands.Context,
     message: str,
     *,
     level=logging.INFO,
 ) -> None:
-    # FIXME Should probably delete this function and use a logging formatter instead
     log_command_no_ctx(
         remote_logger,
         ctx.message.content,
         ctx.channel,
-        ctx.guild.name,
+        ctx.guild.name if ctx.guild else "DM",
         message,
         level=level,
     )
@@ -36,7 +35,6 @@ def log_command_no_ctx(
     *,
     level=logging.INFO,
 ) -> None:
-    # FIXME Should probably delete this function and use a logging formatter instead
 
     if level <= logging.DEBUG:
         command_len_limit = -1

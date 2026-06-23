@@ -9,6 +9,7 @@ from discord.utils import find as discord_find
 from DiploGM import config
 from DiploGM import perms
 from DiploGM.config import MAP_ARCHIVE_SAS_TOKEN
+from DiploGM.errors import NoGameError
 from DiploGM.utils import log_command, parse_season, send_message_and_file, upload_map_to_archive
 from DiploGM.manager import Manager
 from DiploGM.utils.sanitise import remove_prefix
@@ -86,7 +87,7 @@ class AdminCog(commands.Cog):
         """Lists all servers the bot is in."""
         servers_with_games = manager.list_servers()
         message = ""
-        args = remove_prefix(ctx).split(" ")
+        args = remove_prefix(ctx).split()
         send_id = "id" in args
         send_invite = "invite" in args
         for server in ctx.bot.guilds:
@@ -103,8 +104,11 @@ class AdminCog(commands.Cog):
 
             if server.id in servers_with_games:
                 servers_with_games.remove(server.id)
-                board = manager.get_board(server.id)
-                board_state = f" - {board.turn}"
+                try:
+                    board = manager.get_board(server.id)
+                    board_state = f" - {board.turn}"
+                except NoGameError:
+                    board_state = " - board not loaded"
             else:
                 board_state = " - no active game"
 
@@ -201,7 +205,7 @@ class AdminCog(commands.Cog):
         content = remove_prefix(ctx)
 
         usernames = []
-        components = content.split(" ")
+        components = content.split()
         for comp in components:
             if comp == "":
                 continue
@@ -313,7 +317,9 @@ class AdminCog(commands.Cog):
 
     # @commands.command(
     #     brief="Execute Arbitrary SQL",
-    #     description="Perform an SQL query on the production database.\n\nONLY TO BE USED IN THE MOST EXTREME CASES\nONLY USE IF YOU ARE ABSOLUTELY SURE OF WHAT YOU ARE DOING.",
+    #     description="Perform an SQL query on the production database.\n\n
+    #                  ONLY TO BE USED IN THE MOST EXTREME CASES\n
+    #  ONLY USE IF YOU ARE ABSOLUTELY SURE OF WHAT YOU ARE DOING.",
     #     help="""Example:
     # `.exec_sql "DELETE FROM units WHERE board_id=? AND phase=? AND owner=?" <server_id> "0 Fall Moves" England`
     # `.exec_sql "UPDATE provinces SET owner=? WHERE board_id=? AND phase=?" Aymara <server_id> "2 Spring Moves"`

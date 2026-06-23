@@ -8,6 +8,7 @@ from discord.ext import commands
 
 from test.DiploGM.cogs.utils import (
     CogTestCase,
+    create_mock_channel,
     create_mock_gm_context,
     create_mock_role,
 )
@@ -268,7 +269,7 @@ class TestAdjudicate(GMCogTestCase):
         new_board = self.board  # just reuse the same board for simplicity
 
         for target, rv in [
-            ("DiploGM.cogs.game_management.adjudication.manager.adjudicate", new_board),
+            ("DiploGM.cogs.game_management.adjudication.manager.adjudicate", (None, new_board)),
             ("DiploGM.cogs.game_management.adjudication.manager.get_board_from_db", self.board),
             ("DiploGM.cogs.game_management.adjudication.manager.apply_adjudication_results", None),
             ("DiploGM.cogs.game_management.adjudication.manager.draw_map_for_board",
@@ -290,6 +291,14 @@ class TestAdjudicate(GMCogTestCase):
             p.stop()
         super().tearDown()
 
+    @staticmethod
+    def _add_maps_channel(ctx) -> None:
+        """Wire up a #maps channel so the adjudication map-output loop runs (every real server has one)."""
+        maps_channel = create_mock_channel("maps", category_name="gm channels")
+        maps_channel.id = 123456789012
+        ctx.guild.channels = [maps_channel]
+        ctx.guild.get_channel = MagicMock(return_value=maps_channel)
+
     async def test_missing_orders_blocks(self):
         """Adjudication is blocked when units have no orders."""
         ctx = create_mock_gm_context(message_content=".adjudicate")
@@ -303,7 +312,7 @@ class TestAdjudicate(GMCogTestCase):
     async def test_confirm_overrides_missing(self):
         """Using 'confirm' proceeds despite missing orders."""
         ctx = create_mock_gm_context(message_content=".adjudicate confirm")
-        ctx.guild.channels = []
+        self._add_maps_channel(ctx)
         await self.invoke(self.cog, "adjudicate", ctx)
 
         self.mock_send.assert_called()
@@ -314,7 +323,7 @@ class TestAdjudicate(GMCogTestCase):
     async def test_test_mode(self):
         """Test mode passes test=True to manager.adjudicate."""
         ctx = create_mock_gm_context(message_content=".adjudicate test confirm")
-        ctx.guild.channels = []
+        self._add_maps_channel(ctx)
         await self.invoke(self.cog, "adjudicate", ctx)
 
         self.mock_send.assert_called()

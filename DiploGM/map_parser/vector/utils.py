@@ -83,11 +83,21 @@ def get_element_color(element: Element, prefix="fill:") -> str | None:
             value = value[len(prefix):]
             if value.startswith("#"):
                 value = value[1:]
-            return value
+            return value.lower()
     return None
 
-def get_unit_coordinates(unit_data: Element) -> complex:
+def get_element_unit_coordinates(unit_data: Element) -> complex:
     """Gets the x, y coordinates of a unit."""
+    # Check for an image element first - if present, use its center
+    image = unit_data.find("{http://www.w3.org/2000/svg}image")
+    if image is not None:
+        x = float(image.get("x", 0))
+        y = float(image.get("y", 0))
+        w = float(image.get("width", 0))
+        h = float(image.get("height", 0))
+        center = complex(x + w / 2, y + h / 2)
+        return TransGL3(image).transform(center)
+
     subpath = unit_data.find("{http://www.w3.org/2000/svg}path")
     path = subpath if subpath is not None else unit_data
 
@@ -115,7 +125,7 @@ def get_sc_coordinates(supply_center_data: Element) -> complex:
     cx = circle.get("cx")
     cy = circle.get("cy")
     if cx is None or cy is None:
-        return get_unit_coordinates(supply_center_data)
+        return get_element_unit_coordinates(supply_center_data)
     base_coordinates = complex(float(cx), float(cy))
     return TransGL3(circle).transform(base_coordinates)
 

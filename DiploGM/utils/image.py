@@ -14,7 +14,7 @@ if LIMIT is None:
 external_task_limit = asyncio.Semaphore(int(LIMIT))
 
 
-async def svg_to_png(svg: bytes, file_name: str) -> tuple[bytes, str]:
+async def svg_to_png(svg: bytes, file_name: str, dpi: int = 200) -> tuple[bytes, str]:
     """Convert an SVG to a PNG using Inkscape.
     This is by far the most intensive part of the bot, so if there's any way we could speed this up,
     it would make a huge difference."""
@@ -23,7 +23,7 @@ async def svg_to_png(svg: bytes, file_name: str) -> tuple[bytes, str]:
         os_env = os.environ.copy()
         os_env["SELF_CALL"] = "xxx"
         p = await asyncio.create_subprocess_shell(
-            "inkscape --pipe --export-type=png --export-dpi=200",
+            f"inkscape --pipe --export-type=png --export-dpi={dpi}",
             stdout=PIPE,
             stdin=PIPE,
             stderr=PIPE,

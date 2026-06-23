@@ -1,3 +1,121 @@
+1.11.1
+======
+
+Contributors:
+- Golden Kumquat
+
+# Bugfixes
+- The bot will now condense multiple spaces into one when processing commands
+- In servers with multiple map channels, the adjudicator won't spit out so many maps if it's not a full adjudication
+- `.edit_server maps_channel` is far less likely to fail for no good reason
+
+# Developer Changes
+- Did a bunch of refactoring that hopefully didn't break anything
+
+1.11.0
+======
+
+Contributors:
+- Golden Kumquat
+
+# New Features
+- Players can set a preferred map color by using `.edit_prefs color_mode <color_mode>`
+  - This preference will be saved across all games in a variant
+- GMs can add additional map channels by using `.edit_server maps_channel <#channel> <(optional) color_mode>`
+  - When `.adjudicate full` is run, maps will be outputted to those channels in addition to #maps, with the selected color mode if included
+- There's now a lot more granularity over how cores can work:
+  - Cores can be set to require one or two turns to complete
+  - Coring can require ownership of all adjacent SCs or provinces to be valid
+  - Coring can require no enemy units to be in adjacent SCs or provinces
+  - Coring can be set to fail if anyone supports the core
+  - Coring can be set to fail if an enemy unit moves into an adjacent SC or province
+  - As a result, editing coring options are now in `.edit_game core_options`
+
+# Developer Changes
+- Added ctx_parameters table to store player/server parameters, such as map color preferences
+
+# Bugfixes
+- Fixed bug where labelling a starting fleet "Province NC" was failing SVG validation due to capitalization
+- Fixed path data errors not being logged well
+- Fixed .view_open_cores in control-based and chaos-based building modes
+
+1.10.5
+======
+
+Contributors:
+- Golden Kumquat
+
+# New Features
+- Builds/transforms in Winter will now be marked in red if they have failed
+- Variants can now set a custom DPI for map exporting
+- `map_width` is now an optional parameter for variants. If it is not set, or set to 0, the map will not wrap around
+- Fog of War now works!
+  - `.adjudicate full` should not be used; instead use `.publish_fow_moves` and `.publish_fow_order_logs`
+  - It is a bad idea to try FoW on large maps with many players, as the bot won't handle sending many maps at once very well
+  - Many thanks to the fine folks at the Imperial Diplomacy Bullet Server for getting it to work
+
+# Developer Changes
+- Added has_failed to orders done in Winter
+- Refactored how orders done in Winter are drawn
+
+# Bugfixes
+- Help texts for `.create_press_channel`, `.edit`, and `.edit_game` have been fixed
+- The `.servers` command properly works with builds again
+- If unit symbols are images, they will now properly copy over to the correct spot on the map
+- If a map has a lot of adjacency issues, `.verify_adjacencies` will not give up instead of recursively iterating for a very long time
+- Trying to draw a unit disbanding will no longer crash if the bot doesn't know where to draw the X
+
+1.10.4
+======
+
+Contributors:
+- aahoughton
+- seanyjolhv
+
+# New Features
+- Added new command `.rng`, give it a number and decide your fate!
+- Added new argument `invert` to commands `.view_map / .view_current`
+- Added new argument `clean` to command `.view_map / .view_current`
+
+# Quality of Life
+- Added colourblind map modes to Imperial Diplomacy for greater accessibility, available modes:
+  - `proto_a`
+  - `proto_b`
+  - `deute_a`
+  - `deute_b`
+  - `trita_a`
+  - `trita_b`
+
+# Game Management Changes
+- Made `@scrap` possible for use in `/advertise`
+
+# Developer Changes
+- Added new `MapperUtils` method `invert_hexcode()`
+
+1.10.3
+======
+
+Contributors:
+- Golden Kumquat
+
+# New Features
+- The bot will now only load a board the first time someone issues a command, instead of all on load
+  - Startup times should be much quicker, though the first command run per server will be slower
+- Provinces can have more than four coasts, for those who wish to design eldrich abomination provinces
+- Games can be created with "chaos" and "fow" parameters
+  - Running FoW and Chaos games have not been tested yet and will be implemented in a future patch
+
+# Developer Changes
+- Removed temporary Severance code
+- Removed vassal/points system that was only used in WoC (and never was fully operational anyway)
+
+# Bugfixes
+- Fixed an issue with coast names. Some fleets might not be on a coast; if so they will need to be moved manually
+- Fixed an issue with .import_game not properly loading VSCC/ISCC
+
+# Known issues
+- .global_leaderboard will likely be missing a lot of servers
+
 1.10.2
 ======
 

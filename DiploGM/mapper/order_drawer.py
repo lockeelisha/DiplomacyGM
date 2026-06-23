@@ -58,28 +58,31 @@ class OrderDrawer:
 
     def draw_player_order(self, order: PlayerOrder) -> None:
         """Draws a Player Order (e.g. build, disband, etc.) on the map."""
-        if isinstance(order, Build):
-            self._draw_build(order)
-        elif isinstance(order, Disband):
-            assert order.province.unit is not None
-            disbanding_unit: Unit = order.province.unit
-            if disbanding_unit.coast:
-                coord_list = order.province.all_coordinates[disbanding_unit.coast]
-            else:
-                coord_list = order.province.all_coordinates[disbanding_unit.unit_type.name]
-            for coord in coord_list:
-                self.draw_force_disband(None, None, coord.primary_coordinate, None, self.moves_svg)
-        elif isinstance(order, TransformBuild):
-            assert order.province.unit is not None
-            transforming_unit: Unit = order.province.unit
-            if transforming_unit.coast:
-                coord_list = order.province.all_coordinates[transforming_unit.coast]
-            else:
-                coord_list = order.province.all_coordinates[transforming_unit.unit_type.name]
-            for coord in coord_list:
-                self._draw_transform(None, None, coord.primary_coordinate, False)
-        else:
+        function_list = {Build: self._draw_build,
+                         Disband: self.draw_force_disband,
+                         TransformBuild: self._draw_transform}
+        order_function = function_list.get(type(order), None)
+        if order_function is None:
             logger.error("Could not draw player order %s", order)
+            return
+        if isinstance(order, Build):
+            unit_type = order.unit_type
+            coast = order.coast
+        else:
+            unit = order.province.unit
+            if not unit:
+                logger.error("No unit found in province %s", order.province.name)
+                return
+            unit_type = unit.unit_type
+            coast = unit.coast
+        coord_list = MapperUtils.get_all_unit_coordinates(order.province, unit_type, coast)
+        for coord in coord_list:
+            order_function(None, None, coord, order.has_failed)
+
+    def _is_visible_order(self, unit: Unit) -> bool:
+        if self.player_restriction is None or unit.player is None:
+            return True
+        return unit.player.name == self.player_restriction
 
     def _draw_hold(self, _, __, coordinate: complex, has_failed: bool) -> None:
         element = self.moves_svg.getroot()
@@ -142,7 +145,7 @@ class OrderDrawer:
                                                unit.unit_type,
                                                order.destination_coast,
                                                coordinate,
-                                               self.board_svg_data["map_width"])
+                                               self.board_svg_data.get("map_width", 0))
         if order.destination.unit:
             destination = MapperUtils.pull_coordinate(coordinate,
                                                       destination,
@@ -184,9 +187,8 @@ class OrderDrawer:
                 and unit.order.source == source
                 and unit.order.destination == destination
             )
-            if (self.player_restriction is not None
-                and (unit.player is None or unit.player.name != self.player_restriction)):
-                continue # Don't draw if the player doesn't know that fleet is convoying
+            if not self._is_visible_order(unit):
+                continue
             if is_convoying_fleet:
                 options += self._path_helper(source, destination, possibility, new_checked)
         return list(map((lambda t: [current] + t), options))
@@ -237,7 +239,7 @@ class OrderDrawer:
             start = coordinate
             for loc in path[1:]:
                 points += [MapperUtils.loc_to_point(loc, unit.unit_type, order.destination_coast,
-                                                    start, self.board_svg_data["map_width"])]
+                                                    start, self.board_svg_data.get("map_width", 0))]
                 start = points[-1]
 
             if path[-1].unit:
@@ -267,11 +269,12 @@ class OrderDrawer:
                       coordinate: complex,
                       has_failed: bool) -> list[Element]:
         source: Province = order.source
-        if source.unit is None:
-            raise ValueError("Support order has no source unit")
-        source_coord = MapperUtils.loc_to_point(source, unit.unit_type, source.unit.coast,
+        source_coast = source.unit.coast if source.unit else None
+        source_unit_type = source.unit.unit_type if source.unit else unit.unit_type
+        source_coord = MapperUtils.loc_to_point(source, unit.unit_type, source_coast,
                                                 coordinate, self.board_svg_data["map_width"])
-        if (isinstance(source.unit.order, Move)
+        if (source.unit is not None
+            and isinstance(source.unit.order, Move)
             and source.unit.order.destination == order.destination
             and (not order.destination_coast
                  or source.unit.order.destination_coast == order.destination_coast)):
@@ -282,14 +285,14 @@ class OrderDrawer:
                 assert last_province.unit is not None
                 source_coord = MapperUtils.loc_to_point(last_province,
                                                         last_province.unit.unit_type, None, coordinate,
-                                                        self.board_svg_data["map_width"])
+                                                        self.board_svg_data.get("map_width", 0))
         else:
             dest_coast = order.destination_coast
         dest_coord = MapperUtils.loc_to_point(order.destination,
-                                              source.unit.unit_type,
+                                              source_unit_type,
                                               dest_coast,
                                               source_coord,
-                                              self.board_svg_data["map_width"])
+                                              self.board_svg_data.get("map_width", 0))
         marker_start = ""
         marker_end = f"url(#{'red' if has_failed else ''}{'ball' if order.is_support_hold() else 'arrow'})"
         if order.destination.unit:
@@ -297,20 +300,19 @@ class OrderDrawer:
                          dest_coord, (1 if order.is_support_hold() else 1.5) * self.board_svg_data["unit_radius"])
             # Draw hold around unit that can be support-held
             if (order.is_support_hold()
+                and source.unit is not None
                 and isinstance(source.unit.order, (ConvoyTransport, Support))
                 and MapperUtils.is_moveable(source.unit, self.adjacent_provinces, self.player_restriction)):
-                for coord in source.all_coordinates[source.unit.coast if source.unit.coast else source.unit.unit_type.name]:
-                    self._draw_hold(None, None, coord.primary_coordinate, False)
+                for coord in MapperUtils.get_all_unit_coordinates(source, source.unit.unit_type, source.unit.coast):
+                    self._draw_hold(None, None, coord, False)
 
             # if two units are support-holding each other
-            destorder = order.destination.unit.order
+            destunit = order.destination.unit
 
-            if (isinstance(destorder, Support)
-                and destorder.is_support_hold()
-                and order.is_support_hold()
-                and destorder.source == unit.province
-                and (self.player_restriction is None
-                     or order.destination.unit.player.name == self.player_restriction)
+            if (isinstance(destunit.order, Support)
+                and destunit.order.is_support_hold() == order.is_support_hold() == True
+                and destunit.order.source == unit.province
+                and self._is_visible_order(destunit)
             ):
                 marker_end = f"url(#{'red' if has_failed else ''}ball)"
                 # doesn't matter that v3 has been pulled, as it's still collinear
@@ -353,26 +355,9 @@ class OrderDrawer:
         )
         element.append(drawn_order)
 
-    def _draw_build(self, order: Build) -> None:
+    def _draw_build(self, _, __, coordinate: complex, has_failed: bool) -> None:
         element = self.moves_svg.getroot()
         assert element is not None
-        build_locations = MapperUtils.get_unit_coordinates(order.province, order.unit_type, order.coast)
-        for build_location in build_locations:
-            drawn_order = MapperUtils.create_element(
-                "circle",
-                {
-                    "cx": build_location.real,
-                    "cy": build_location.imag,
-                    "r": self.board_svg_data["unit_radius"],
-                    "fill": "none",
-                    "stroke": "green",
-                    "stroke-width": self.board_svg_data["order_stroke_width"],
-                },
-            )
-            element.append(drawn_order)
-
-    def _draw_disband(self, coordinate: complex, svg) -> None:
-        element = svg.getroot()
         drawn_order = MapperUtils.create_element(
             "circle",
             {
@@ -380,8 +365,8 @@ class OrderDrawer:
                 "cy": coordinate.imag,
                 "r": self.board_svg_data["unit_radius"],
                 "fill": "none",
-                "stroke": "red",
-                "stroke-width": self.board_svg_data["order_stroke_width"],
+                    "stroke": ("red" if has_failed else "green"),
+                    "stroke-width": self.board_svg_data["order_stroke_width"],
             },
         )
         element.append(drawn_order)
@@ -390,6 +375,7 @@ class OrderDrawer:
         """Draws a disband order on the map.
         This method is public since we need to forced disbands on the current map."""
         element = (svg if svg is not None else self.moves_svg).getroot()
+        assert element is not None
         cross_width = self.board_svg_data["order_stroke_width"] / (2**0.5)
         square_rad = self.board_svg_data["unit_radius"] / (2**0.5)
         # two corner and a center point. Rotate and concat them to make the correct object

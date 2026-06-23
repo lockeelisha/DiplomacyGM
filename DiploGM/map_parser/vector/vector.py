@@ -15,7 +15,7 @@ import lxml.etree as etree
 from DiploGM.map_parser.vector.transform import TransGL3
 from DiploGM.map_parser.vector.utils import (
     get_coordinates, find_svg_element, get_element_color, get_sc_coordinates,
-    get_unit_coordinates, parse_path, initialize_province_resident_data, weighted_random_color,
+    get_element_unit_coordinates, parse_path, initialize_province_resident_data, weighted_random_color,
     LAYER_DICTIONARY, NAMESPACE, SVG_CONFIG_KEY
 )
 from DiploGM.models.adjacency import Terrain
@@ -28,7 +28,6 @@ from DiploGM.utils.sanitise import parse_variant_path
 
 # TODO: (BETA) all attribute getting should be in utils which we import and call utils.my_unit()
 # TODO: (BETA) consistent in bracket formatting
-HIGH_PROVINCES_KEY = "high provinces"
 LAYER_NAMES = set(LAYER_DICTIONARY.keys())
 INKSCAPE_LABEL = f"{NAMESPACE.get('inkscape')}label"
 
@@ -193,7 +192,7 @@ class Parser:
                     errors.append(error)
                     continue
 
-                name = re.sub(r" \(?[ensw]c\)?$", "", name)  # Remove coast names
+                name = re.sub(r" \(?[ensw]+c\)?$", "", name, flags=re.IGNORECASE)  # Remove coast names
                 if name not in seen_names:
                     error = f"[{layer_name}] Name '{name}' not found in any province layer"
                     logger.error(error)
@@ -271,7 +270,7 @@ class Parser:
             self.cache_provinces = set()
             for province in raw_provinces:
                 if province.name in cache:
-                    logger.warning(f"{self.datafile}: {province.name} repeats in map, ignoring...")
+                    logger.warning("%s: %s repeats in map, ignoring...", self.datafile, province.name)
                     continue
                 cache.append(province.name)
                 self.cache_provinces.add(province)
@@ -292,12 +291,6 @@ class Parser:
         adjacencies = copy.deepcopy(self.cache_adjacencies)
 
         return (provinces, adjacencies)
-
-    def _add_province_to_board(self, provinces: set[Province], province: Province) -> set[Province]:
-        provinces = {x for x in provinces if x.name != province.name}
-        provinces.add(province)
-        self.name_to_province[province.name] = province
-        return provinces
 
     def _json_cheats(self, provinces: set[Province]) -> set[Province]:
         if "overrides" not in self.data:
@@ -431,7 +424,7 @@ class Parser:
         # Given an SVG element for a province, creates a Province object with the correct geometry and name.
         path_string = province_data.get("d")
         if not path_string:
-            print(tostring(province_data))
+            logger.error("Province path data not found in province with data %s", tostring(province_data))
             raise RuntimeError("Province path data not found")
         translation = TransGL3(province_data) * layer_transformation
 
@@ -447,7 +440,7 @@ class Parser:
         if self.layers["province_labels"]:
             name = self.get_province_name(province_data)
             if name == "":
-                raise RuntimeError(f"Province name not found in province with data {province_data}")
+                raise RuntimeError(f"Province name not found in province with data {tostring(province_data)}")
 
         province = Province(name, poly, province_type)
 
@@ -488,10 +481,11 @@ class Parser:
         for center_data in self.layer_data["supply_center_icons"]:
             name = self.get_province_name(center_data)
             province = self.name_to_province[name]
-            supply_center_coords = sc_layer_transformation.transform(TransGL3(center_data).transform(get_sc_coordinates(center_data)))
-            supply_center_point = shapely.Point(supply_center_coords.real, supply_center_coords.imag)
-            if not shapely.dwithin(supply_center_point, province.geometry, self.data[SVG_CONFIG_KEY].get("unit_radius", 10)):
-                logger.warning(f"{self.datafile}: Supply center icon for '{name}' is not within its province")
+            sc_coords = sc_layer_transformation.transform(TransGL3(center_data)
+                                               .transform(get_sc_coordinates(center_data)))
+            sc_point = shapely.Point(sc_coords.real, sc_coords.imag)
+            if not shapely.dwithin(sc_point, province.geometry, self.data[SVG_CONFIG_KEY].get("unit_radius", 10)):
+                logger.warning("%s: Supply center icon for '%s' is not within its province", self.datafile, name)
 
             if province.has_supply_center:
                 raise RuntimeError(f"{name} already has a supply center")
@@ -501,7 +495,8 @@ class Parser:
                 sc_circles = center_data.findall(".//svg:circle", namespaces=NAMESPACE)
                 sc_circles.extend(center_data.findall(".//svg:path", namespaces=NAMESPACE))
                 if len(sc_circles) > 0:
-                    element = next((c for c in sc_circles if get_element_color(c) not in (None, "none", "000000")), sc_circles[-1])
+                    element = next((c for c in sc_circles
+                                    if get_element_color(c) not in (None, "none", "000000")), sc_circles[-1])
                 else:
                     element = center_data
                 core = self._get_element_player(element, province_name=province.name)
@@ -525,6 +520,9 @@ class Parser:
     def _initialize_units(self) -> None:
         for unit_data in self.layer_data["starting_units"]:
             province_name = self.get_province_name(unit_data)
+            if not province_name:
+                logger.error("Unit data %s has no province name", tostring(unit_data))
+                continue
             if self.data[SVG_CONFIG_KEY]["unit_type_labeled"]:
                 province_name = province_name[1:]
             province, coast = self._get_province_and_coast(province_name)
@@ -543,7 +541,7 @@ class Parser:
             for unit_data in list(layer):
                 unit_translation = TransGL3(unit_data)
                 province, coast = self._get_province_and_coast(self.get_province_name(unit_data))
-                coordinate = get_unit_coordinates(unit_data)
+                coordinate = get_element_unit_coordinates(unit_data)
                 translated_coordinate = layer_translation.transform(unit_translation.transform(coordinate))
                 province.set_unit_coordinate(translated_coordinate, unit_type, is_retreat, coast)
 
@@ -555,14 +553,16 @@ class Parser:
 
     def _get_province_and_coast(self, province_name: str) -> tuple[Province, str | None]:
         coast_suffix: str | None = None
-        coast_names = {" nc", " sc", " ec", " wc"}
-        province_name = province_name.replace("(", "").replace(")", "")
 
-        for coast_name in coast_names:
-            if province_name.endswith(coast_name):
-                province_name = province_name[:-3]
-                coast_suffix = coast_name[1:]
-                break
+        pattern = re.compile(
+            r"^(.*?)\s*(?: \(([neswc]+c)\)| ([neswc]+c))$",
+            re.IGNORECASE
+        )
+
+        match = pattern.match(province_name)
+        if match:
+            province_name = match.group(1).strip()
+            coast_suffix = (match.group(2) or match.group(3)).lower()
 
         province = self.name_to_province[province_name]
         return province, coast_suffix
@@ -594,9 +594,8 @@ class Parser:
         if isinstance(neutral_color, dict):
             neutral_color = neutral_color["standard"]
         neutral_color = neutral_color.lower()
-        #FIXME: only works if there's one person per province
         if self.is_chaos:
-            if color is None or color == self.impassable_color or not self.name_to_province[province_name].has_supply_center:
+            if color in (None, self.impassable_color) or not self.name_to_province[province_name].has_supply_center:
                 return None
             if color == neutral_color or color in self.color_to_player:
                 color = weighted_random_color(province_name)

@@ -8,17 +8,7 @@ from typing import TYPE_CHECKING
 from DiploGM.adjudicator.adjudicator import Adjudicator
 from DiploGM.models.adjacency import Terrain
 from DiploGM.models.player import Player
-from DiploGM.models.order import (
-    Build,
-    Disband,
-    TransformBuild,
-    Disown,
-    Vassal,
-    Liege,
-    Defect,
-    DualMonarchy,
-    RebellionMarker
-)
+from DiploGM.models.order import Build, Disband, TransformBuild
 
 if TYPE_CHECKING:
     from DiploGM.models.board import Board
@@ -29,79 +19,9 @@ logger = logging.getLogger(__name__)
 
 class BuildsAdjudicator(Adjudicator):
     """Adjudicator for handling Adjustment phase."""
-
-    def _vassal_adju(self):
-        new_vassals: dict[Player, list[Player]] = {}
-        new_lieges: dict[Player, Player | None] = {}
-        for player in self._board.players:
-            scs = len([c for vassal in player.vassals for c in vassal.centers])
-            new_vassals[player] = player.vassals.copy()
-            if scs > len(player.centers):
-                for order in player.vassal_orders.values():
-                    if isinstance(order, Disown) and order.player in player.vassals:
-                        new_vassals[player].remove(order.player)
-                    scs2 = len([c for vassal in new_vassals[player] for c in vassal.centers])
-                    if scs2 > len(player.centers):
-                        new_vassals[player] = []
-            else:
-                for order in player.vassal_orders.values():
-                    vassal = order.player
-                    can_add_vassal = (isinstance(order, Vassal)
-                                      and player in vassal.vassal_orders
-                                      and isinstance(vassal.vassal_orders[player], Liege)
-                                      and (not vassal.liege
-                                           or isinstance(player.vassal_orders.get(vassal.liege), RebellionMarker)))
-                    if can_add_vassal:
-                        new_vassals[player].append(vassal)
-
-        for player in self._board.players:
-            new_liege = None
-            overcommited = False
-            for liege in self._board.players:
-                if player in new_vassals[liege]:
-                    if new_liege is None:
-                        new_liege = liege
-                    else:
-                        overcommited = True
-                        break
-            if overcommited:
-                for liege in self._board.players:
-                    if player in new_vassals[liege]:
-                        new_vassals[liege].remove(player)
-            for order in player.vassal_orders:
-                if isinstance(order, Defect) and player in new_vassals[order.player]:
-                    new_vassals[order.player].remove(player)
-                    new_liege = None
-            new_lieges[player] = new_liege
-
-        for player in self._board.players:
-            player.liege = new_lieges[player]
-            player.vassals = new_vassals[player]
-        for player in self._board.players:
-            for order in player.vassal_orders.values():
-                if (isinstance(order, DualMonarchy)
-                    and player in order.player.vassal_orders
-                    and isinstance(order.player.vassal_orders[player], DualMonarchy)):
-                    other = order.player
-                    if other.liege is None and not other.vassals and player.liege is None and not player.vassals:
-                        other.vassals = [player]
-                        player.vassals = [other]
-                        other.liege = player
-                        player.liege = other
-
-
-        for player in self._board.players:
-            player.points += len(player.centers)
-            if player.liege not in player.vassals:
-                for vassal in player.vassals:
-                    player.points += len(vassal.centers)
-                    player.points += len([c for subvassal in vassal.vassals for c in subvassal.centers])
-            else:
-                player.points += len(player.liege.centers)
-                continue
-
-            if player.liege:
-                player.points += len(player.liege.centers) // 2
+    def __init__(self, board: Board):
+        self.failed_build_provinces: set[str] = set()
+        super().__init__(board)
 
     def _adjudicate_build(self, order: Build, player: Player) -> int:
         # ignore coast specifications for army
@@ -121,6 +41,7 @@ class BuildsAdjudicator(Adjudicator):
 
         if error:
             logger.warning("Skipping %s; errors: %s", order, error)
+            order.has_failed = True
             return 0
         self._board.create_unit(order.unit_type, player, order.province, order.coast, None)
         return -1
@@ -144,11 +65,13 @@ class BuildsAdjudicator(Adjudicator):
             order.province.unit.coast = order.coast
             return
 
+        order.has_failed = True
         logger.warning("Skipping %s; errors: %s", order, error)
 
     def _adjudicate_order(self, order: Order, available_builds: int, player: Player) -> int:
         if isinstance(order, Build):
             if available_builds <= 0:
+                order.has_failed = True
                 return 0
             return self._adjudicate_build(order, player)
 
@@ -190,16 +113,18 @@ class BuildsAdjudicator(Adjudicator):
     def run(self) -> Board:
         for player in self._board.players:
             available_builds = len(player.centers) - len(player.units)
-            if available_builds == 0:
-                continue
             for order in player.build_orders:
                 available_builds += self._adjudicate_order(order, available_builds, player)
             if available_builds < 0:
                 logger.warning("Player %s disbanded less orders than they should have", player.get_name())
                 self._adjudicate_civil_disorder(player, -available_builds)
 
-        if self.parameters.get("has_vassals"):
-            self._vassal_adju()
+        self.failed_build_provinces = {
+            order.province.name
+            for player in self._board.players
+            for order in player.build_orders
+            if order.has_failed
+        }
 
         for player in self._board.players:
             player.build_orders = set()

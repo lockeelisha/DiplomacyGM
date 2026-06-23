@@ -1,3 +1,4 @@
+"""Superuser features primarily used for Development of the bot"""
 import logging
 
 from discord import TextChannel
@@ -33,7 +34,7 @@ class DevelopmentCog(commands.Cog):
     @commands.command(hidden=True)
     @perms.superuser_only("show the superuser dashboard")
     async def su_dashboard(self, ctx: commands.Context):
-
+        """Loads the superuser dashboard, including the status of all extensions and loaded cogs."""
         extensions_body = ""
         for extension in sorted(self.bot.get_all_extensions()):
             if extension in self.bot.extensions.keys():
@@ -42,9 +43,7 @@ class DevelopmentCog(commands.Cog):
                 extensions_body += "- :x: "
             extensions_body += f"{extension}\n"
 
-        cogs_body = ""
-        for cog in self.bot.cogs.keys():
-            cogs_body += f"- {cog}\n"
+        cogs_body = "- " + "\n- ".join(self.bot.cogs.keys()) + "\n"
 
         guild = self.bot.get_guild(HUB_SERVER_ID)
         bot_wizard_role = guild.get_role(HUB_BOT_WIZARD_ROLE) if guild else None
@@ -67,6 +66,7 @@ class DevelopmentCog(commands.Cog):
     @commands.command(hidden=True)
     @perms.superuser_only("shutdown the bot")
     async def shutdown_the_bot_yes_i_want_to_do_this(self, ctx: commands.Context):
+        """Shuts down the bot."""
         await send_message_and_file(
             channel=ctx.channel, title="Why would you do this to me?", message="Shutting down"
         )
@@ -77,9 +77,10 @@ class DevelopmentCog(commands.Cog):
 
 
 async def setup(bot: DiploGM):
+    """Standard setup"""
     cog = DevelopmentCog(bot)
     await bot.add_cog(cog)
 
-
 async def teardown(bot: DiploGM):
+    """Standard teardown"""
     pass

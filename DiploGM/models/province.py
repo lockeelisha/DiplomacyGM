@@ -83,18 +83,6 @@ class Province():
             return None
         return self.owner.name
 
-    def get_unit_coordinates(self,
-                             unit_type: UnitType,
-                             coast: str | None = None,
-                             is_retreat: bool = False) -> complex:
-        """Gets the coordinates of a unit given its type, coast, and whether it's retreating."""
-        index = coast if coast in self.unit_coordinates else unit_type.name
-        if is_retreat:
-            return (self.unit_coordinates[index].retreat_coordinate if index in self.unit_coordinates
-                    else self.unit_coordinates.get("default", UnitLocation(complex(0), complex(0))).retreat_coordinate)
-        return (self.unit_coordinates[index].primary_coordinate if index in self.unit_coordinates
-                else self.unit_coordinates.get("default", UnitLocation(complex(0), complex(0))).primary_coordinate)
-
     def set_unit_coordinate(self,
                             coord: complex | None,
                             unit_type: UnitType,
@@ -171,7 +159,7 @@ class Province():
         """Once sea and island adjacencies have been set, set land adjacencies"""
         # Multi-coast provinces are currently manually set
         for province2, adjacency in self.adjacencies.adjacencies.items():
-            if self.type != ProvinceType.LAND and province2.type != ProvinceType.LAND:
+            if ProvinceType.LAND not in (self.type, province2.type):
                 self.adjacencies.add_terrain(province2, Terrain.SEA)
             elif self.type != ProvinceType.LAND or province2.type != ProvinceType.LAND:
                 self.adjacencies.add_terrain(province2, Terrain.COAST)
@@ -224,8 +212,8 @@ class Province():
                 procqueue.append(adjacent)
                 connected_sets.add(frozenset({adjacent}))
 
-            def find_set_with_element(element):
-                for subgraph in connected_sets:
+            def find_set_with_element(element, sets):
+                for subgraph in sets:
                     if element in subgraph:
                         return subgraph
                 raise RuntimeError("Error in coastal_connection algorithm")
@@ -239,8 +227,8 @@ class Province():
 
                     # Now that we have found two connected subgraphs,
                     # we remove them and merge them
-                    this = find_set_with_element(to_process)
-                    other = find_set_with_element(neighbor)
+                    this = find_set_with_element(to_process, connected_sets)
+                    other = find_set_with_element(neighbor, connected_sets)
                     connected_sets = connected_sets - {this, other}
                     connected_sets.add(this | other)
 
@@ -248,7 +236,6 @@ class Province():
 
             # find connected sets which are adjacent to tripoint and two provinces(so portugal is eliminated
             # from contention if MAO, Gascony, and Spain nc are the locations being tested)
-            # FIXME: this leads to false positives
             for candidate in connected_sets:
                 needed_neighbors = set([p1, p2, possible_tripoint])
 

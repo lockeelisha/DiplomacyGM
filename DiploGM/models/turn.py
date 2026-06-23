@@ -57,6 +57,7 @@ class Turn:
             %S - Full phase name (e.g. "Spring Moves")
             %s - Short phase name (e.g. "sm")
             %Z - Season name (e.g. "Spring")
+            %i - Index of the turn
         """
         if not fmt:
             return str(self)
@@ -68,6 +69,7 @@ class Turn:
         result = result.replace("%S", self.phase_names[self.phase])
         result = result.replace("%s", self.short_names[self.phase])
         result = result.replace("%Z", self.season_names[self.phase])
+        result = result.replace("%i", str(5 * (self.year - self.start_year) + self.phase.value))
         return result
 
     def get_next_turn(self) -> Turn:
@@ -97,6 +99,16 @@ class Turn:
     def is_fall(self) -> bool:
         """Checks to see if it's Fall and if SC ownership should change."""
         return "Fall" in self.phase_names[self.phase]
+
+    def is_later(self, other: Turn) -> bool:
+        year_diff = abs(self.year - self.start_year)
+        other_year_diff = abs(other.year - other.start_year)
+        if other_year_diff < year_diff:
+            return True
+        if other.phase.value < self.phase.value:
+            return True
+
+        return False
 
     @staticmethod
     def turn_from_string(turn_str: str) -> Turn | None:

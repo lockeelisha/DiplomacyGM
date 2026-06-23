@@ -32,8 +32,10 @@ def is_moveable(unit: Unit,
         return False
     return True
 
-def get_closest_loc(possibilities: set[complex], coord: complex, map_width: float, normalize: bool = True) -> complex:
+def get_closest_loc(possibilities: set[complex], coord: complex, map_width: float=0, normalize: bool=True) -> complex:
     """Gets the closest point to the given coordinate, accounting for horizontal wrapping of the map."""
+    if map_width <= 0:
+        map_width = float('inf') # If map_width is zero, we make it infinite to prevent wrapping
     possibilities_list = list(possibilities)
     crossed_pos = []
     crossed = []
@@ -57,9 +59,27 @@ def get_closest_loc(possibilities: set[complex], coord: complex, map_width: floa
     return complex(closest.real % map_width, closest.imag) if normalize else closest
 
 def get_unit_coordinates(province: Province,
-                        unit_type: UnitType,
-                        coast: str | None,
-                        retreat: bool = False) -> set[complex]:
+                         unit_type: UnitType,
+                         coast: str | None,
+                         retreat: bool = False) -> complex:
+    """Returns the set of coordinates for a unit in a province, with failbacks if needed."""
+    coords = province.unit_coordinates
+    if not coords:
+        return complex(0, 0)
+    if coast and coast in coords:
+        locations = coords[coast]
+    elif unit_type.name in coords:
+        locations = coords[unit_type.name]
+    elif "Army" in coords:
+        locations = coords["Army"]
+    else:
+        locations = next(iter(coords.values()))
+    return locations.retreat_coordinate if retreat else locations.primary_coordinate
+
+def get_all_unit_coordinates(province: Province,
+                             unit_type: UnitType,
+                             coast: str | None,
+                             retreat: bool = False) -> set[complex]:
     """Returns the set of coordinates for a unit in a province, with failbacks if needed."""
     coords = province.all_coordinates
     if not coords:
@@ -76,7 +96,7 @@ def get_unit_coordinates(province: Province,
             for loc in locations}
 
 def loc_to_point(loc: Province, unit_type: UnitType, coast: str | None,
-                current: complex, map_width: float, use_retreats=False) -> complex:
+                current: complex, map_width: float = 0, use_retreats=False) -> complex:
     """Gets the coordinates to draw a unit in a province, given the unit type and coast.
     If there are multiple possibilities, gets the one closest to the current coordinates."""
     # If we're moving to somewhere that's inhabitted, draw to the proper coast
@@ -84,7 +104,7 @@ def loc_to_point(loc: Province, unit_type: UnitType, coast: str | None,
         unit_type = loc.unit.unit_type
         coast = loc.unit.coast
 
-    coords = get_unit_coordinates(loc, unit_type, coast, retreat=use_retreats)
+    coords = get_all_unit_coordinates(loc, unit_type, coast, retreat=use_retreats)
     return get_closest_loc(coords, current, map_width, False)
 
 def pull_coordinate(anchor: complex, coordinate: complex, pull: float, limit=0.25) -> complex:
@@ -214,6 +234,19 @@ def color_element(element: Element, color: str, key="fill") -> None:
         assert style is not None
         style = re.sub(key + r":#[0-9a-fA-F]{6}", f"{key}:{color}", style)
         element.set("style", style)
+
+def invert_hexcode(code: str) -> str:
+    code = code.removeprefix("#")
+    assert len(code) == 6
+
+    r = 255 - int(code[:2], 16)
+    hex_r = hex(r)[2:]
+    g = 255 - int(code[2:4], 16)
+    hex_g = hex(g)[2:]
+    b = 255 - int(code[4:], 16)
+    hex_b = hex(b)[2:]
+
+    return f"{hex_r:02}{hex_g:02}{hex_b:02}"[::-1]
 
 def set_element_visibility(element: Element, visible: bool = False, key="display") -> None:
     """Colors a specific element with a given color."""

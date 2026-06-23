@@ -4,19 +4,20 @@ from __future__ import annotations
 from typing import List, Tuple, TYPE_CHECKING
 from discord.ext.commands import Context
 
+from DiploGM.models.province import Province
 from DiploGM.utils.sanitise import find_discord_role
-from DiploGM.models.order import PlayerOrder
 from DiploGM.models.player import ForcedDisbandOption, Player, ViewOrdersTags, OrdersSubsetOption
 
 if TYPE_CHECKING:
     from DiploGM.models.board import Board
     from DiploGM.models.unit import Unit
 
-def get_build_orders(board: Board,
-                     player: Player,
-                     player_restriction: Player | None,
-                     ctx: Context,
-                     tags: ViewOrdersTags) -> tuple[str | None, str | None]:
+def _get_build_orders(board: Board,
+                      player: Player,
+                      player_restriction: Player | None,
+                      ctx: Context,
+                      tags: ViewOrdersTags,
+                      visible_provinces: set[Province] | None = None) -> tuple[str | None, str | None]:
     """Returns a text representation of a player's build orders with the specific criteria.
     If no build orders match the criteria, returns (None, None) to indicate the player should be hidden.
     Tag options are currently Missing and Submitted."""
@@ -28,12 +29,17 @@ def get_build_orders(board: Board,
     if player_restriction and player != player_restriction:
         return None, None
 
+    if visible_provinces is None:
+        build_orders = player.build_orders
+    else:
+        build_orders = [order for order in player.build_orders if order.province in visible_provinces]
+
     if (tags.subset == OrdersSubsetOption.MISSING and
-        abs(len(player.centers) - len(player.units) - player.waived_orders) == len(player.build_orders)):
+        abs(len(player.centers) - len(player.units) - player.waived_orders) == len(build_orders)):
         return None, None
 
     if (tags.subset == OrdersSubsetOption.SUBMITTED
-        and len(player.build_orders) == 0
+        and len(build_orders) == 0
         and player.waived_orders == 0):
         return None, None
 
@@ -43,33 +49,35 @@ def get_build_orders(board: Board,
         player_name = player.get_name()
 
     build_count = len(player.centers) - len(player.units)
-    order_count = len(player.build_orders) + player.waived_orders
+    order_count = len(build_orders) + player.waived_orders
     open_core_count = sum(province.can_build(board.data.get("build_options", "classic")) for province in player.centers)
 
     center_count_label = "`SCs=`" if tags.explain else ''
     entered_count_label = "`Orders entered=`" if tags.explain else ''
     if tags.explain:
-        if build_count >= 0: build_count_label = "`Builds available=`"
-        else: build_count_label = "`Disbands required=`"
+        build_count_label = "`Builds available=`" if build_count >= 0 else "`Disbands required=`"
     else: build_count_label = ''
-    
+
     open_core_count_label = "`Open cores=`" if tags.explain else ''
 
-    title = (
-        f"**{player_name}**: ({center_count_label}{len(player.centers)})"
-        + f"({entered_count_label}{order_count}/{build_count_label}{'+' if build_count >= 0 else ''}{build_count})"
-        + (f" ({open_core_count_label}{open_core_count} °)" if tags.open_cores and build_count > 0 else '')
-    )
+    if visible_provinces is None:
+        title = (
+            f"**{player_name}**: ({center_count_label}{len(player.centers)})"
+            + f"({entered_count_label}{order_count}/{build_count_label}{'+' if build_count >= 0 else ''}{build_count})"
+            + (f" ({open_core_count_label}{open_core_count} °)" if tags.open_cores and build_count > 0 else '')
+        )
+    else:
+        if build_count == 0:
+            return None, None
+        title = (f"**{player_name}** ({'+' if build_count >= 0 else '-'}{len(build_orders)})")
 
     body = ""
     if tags.blind:
         return title, ""
 
-    for unit in player.build_orders | set(
-        player.vassal_orders.values()
-    ):
+    for unit in build_orders:
         body += f"{unit}\n"
-    if player.waived_orders > 0:
+    if player.waived_orders > 0 and visible_provinces is None:
         body += f"\nWaive {player.waived_orders}\n"
     return title, body
 
@@ -78,7 +86,8 @@ def _get_move_orders(board: Board,
                     player_restriction: Player | None,
                     ctx: Context,
                     tags: ViewOrdersTags,
-                    is_retreats: bool) -> tuple[str | None, str | None]:
+                    is_retreats: bool,
+                    visible_provinces: set[Province] | None = None) -> tuple[str | None, str | None]:
     """Returns a text representation of a player's move orders with the specific criteria.
     If no move orders match the criteria, returns (None, None) to indicate the player should be hidden.
     Tag options are currently Missing, Submitted, as well as Force Disband options."""
@@ -92,9 +101,13 @@ def _get_move_orders(board: Board,
         return u == u.province.dislodged_unit if is_retreats else True
 
     moving_units = [unit for unit in player.units if in_moves(unit)]
+    if visible_provinces is not None:
+        moving_units = [unit for unit in moving_units if unit.province in visible_provinces]
+
     ordered = [unit for unit in moving_units if unit.order is not None]
     missing = [unit for unit in moving_units if unit.order is None]
 
+    # TODO: Check interaction between FoW and DP orders
     dp_orders = board.get_player_dp_orders(player)
     match tags.subset:
         case OrdersSubsetOption.MISSING:
@@ -156,6 +169,7 @@ def get_orders(
     ctx: Context,
     tags: ViewOrdersTags,
     fields: bool = False,
+    fow_restriction: Player | None = None
 ) -> str | List[Tuple[str, str]]:
     """Returns a text representation of players' orders with the specific criteria.
     If no orders match the criteria for a player, that player is hidden."""
@@ -169,70 +183,23 @@ def get_orders(
     else:
         players = {player_restriction}
 
+    if fow_restriction is not None:
+        visible_provinces = board.get_visible_provinces(fow_restriction)
+    else:
+        visible_provinces = None
+
     for player in sorted(players, key=lambda sort_player: sort_player.get_name()):
         if board.is_player_hidden(player):
             continue
         if board.turn.is_builds():
-            title, body = get_build_orders(board, player, player_restriction, ctx, tags)
+            title, body = _get_build_orders(board, player, player_restriction, ctx, tags, visible_provinces)
         else:
             title, body = _get_move_orders(board, player, player_restriction, ctx, tags,
-                                          board.turn.is_retreats())
+                                          board.turn.is_retreats(), visible_provinces)
         if title is None:
             continue
         if isinstance(response, list):
             response.append(("", f"{title}\n{body}"))
         else:
             response += f"{title}\n{body}"
-    return response
-
-def get_filtered_orders(board: Board, player_restriction: Player) -> str:
-    """Variant of get_orders used in Fog of War games.
-    Might need updating."""
-    visible = board.get_visible_provinces(player_restriction)
-    if board.turn.is_builds():
-        response = ""
-        for player in sorted(board.players, key=lambda sort_player: sort_player.get_name()):
-            if board.is_player_hidden(player) or (player_restriction is not None and player != player_restriction):
-                continue
-            visible = [
-                order
-                for order in player.build_orders
-                if isinstance(order, PlayerOrder) and order.province.name in visible
-            ]
-
-            if len(visible) > 0:
-                response += f"\n**{player.get_name()}**: ({len(player.centers)}) " + \
-                    f"({'+' if len(player.centers) - len(player.units) >= 0 else ''}" + \
-                    f"{len(player.centers) - len(player.units)})"
-                for unit in visible:
-                    response += f"\n{unit}"
-        return response
-    response = ""
-
-    def in_moves(u: Unit) -> bool:
-        return u == u.province.dislodged_unit if board.turn.is_retreats() else True
-
-    for player in board.players:
-        if board.is_player_hidden(player):
-            continue
-        moving_units = [
-            unit
-            for unit in player.units
-            if in_moves(unit) and unit.province in visible
-        ]
-
-        if len(moving_units) > 0:
-            ordered = [unit for unit in moving_units if unit.order is not None]
-            missing = [unit for unit in moving_units if unit.order is None]
-
-            response += f"**{player.get_name()}** ({len(ordered)}/{len(moving_units)})\n"
-            if missing:
-                response += "__Missing Orders:__\n"
-                for unit in sorted(missing, key=lambda _unit: _unit.province.name):
-                    response += f"{unit}\n"
-            if ordered:
-                response += "__Submitted Orders:__\n"
-                for unit in sorted(ordered, key=lambda _unit: _unit.province.name):
-                    response += f"{unit} {unit.order}\n"
-
     return response

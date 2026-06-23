@@ -12,7 +12,7 @@ import lxml.etree as etree
 
 from DiploGM.map_parser.vector.utils import (
     clear_svg_element, get_element_color, find_svg_element, get_coordinates,
-    get_unit_coordinates, get_sc_coordinates,
+    get_element_unit_coordinates, get_sc_coordinates,
     NAMESPACE, SVG_CONFIG_KEY
 )
 from DiploGM.db.database import logger
@@ -36,7 +36,14 @@ from DiploGM.map_parser.vector.vector import Parser
 
 class Mapper:
     """The main Mapper class."""
-    def __init__(self, board: Board, restriction: Player | None = None, color_mode: str | None = None, oil_spill_mode: bool=False):
+    def __init__(self,
+        board: Board,
+        restriction: Player | None = None,
+        color_mode: str | None = None,
+        oil_spill_mode: bool=False,
+        invert_color_mode: bool=False,
+        clean_map_mode: bool=False,
+    ):
         register_namespace('', "http://www.w3.org/2000/svg")
         register_namespace('inkscape', "http://www.inkscape.org/namespaces/inkscape")
         register_namespace('sodipodi', "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd")
@@ -51,9 +58,9 @@ class Mapper:
 
         # different colors
         self.replacements: dict | None = self.board_svg_data.get("color replacements")
-        self.load_colors(color_mode)
+        self.load_colors(color_mode, invert_color_mode)
         if color_mode is not None:
-            self.replace_colors(color_mode)
+            self.replace_colors(color_mode, invert_color_mode)
 
         # enable sea adjacency layer (oil spills)
         self.oil_spill_mode = oil_spill_mode
@@ -61,6 +68,19 @@ class Mapper:
             layer = find_svg_element(self.board_svg, "sea_borders", self.board_svg_data)
             if layer:
                 MapperUtils.set_element_visibility(layer, visible=True)
+
+        self.clean_map_mode = clean_map_mode
+        if self.clean_map_mode:
+            layers_to_hide = [
+                "province_names",
+                "supply_center_icons",
+                "unit_output",
+                "arrow_output",
+                "other_fills",
+            ]
+            for name in layers_to_hide:
+                if (layer := find_svg_element(self.board_svg, name, self.board_svg_data)):
+                    MapperUtils.set_element_visibility(layer, visible=False)
 
         self.panel_drawer = PanelDrawer(self.board_svg, self.board, self.player_colors, restriction)
         MapperUtils.add_arrow_definition_to_svg(self.board_svg, self.board, self.player_colors)
@@ -96,8 +116,9 @@ class Mapper:
         self.adjacent_provinces: set[str] = {p.name for p in visible_provinces}
 
         # TODO: Switch to passing the SVG directly, as that's simpiler (self.svg = draw_units(svg)?)
-        for unit in [unit for unit in self.board.units if unit.province.name in self.adjacent_provinces]:
-            self._draw_unit(unit)
+        if not self.clean_map_mode:
+            for unit in [unit for unit in self.board.units if unit.province.name in self.adjacent_provinces]:
+                self._draw_unit(unit)
         self._color_provinces()
         self._color_centers()
         self.panel_drawer.draw_side_panel(self.board_svg)
@@ -135,7 +156,7 @@ class Mapper:
                 isinstance(unit.order, (RetreatMove, Move)) and not unit.order.has_failed):
                 continue
 
-            unit_locs = MapperUtils.get_unit_coordinates(
+            unit_locs = MapperUtils.get_all_unit_coordinates(
                 unit.province, unit.unit_type, unit.coast, retreat=current_turn.is_retreats())
 
             if unit.order is None and unit.dp_allocations:
@@ -150,32 +171,32 @@ class Mapper:
 
             # TODO: Maybe there's a better way to handle convoys?
             if isinstance(order, (RetreatMove, Move, Support)):
-                dest_coords = MapperUtils.get_unit_coordinates(
+                dest_coords = MapperUtils.get_all_unit_coordinates(
                     order.destination, unit.unit_type, order.destination_coast)
                 unit_locs = [MapperUtils.get_closest_loc(unit_locs,
                                                          endpoint,
-                                                         self.board_svg_data["map_width"])
+                                                         self.board_svg_data.get("map_width", 0))
                              for endpoint in dest_coords]
-            try:
-                for loc in unit_locs:
-                    val = self.order_drawer.draw_order(unit, order, loc, current_turn)
-                    if val is None:
-                        continue
-                    if not isinstance(val, list):
-                        val = [val]
-                    for path in val:
-                        # if something returns, that means it could potentially go across the edge
-                        # copy it 3 times (-1, 0, +1)
-                        lval = copy.deepcopy(path)
-                        rval = copy.deepcopy(path)
-                        lval.attrib["transform"] = f"translate({-self.board_svg_data['map_width']}, 0)"
-                        rval.attrib["transform"] = f"translate({self.board_svg_data['map_width']}, 0)"
+            width = self.board_svg_data.get("map_width", 0)
+            for loc in unit_locs:
+                val = self.order_drawer.draw_order(unit, order, loc, current_turn)
+                if val is None:
+                    continue
+                if not isinstance(val, list):
+                    val = [val]
+                for path in val:
+                    arrow_layer.append(path)
+                    if width == 0:
+                        break
+                    # if something returns, that means it could potentially go across the edge
+                    # copy it 3 times (-1, 0, +1)
+                    lval = copy.deepcopy(path)
+                    rval = copy.deepcopy(path)
+                    lval.attrib["transform"] = f"translate({-width}, 0)"
+                    rval.attrib["transform"] = f"translate({width}, 0)"
 
-                        arrow_layer.append(lval)
-                        arrow_layer.append(rval)
-                        arrow_layer.append(path)
-            except Exception as err:
-                logger.error("Drawing move failed for %s", unit, exc_info=err)
+                    arrow_layer.append(lval)
+                    arrow_layer.append(rval)
 
     def draw_moves_map(self,
                        current_turn: turn.Turn,
@@ -270,10 +291,9 @@ class Mapper:
                 coast = province.unit.coast
             else:
                 unit_type = self.board.unit_types["F"] if province.type == ProvinceType.SEA else self.board.unit_types["A"]
-            # TODO: We should move to MapperUtils.get_unit_coordinates and remove the logic from Province
-            locdict[province.name] = province.get_unit_coordinates(unit_type, coast)
+            locdict[province.name] = MapperUtils.get_unit_coordinates(province, unit_type, coast)
             for coast in province.adjacencies.coasts:
-                locdict[province.get_name(coast)] = province.get_unit_coordinates(self.board.unit_types["F"], coast)
+                locdict[province.get_name(coast)] = MapperUtils.get_unit_coordinates(province, self.board.unit_types["F"], coast)
         locdict = {k: [v.real, v.imag] for k, v in locdict.items()}
         script = etree.Element("script")
 
@@ -328,7 +348,7 @@ class Mapper:
         return elementToString(root, encoding="utf-8"), f"{str(self.board.turn).replace(' ', '_')}_gui.svg"
 
 
-    def load_colors(self, color_mode: str | None = None) -> None:
+    def load_colors(self, color_mode: str | None = None, invert_color_mode: bool = False) -> None:
         """Loads player colors based on the color mode."""
         self.player_colors = {
             "None": "ffffff",
@@ -343,25 +363,12 @@ class Mapper:
                 color = oklab_random()
             else:
                 color = player.default_color
-            self.player_colors[player.name] = color
+            self.player_colors[player.name] = color.lower()
         neutral_color = self.board_svg_data.get("neutral", "ffffff")
         if isinstance(neutral_color, dict):
             neutral_color = neutral_color.get(color_mode, neutral_color.get("standard", "ffffff"))
-        self.player_colors["Neutral"] = neutral_color
 
-        #TODO: draw dual monarchies as stripes
-        if color_mode == "empires":
-            for player in self.board.players:
-                for vassal in player.vassals or []:
-                    self.player_colors[vassal.name] = self.player_colors[player.name]
-                    for subvassal in vassal.vassals or []:
-                        self.player_colors[subvassal.name] = self.player_colors[player.name]
-        elif color_mode == "kingdoms":
-            for player in self.board.players:
-                if player.liege or not player.vassals:
-                    continue
-                for vassal in player.vassals:
-                    self.player_colors[vassal.name] = self.player_colors[player.name]
+        self.player_colors["Neutral"] = neutral_color.lower()
 
         neutral_colors = self.board_svg_data["neutral"]
         if isinstance(neutral_colors, str):
@@ -380,7 +387,15 @@ class Mapper:
             and color_mode in self.replacements[self.clear_seas_color]):
             self.clear_seas_color = self.replacements[self.clear_seas_color][color_mode]
 
-    def replace_colors(self, color_mode: str) -> None:
+        if invert_color_mode:
+            self.player_colors = {
+                k: MapperUtils.invert_hexcode(v) for k, v in self.player_colors.items()
+            }
+            self.neutral_color = MapperUtils.invert_hexcode(self.neutral_color)
+            self.impassable_color = MapperUtils.invert_hexcode(self.impassable_color)
+            self.clear_seas_color = MapperUtils.invert_hexcode(self.clear_seas_color)
+
+    def replace_colors(self, color_mode: str, invert_color_mode: bool = False) -> None:
         """Replaces colors in the SVG based on the color mode."""
         if self.replacements is None:
             return
@@ -392,13 +407,17 @@ class Mapper:
         if background is not None:
             elements_to_process.extend(background)
         for element in elements_to_process:
-            color = get_element_color(element)
+            color = get_element_color(element) or "ffffff"
             if color in self.replacements:
-                if color_mode in self.replacements[color]:
-                    MapperUtils.color_element(element, self.replacements[color][color_mode])
+                if color_mode in self.replacements.get(color, {}):
+                    color = self.replacements[color][color_mode]
             elif color_mode == "dark":
-                MapperUtils.color_element(element, "ffffff")
+                color = "ffffff"
 
+            if invert_color_mode:
+                color = MapperUtils.invert_hexcode(color)
+
+            MapperUtils.color_element(element, color)
 
 
         # Difficult to detect correctly using either geometry or province names
@@ -451,7 +470,7 @@ class Mapper:
             try:
                 province = self._get_province_from_element_by_label(province_element)
             except ValueError as ex:
-                print(f"[{self.board.datafile}] Error during recoloring provinces: {ex}", file=sys.stderr)
+                logger.warning("[%s] Error during recoloring provinces: %s", self.board.datafile, ex)
                 continue
 
             visited_provinces.add(province.name)
@@ -471,7 +490,7 @@ class Mapper:
             try:
                 province = self._get_province_from_element_by_label(island_ring)
             except ValueError as ex:
-                print(f"[{self.board.datafile}] Error during recoloring provinces: {ex}", file=sys.stderr)
+                logger.warning("[%s] Error during recoloring provinces: %s", self.board.datafile, ex)
                 continue
 
             if province.is_impassable:
@@ -485,7 +504,7 @@ class Mapper:
 
         for province in self.board.provinces:
             if province.name not in visited_provinces:
-                print(f"[{self.board.datafile}] Warning: Province {province.name} was not recolored by mapper!")
+                logger.warning("[%s] Warning: Province %s was not recolored by mapper!", self.board.datafile, province.name)
 
     def _color_centers(self) -> None:
         centers_layer = find_svg_element(self.board_svg, "supply_center_icons", self.board_svg_data)
@@ -502,23 +521,25 @@ class Mapper:
             try:
                 province = self._get_province_from_element_by_label(center_element)
             except ValueError as ex:
-                print(f"[{self.board.datafile}] Error during recoloring centers: {ex}", file=sys.stderr)
+                logger.warning("[%s] Error during recoloring centers: %s", self.board.datafile, ex)
                 continue
 
             if not province.has_supply_center:
-                print(f"[{self.board.datafile}] Province {province.name} says it has no supply center, but it does", file=sys.stderr)
+                logger.warning("[%s] Province %s says it has no supply center, but it does",
+                               self.board.datafile, province.name)
                 continue
 
+            core_data = province.core_data
             if province.is_impassable:
                 core_color = half_color = self.impassable_color
             elif province.name not in self.adjacent_provinces:
                 core_color = half_color = self.board_svg_data.get("unknown", "808080")
             else:
-                core_color = self.player_colors[province.core_data.core.name] if province.core_data.core else "#ffffff"
-                half_color = self.player_colors[province.core_data.half_core.name] if province.core_data.half_core else core_color
+                core_color = self.player_colors[core_data.core.name] if core_data.core else "#ffffff"
+                half_color = self.player_colors[core_data.half_core.name] if core_data.half_core else core_color
 
-            corename = "None" if not province.core_data.core else province.core_data.core.name
-            halfname = "None" if not province.core_data.half_core else province.core_data.half_core.name
+            corename = "None" if not core_data.core else core_data.core.name
+            halfname = "None" if not core_data.half_core else core_data.half_core.name
             element_color = f"url(#{halfname}_{corename})" if half_color != core_color else core_color
 
             for elem in center_element:
@@ -527,7 +548,8 @@ class Mapper:
                 MapperUtils.color_element(center_element, element_color)
             if province.name in capital_provinces and capital_marker is not None:
                 capital_copy = copy.deepcopy(capital_marker)
-                translation = get_sc_coordinates(center_element) - get_sc_coordinates(capital_copy)
+                translation = (TransGL3(center_element).transform(get_sc_coordinates(center_element))
+                               - get_sc_coordinates(capital_copy))
                 capital_copy.set("transform", f"translate({translation.real}, {translation.imag})")
                 for elem in capital_copy:
                     if get_element_color(elem) != "000000":
@@ -538,10 +560,7 @@ class Mapper:
         province_name = element.get(f"{NAMESPACE['inkscape']}label")
         if province_name is None:
             raise ValueError(f"Unlabeled element {element}")
-        province = self.board.get_province(province_name)
-        if province is None:
-            raise ValueError(f"Could not find province for label {province_name}")
-        return province
+        return self.board.get_province(province_name)
 
     def _draw_unit(self, unit: Unit, use_moves_svg=False):
         player_name = unit.player.name if unit.player else "Neutral"
@@ -553,10 +572,10 @@ class Mapper:
                 MapperUtils.color_element(path, self.player_colors[player_name])
         province = unit.province
 
-        current_coords = get_unit_coordinates(unit_element)
+        current_coords = get_element_unit_coordinates(unit_element)
         current_coords = TransGL3(unit_element).transform(current_coords)
 
-        coord_list = MapperUtils.get_unit_coordinates(
+        coord_list = MapperUtils.get_all_unit_coordinates(
             unit.province, unit.unit_type, unit.coast, unit == province.dislodged_unit)
 
         for desired_coords in coord_list:
@@ -591,18 +610,18 @@ class Mapper:
     def _draw_retreat_options(self, unit: Unit, svg):
         root = svg.getroot()
         if not unit.retreat_options:
-            self.order_drawer.draw_force_disband(
-                None, None, unit.province.get_unit_coordinates(unit.unit_type, unit.coast, True), None, svg)
+            coordinate = MapperUtils.get_unit_coordinates(unit.province, unit.unit_type, unit.coast, True)
+            self.order_drawer.draw_force_disband(None, None, coordinate, None, svg)
             return
 
-        unit_locs = MapperUtils.get_unit_coordinates(unit.province, unit.unit_type, unit.coast, True)
+        unit_locs = MapperUtils.get_all_unit_coordinates(unit.province, unit.unit_type, unit.coast, True)
 
         for retreat_province, retreat_coast in unit.retreat_options:
-            dest_coords = MapperUtils.get_unit_coordinates(
+            dest_coords = MapperUtils.get_all_unit_coordinates(
                 retreat_province, unit.unit_type, retreat_coast)
             new_locs = [MapperUtils.get_closest_loc(unit_locs,
                                                     endpoint,
-                                                    self.board_svg_data["map_width"])
+                                                    self.board_svg_data.get("map_width", 0))
                         for endpoint in dest_coords]
 
             for loc in new_locs:

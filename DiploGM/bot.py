@@ -71,9 +71,9 @@ class DiploGM(commands.Bot):
         # bind command invocation handling methods
         self.before_invoke(self.before_any_command)
         self.after_invoke(self.after_any_command)
+        self.tree.interaction_check = self.before_any_slash_command
 
-        current_servers = [g.id async for g in self.fetch_guilds()]
-        self.manager = Manager(board_ids=current_servers)
+        self.manager = Manager()
 
         self.eventbus = EventBus()
         for module_path in DiploGM.get_all_listeners():
@@ -90,7 +90,7 @@ class DiploGM(commands.Bot):
             logger.info("Loaded app commands: %s", [cmd.name for cmd in self.tree.get_commands()])
         except discord.app_commands.CommandAlreadyRegistered as e:
             logger.warning("Command already registered: %s", e)
-        except Exception as e:
+        except discord.HTTPException as e:
             logger.warning("Failed to sync commands: %s", e, exc_info=True)
 
     async def load_diplogm_extension(self, name: str, *, package: Optional[str] = None):
@@ -123,7 +123,7 @@ class DiploGM(commands.Bot):
             start = datetime.datetime.now()
             await super().load_extension(f"{name}", package=package)
             logger.info("Successfully loaded Cog: %s in %s", name, datetime.datetime.now() - start)
-        except Exception as e:
+        except commands.ExtensionError as e:
             logger.info("Failed to load Cog %s", name)
             raise e
 
@@ -133,7 +133,7 @@ class DiploGM(commands.Bot):
             start = datetime.datetime.now()
             await super().unload_extension(f"{name}", package=package)
             logger.info("Successfully unloaded Cog: %s in %s", name, datetime.datetime.now() - start)
-        except Exception as e:
+        except commands.ExtensionError as e:
             logger.info("Failed to unload Cog %s", name)
             raise e
 
@@ -143,7 +143,7 @@ class DiploGM(commands.Bot):
             start = datetime.datetime.now()
             await super().reload_extension(f"{name}", package=package)
             logger.info("Successfully reloaded Cog: %s in %s", name, datetime.datetime.now() - start)
-        except Exception as e:
+        except commands.ExtensionError as e:
             logger.info("Failed to reload Cog %s", name)
             raise e
 
@@ -158,7 +158,7 @@ class DiploGM(commands.Bot):
     async def load_listener(self, bus: EventBus, module_path: str):
         try:
             module = importlib.import_module(module_path)
-        except Exception as e:
+        except ImportError as e:
             logger.error("Failed to import %s: %s", module_path, e)
             return
 
@@ -269,6 +269,7 @@ class DiploGM(commands.Bot):
         if isinstance(ctx.channel, (discord.DMChannel, discord.PartialMessageable)) or not ctx.guild:
             return
         assert isinstance(ctx.guild, discord.Guild)
+        await self.manager.ensure_board_loaded(ctx.guild.id)
 
         logger.debug(
             "[%s][#%s](%s) - '%s'",
@@ -282,6 +283,12 @@ class DiploGM(commands.Bot):
         # ctx.message.content = re.sub(r"[‘’`´′‛]", "'", ctx.message.content)
 
         asyncio.create_task(ctx.message.add_reaction("👍"))
+
+    async def before_any_slash_command(self, interaction: discord.Interaction) -> bool:
+        """Before any slash command, ensure the board is loaded."""
+        if interaction.guild:
+            await self.manager.ensure_board_loaded(interaction.guild.id)
+        return True
 
     async def after_any_command(self, ctx: commands.Context):
         """After any command, log the time taken to execute the command."""
@@ -322,12 +329,12 @@ class DiploGM(commands.Bot):
             # mark the message as failed
             await context.message.add_reaction("❌")
             await context.message.remove_reaction("👍", self.user)
-        except Exception:
+        except discord.HTTPException:
             # if reactions fail, ignore and continue handling existing exception
             pass
 
         if getattr(context, "handled", False):
-            logger.info(f"global on_command_error skipped a {type(exception)} that was previously handled...")
+            logger.info("global on_command_error skipped a %s that was previously handled...", type(exception))
             return
 
         time_spent = (

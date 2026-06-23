@@ -9,6 +9,7 @@ from DiploGM.config import PLAYER_CHANNEL_SUFFIX
 from DiploGM.db.database import get_connection
 from DiploGM.parse_edit_state import parse_edit_state
 from DiploGM.parse_board_params import parse_board_params
+from DiploGM.parse_server_params import parse_server_params
 from DiploGM.utils import log_command, send_message_and_file
 
 from DiploGM.manager import Manager
@@ -59,6 +60,18 @@ async def edit_game(ctx: commands.Context) -> None:
                                 message=message,
                                 file=file,
                                 file_name=file_name,
+                                embed_colour=embed_colour)
+
+
+async def edit_server(ctx: commands.Context) -> None:
+    """Edits server settings."""
+    assert ctx.guild is not None
+    param_commands = remove_prefix(ctx)
+    title, message, embed_colour = parse_server_params(ctx.guild.id, param_commands, manager.get_board(ctx.guild.id))
+    log_command(logger, ctx, message=title)
+    await send_message_and_file(channel=ctx.channel,
+                                title=title,
+                                message=message,
                                 embed_colour=embed_colour)
 
 async def rename_player(ctx: commands.Context, old_name: str, new_name: str) -> None:

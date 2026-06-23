@@ -66,7 +66,7 @@ async def set_deadline(ctx: commands.Context) -> None:
             return
         new_deadline = deadline + int(parsed_time.total_seconds())
         board.set_data("deadline", new_deadline)
-        logger.info(f"Adjusted deadline by {parsed_time} to {new_deadline}")
+        logger.info("Adjusted deadline by %s to %s", parsed_time, new_deadline)
         await send_message_and_file(
             channel=ctx.channel,
             message=f"Adjusted deadline by {parsed_time}. New deadline is <t:{int(new_deadline)}:R>.",
@@ -91,7 +91,7 @@ async def set_deadline(ctx: commands.Context) -> None:
             return
         new_deadline = int(timestamp_match.group(1))
         board.set_data("deadline", new_deadline)
-        logger.info(f"Set new deadline: {new_deadline}")
+        logger.info("Set new deadline: %s", new_deadline)
         await send_message_and_file(
             channel=ctx.channel,
             message=f"Set new deadline: <t:{new_deadline}:R>.",
@@ -107,9 +107,10 @@ async def set_deadline(ctx: commands.Context) -> None:
             (board.board_id, "deadline")
         )
 
-def _ping_player_builds(player: Player,
-                        users: set[Member | Role],
-                        build_options: str) -> str:
+def _ping_player_builds(board: Board,
+                        player: Player,
+                        users: set[Member | Role]) -> str:
+    build_options = board.data.get("build_options", "classic")
     user_str = ''.join([u.mention for u in users])
 
     count = len(player.centers) - len(player.units)
@@ -200,10 +201,8 @@ async def ping_players(ctx: commands.Context) -> None:
     # ping required players
     pinged_players = 0
     failed_players = []
-    response = ""
     for channel in [ch for category in player_categories for ch in category.text_channels]:
         if (player := perms.get_player_by_channel(board, channel)) is None:
-            await ctx.send(f"No Player for {channel.name}")
             continue
 
         # player is completely dead, not worth pinging
@@ -227,17 +226,14 @@ async def ping_players(ctx: commands.Context) -> None:
             # Ping role in case of no players
             users.add(role)
 
-        if board.turn.is_builds():
-            response = _ping_player_builds(player, users, board.data.get("build_options", "classic"))
-        else:
-            response = _ping_player_moves(board, player, users)
-
-        if response:
-            pinged_players += 1
-            if timestamp:
-                response += f"\n The orders deadline is <t:{timestamp}:R>."
-            await channel.send(response)
-            response = None
+        ping_function = _ping_player_builds if board.turn.is_builds() else _ping_player_moves
+        response = ping_function(board, player, users)
+        if not response:
+            continue
+        pinged_players += 1
+        if timestamp:
+            response += f"\n The orders deadline is <t:{timestamp}:R>."
+        await channel.send(response)
 
     log_command(logger, ctx, message=f"Pinged {pinged_players} players")
     await send_message_and_file(

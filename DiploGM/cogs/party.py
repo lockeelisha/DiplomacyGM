@@ -609,7 +609,8 @@ class PartyCog(commands.Cog):
                      or ctx.me.id not in self.eolhc_ed_members[ctx.guild.id])):
                 self.eolhc_ed_members.setdefault(ctx.guild.id, []).append(ctx.me.id)
                 await ctx.reply("*incoherent screaming*"[::-1])
-                await ctx.me.edit(nick = ctx.me.display_name[::-1])
+                if isinstance(ctx.me, discord.Member):
+                    await ctx.me.edit(nick = ctx.me.display_name[::-1])
             else:
                 await ctx.reply(random.choice(self.eolhc_gifs))
             return
