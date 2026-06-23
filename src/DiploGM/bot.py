@@ -71,7 +71,7 @@ class DiploGM(commands.Bot):
 		self.after_invoke(self.after_any_command)
 		self.tree.interaction_check = self.before_any_slash_command
 
-		self.manager = Manager()
+		self.manager: Manager = Manager()
 
 		# modularly load command modules
 		for extension in EXTENSIONS_TO_LOAD_ON_STARTUP:
@@ -514,6 +514,7 @@ class DiploGM(commands.Bot):
 
 	async def on_guild_join(self, guild: discord.Guild):
 		"""When the bot joins a new server, log it and report back to the hub server."""
+		self.manager.save_ctx_parameter(guild.id, "server_name", guild.name)
 		channel = self.get_channel(
 			HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID
 		) or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID)

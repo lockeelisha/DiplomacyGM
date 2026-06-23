@@ -148,11 +148,7 @@ def main():
 
     logger.info("Parsing variant '%s'", variant_name)
     parser = Parser(variant_name)
-    _, adjacencies = parser._read_map()
-
-    for name1, name2 in adjacencies:
-        parser.name_to_tile[name1].adjacencies.add(parser.name_to_tile[name2])
-        parser.name_to_tile[name2].adjacencies.add(parser.name_to_tile[name1])
+    parser._build_tiles()
 
     logger.info("Generating layers: %s", unit_types)
     result = generate_layers(parser, unit_types)
