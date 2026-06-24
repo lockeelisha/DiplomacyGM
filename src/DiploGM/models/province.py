@@ -1,303 +1,153 @@
-"""The province module. Handles adjacencies, coordinates, and coasts."""
-
-# TODO: We should separate geometric data about the province (coordinates, adjacencies)
-# from game data (cores, ownership, units).
+"""The province module. Handles ownership, core data, and other aspects that can change within a game.
+Provinces are based on Tile, which contain static per-variant data."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import TYPE_CHECKING
 import logging
-import shapely
-from DiploGM.models.adjacency import AdjacencyData, Terrain
-from DiploGM.models.unit import UnitType
+from DiploGM.models.adjacency import Adjacency, AdjacencyData, Terrain
+from DiploGM.models.tile import Tile, ProvinceType, UnitLocation
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-	from DiploGM.models import player
-	from DiploGM.models.unit import Unit
-
-
-class ProvinceType(Enum):
-	"""Whether the province is land, sea, or somewhere in between."""
-
-	LAND = 1
-	ISLAND = 2
-	SEA = 3
-
+    from DiploGM.models import player
+    from DiploGM.models.unit import Unit
 
 @dataclass
 class ProvinceCore:
-	"""Information regarding the status of the province's cores."""
+    """Information regarding the status of the province's cores."""
+    core: player.Player | None = None
+    half_core: player.Player | None = None
+    corer: player.Player | None = None
 
-	core: player.Player | None = None
-	half_core: player.Player | None = None
-	corer: player.Player | None = None
+class ProvinceAdjacency:
+    """Since Adjacencies are done at the Geometry level, we need to have a class that can turn the
+    geometry into the appropriate Province for the board."""
+    def __init__(self, data: AdjacencyData, province_map: dict[Tile, Province]):
+        self._data = data
+        self._province_map = province_map
 
+    @property
+    def coasts(self) -> set[str]:
+        """The set of named coasts of this province."""
+        return self._data.coasts
 
-@dataclass(frozen=True)
-class UnitLocation:
-	"""Represents the coordinates and retreat coordinates of a unit in a province.
-	A province might have multiple of these, usually if it's wrapping around the board."""
+    def get(self, province: Province) -> Adjacency | None:
+        """Gets the Adjacency object for the given province, or None if there is no adjacency."""
+        return self._data.get(province.tile)
 
-	primary_coordinate: complex
-	retreat_coordinate: complex
+    def get_coasts(self, province: Province, coast: str | None = None) -> set[str | None]:
+        """Gets the coasts of the given province that are adjacent to the given coast of this province."""
+        return self._data.get_coasts(province.tile, coast)
 
+    def get_all(self, terrain: Terrain | set[Terrain] | None = None, coast: str | None = None) -> set[Province]:
+        """Gets all adjacent provinces, optionally filtered by terrain and coast."""
+        return {self._province_map[geometry] for geometry in self._data.get_all(terrain, coast)}
 
-class Province:
-	"""Represents a province on the map."""
+    def get_all_with_coasts(self, coast: str | None) -> set[tuple[Province, str | None]]:
+        """Gets all adjacent provinces with coasts, filtered by the given coast of this province."""
+        return {(self._province_map[geometry], dest_coast)
+                for geometry, dest_coast in self._data.get_all_with_coasts(coast)}
 
-	def __init__(
-		self,
-		name: str,
-		coordinates: shapely.Polygon | shapely.MultiPolygon,
-		province_type: ProvinceType,
-	):
-		self.name: str = name
-		self.geometry: shapely.Polygon | shapely.MultiPolygon | None = coordinates
-		self.unit_coordinates: dict[str, UnitLocation] = {}
-		self.type: ProvinceType = province_type
-		self.is_impassable: bool = False
-		self.can_convoy: bool = province_type == ProvinceType.SEA
-		self.has_supply_center: bool = False
-		self.owner: player.Player | None = None
-		self.core_data: ProvinceCore = ProvinceCore()
-		self.unit: Unit | None = None
-		self.dislodged_unit: Unit | None = None
-		self.adjacencies = AdjacencyData()
+    def is_difficult(self, province: Province) -> bool:
+        """Checks if the adjacency to the given province is difficult."""
+        return self._data.is_difficult(province.tile)
 
-		# primary/retreat unit coordinates are of the form {unit_type/coast: (x, y)}
-		# all_locs/all_rets are of the form {unit_type/coast: set((x, y), (x2, y2), ...)}
-		# This assumes that only fleet units have to deal with multiple coasts
-		self.all_coordinates: dict[str, set[UnitLocation]] = {}
+class Province():
+    """Represents a province on the map."""
+    def __init__(
+        self,
+        tile: Tile,
+        province_map: dict[Tile, Province],
+    ):
+        self.tile: Tile = tile
+        self.province_map: dict[Tile, Province] = province_map
 
-	def __str__(self):
-		return self.name
+        self.is_impassable: bool = tile.default_impassable
+        self.can_convoy: bool = tile.type == ProvinceType.SEA
+        self.has_supply_center: bool = False
+        self.owner: player.Player | None = None
+        self.core_data: ProvinceCore = ProvinceCore()
+        self.unit: Unit | None = None
+        self.dislodged_unit: Unit | None = None
 
-	def __repr__(self):
-		return f"Province {self.name}"
+    # --- Static attributes delegated to the underlying geometry ---
+    @property
+    def name(self) -> str:
+        """The name of the province."""
+        return self.tile.name
 
-	def get_name(self, coast: str | None = None):
-		"""Gets the name of the province, including the coast if applicable."""
-		if coast is not None and coast in self.adjacencies.coasts:
-			return f"{self.name} {coast}"
-		return self.name
+    @property
+    def type(self) -> ProvinceType:
+        """Whether the province is land, sea, or island."""
+        return self.tile.type
 
-	def get_owner_name(self) -> str | None:
-		"""Gets the name of the province's owner, 'Impassable' if it is impassable, or None if it has no owner."""
-		if self.is_impassable:
-			return "Impassable"
-		if self.owner is None:
-			return None
-		return self.owner.name
+    @property
+    def unit_coordinates(self) -> dict[str, UnitLocation]:
+        """The primary/retreat unit coordinates of the province, with unit type or coast as keys."""
+        return self.tile.unit_coordinates
 
-	def set_unit_coordinate(
-		self,
-		coord: complex | None,
-		unit_type: UnitType,
-		is_retreat: bool = False,
-		coast: str | None = None,
-	):
-		"""Sets the coordinates of a unit given its type, coast, and whether it's retreating."""
-		# Set default cooordinate if none are found
-		center = shapely.centroid(self.geometry)
-		center_coord = complex(center.x, center.y) if center else complex(0)
-		coord = coord if coord else center_coord
-		index = coast if coast else unit_type.name
+    @property
+    def all_coordinates(self) -> dict[str, set[UnitLocation]]:
+        """All possible unit coordinates of the province, with unit type or coast as keys."""
+        return self.tile.all_coordinates
 
-		if is_retreat:
-			self.unit_coordinates[index] = UnitLocation(
-				primary_coordinate=(
-					self.unit_coordinates[index].primary_coordinate
-					if index in self.unit_coordinates
-					else center_coord
-				),
-				retreat_coordinate=coord,
-			)
-		else:
-			self.unit_coordinates[index] = UnitLocation(
-				primary_coordinate=coord,
-				retreat_coordinate=(
-					self.unit_coordinates[index].retreat_coordinate
-					if index in self.unit_coordinates
-					else center_coord
-				),
-			)
+    @property
+    def adjacencies(self) -> ProvinceAdjacency:
+        """A copy of the province's adjacencies, mapped to this board's Provinces."""
+        return ProvinceAdjacency(self.tile.adjacencies, self.province_map)
 
-	def can_build(self, build_options) -> bool:
-		"""Checks to see if a unit can be built in this province given the game's build options."""
-		if not self.has_supply_center or self.owner is None or self.unit is not None:
-			return False
-		if self.core_data.core == self.owner or build_options == "anywhere":
-			return True
-		if build_options == "control":
-			for adj in self.adjacencies.get_all():
-				if (
-					not adj.is_impassable
-					and adj.type in (ProvinceType.LAND, ProvinceType.ISLAND)
-					and adj.owner != self.owner
-				):
-					return False
-			return True
-		return False
+    def __str__(self):
+        return self.name
 
-	def is_landlocked(self) -> bool:
-		"""Checks to see if the province is landlocked, i.e. has no fleet adjacencies."""
-		return self.type == ProvinceType.LAND and not self.adjacencies.get_all(
-			Terrain.COAST
-		)
+    def __repr__(self):
+        return f"Province {self.name}"
 
-	def get_distance(self, other: Province, max_distance: int = 100) -> int:
-		"""Gets the distance between two provinces in number of moves.
-		max_distance is used if we only care if the provinces are within a certain distance."""
-		visited: set[Province] = {self}
-		queue: list[tuple[Province, int]] = [(self, 0)]
-		while queue:
-			current, distance = queue.pop(0)
-			if current.name == other.name:
-				return distance
-			if distance >= max_distance:
-				continue
-			for neighbor in current.adjacencies.get_all():
-				if neighbor not in visited and not neighbor.is_impassable:
-					queue.append((neighbor, distance + 1))
-					visited.add(neighbor)
-		return max_distance + 1
+    def get_name(self, coast: str | None = None) -> str:
+        """Gets the name of the province, including the coast if applicable."""
+        return self.tile.get_name(coast)
 
-	def set_coasts(self):
-		"""After all provinces have been initialised, set sea and island fleet adjacencies.
-		This should only be called once all province adjacencies have been set."""
+    def is_landlocked(self) -> bool:
+        """Checks to see if the province is landlocked, i.e. has no fleet adjacencies."""
+        return self.tile.is_landlocked()
 
-		for province in self.adjacencies.get_all():
-			if self.type in (
-				ProvinceType.SEA,
-				ProvinceType.ISLAND,
-			) and province.type in (ProvinceType.SEA, ProvinceType.ISLAND):
-				self.adjacencies.add_terrain(province, Terrain.SEA)
-			if not (
-				self.type == province.type == ProvinceType.LAND
-				or self.type == province.type == ProvinceType.SEA
-			):
-				self.adjacencies.add_terrain(province, Terrain.COAST)
+    def get_distance(self, other: Province, max_distance: int = 100) -> int:
+        """Gets the distance between two provinces in number of moves.
+        max_distance is used if we only care if the provinces are within a certain distance."""
+        visited: set[Province] = {self}
+        queue: list[tuple[Province, int]] = [(self, 0)]
+        while queue:
+            current, distance = queue.pop(0)
+            if current.name == other.name:
+                return distance
+            if distance >= max_distance:
+                continue
+            for neighbor in current.adjacencies.get_all():
+                if neighbor not in visited and not neighbor.is_impassable:
+                    queue.append((neighbor, distance + 1))
+                    visited.add(neighbor)
+        return max_distance + 1
 
-	def set_adjacent_coasts(self):
-		"""Once sea and island adjacencies have been set, set land adjacencies"""
-		# Multi-coast provinces are currently manually set
-		for province2, adjacency in self.adjacencies.adjacencies.items():
-			if ProvinceType.LAND not in (self.type, province2.type):
-				self.adjacencies.add_terrain(province2, Terrain.SEA)
-			elif self.type != ProvinceType.LAND or province2.type != ProvinceType.LAND:
-				self.adjacencies.add_terrain(province2, Terrain.COAST)
-			elif Province.detect_coastal_connection(self, province2):
-				self.adjacencies.add_terrain(province2, Terrain.COAST)
-				self.adjacencies.add_terrain(province2, Terrain.LAND)
+    def get_owner_name(self) -> str | None:
+        """Gets the name of the province's owner, 'Impassable' if it is impassable, or None if it has no owner."""
+        if self.is_impassable:
+            return "Impassable"
+        if self.owner is None:
+            return None
+        return self.owner.name
 
-			if ProvinceType.SEA not in (self.type, province2.type):
-				self.adjacencies.add_terrain(province2, Terrain.LAND)
-
-			if (
-				(other_adj := province2.adjacencies.get(self))
-				and other_adj.coasts
-				and not adjacency.coasts
-			):
-				for origin_coast, dest_coast in other_adj.coasts:
-					self.adjacencies.add_coast(province2, dest_coast, origin_coast)
-
-	@staticmethod
-	def detect_coastal_connection(p1: Province, p2: Province) -> bool:
-		"""Detects whether two coastal provinces are actually connected via a common coast."""
-		# multiple possible tripoints could happen if there was a scenario
-		# where two canals were blocked from connecting on one side by a land province but not the other
-		# or by multiple rainbow-shaped seas
-		possible_tripoints = p1.adjacencies.get_all(
-			Terrain.COAST
-		) & p2.adjacencies.get_all(Terrain.COAST)
-		for possible_tripoint in possible_tripoints:
-			if possible_tripoint.type == ProvinceType.LAND:
-				continue
-			# check for situations where one of the provinces is situated in the other two
-
-			if (
-				min(
-					len(possible_tripoint.adjacencies.get_all()),
-					len(p1.adjacencies.get_all()),
-					len(p2.adjacencies.get_all()),
-				)
-				== 2
-			):
-				return True
-
-			# If the two provinces only share one adjacent province (the sea tile), they must be coastally adjacent
-			if len(p1.adjacencies.get_all() & p2.adjacencies.get_all()) == 1:
-				return True
-
-			# the algorithm is as follows
-			# connect all adjacent to the three provinces as possible
-			# if they all connect, they form a ring around forcing connection
-			# if not, they must form rings inside and outside, meaning there is no connection
-
-			# initialise the process queue and the connection sets
-			procqueue: list[Province] = []
-			connected_sets: set[frozenset[Province]] = set()
-
-			for adjacent in (
-				p1.adjacencies.get_all()
-				| p2.adjacencies.get_all()
-				| possible_tripoint.adjacencies.get_all()
-			).difference({p1, p2, possible_tripoint}):
-				procqueue.append(adjacent)
-				connected_sets.add(frozenset({adjacent}))
-
-			def find_set_with_element(element, sets):
-				for subgraph in sets:
-					if element in subgraph:
-						return subgraph
-				raise RuntimeError("Error in coastal_connection algorithm")
-
-			# we will retain the invariant that no two elements of connected_sets contain the same element
-			for to_process in procqueue:
-				for neighbor in to_process.adjacencies.get_all():
-					# going further into or out of rings won't help us
-					if neighbor not in procqueue:
-						continue
-
-					# Now that we have found two connected subgraphs,
-					# we remove them and merge them
-					this = find_set_with_element(to_process, connected_sets)
-					other = find_set_with_element(neighbor, connected_sets)
-					connected_sets = connected_sets - {this, other}
-					connected_sets.add(this | other)
-
-			l = 0
-
-			# find connected sets which are adjacent to tripoint and two provinces(so portugal is eliminated
-			# from contention if MAO, Gascony, and Spain nc are the locations being tested)
-			for candidate in connected_sets:
-				needed_neighbors = set([p1, p2, possible_tripoint])
-
-				for province in candidate:
-					needed_neighbors.difference_update(province.adjacencies.get_all())
-
-				if len(needed_neighbors) == 0:
-					l += 1
-
-			# If there is 1, that means there was 1 ring (yes)
-			# 2, there was two (no)
-			# Else, something has gone wrong
-			if l == 1:
-				return True
-			if l != 2:
-				logger.error(
-					"WARNING: len(connected_sets) should've been 1 or 2, but got %s.\n"
-					"hint: between coasts %s and %s, when looking at mutual sea %s\n"
-					"Final state: %s",
-					l,
-					p1,
-					p2,
-					possible_tripoint,
-					connected_sets,
-				)
-
-		# no connection worked
-		return False
+    def can_build(self, build_options) -> bool:
+        """Checks to see if a unit can be built in this province given the game's build options."""
+        if not self.has_supply_center or self.owner is None or self.unit is not None:
+            return False
+        if self.core_data.core == self.owner or build_options == "anywhere":
+            return True
+        if build_options == "control":
+            for adj in self.adjacencies.get_all():
+                if (not adj.is_impassable
+                    and adj.type in (ProvinceType.LAND, ProvinceType.ISLAND)
+                    and adj.owner != self.owner):
+                    return False
+            return True
+        return False
