@@ -6,8 +6,13 @@ from discord.utils import find as discord_find
 
 from DiploGM import perms
 from DiploGM import utils
-from DiploGM.config import (ERROR_COLOUR, HUB_SERVER_ID, HUB_SERVER_VERIFIED_ROLE,
-                            PARTIAL_ERROR_COLOUR, PLAYER_CHANNEL_SUFFIX)
+from DiploGM.config import (
+	ERROR_COLOUR,
+	HUB_SERVER_ID,
+	HUB_SERVER_VERIFIED_ROLE,
+	PARTIAL_ERROR_COLOUR,
+	PLAYER_CHANNEL_SUFFIX,
+)
 from DiploGM.models.spec_request import SpectatorBan, SpectatorBanRepository
 from DiploGM.utils import send_message_and_file
 from DiploGM.manager import Manager
@@ -18,526 +23,558 @@ manager = Manager()
 
 
 class SpecView(discord.ui.View):
-    """Handles the button presses for spectator requests."""
-    def __init__(
-        self,
-        member: discord.Member,
-        game_name: str,
-        admin_channel: discord.TextChannel,
-        channel_url: str,
-        role: discord.Role,
-        cspec_role: discord.Role,
-    ):
-        super().__init__(timeout=None)
-        self.member = member
-        self.game_name = game_name
-        self.admin_channel = admin_channel
-        self.url = channel_url
-        self.power_role = role
-        self.spec_role = cspec_role
+	"""Handles the button presses for spectator requests."""
 
-    @discord.ui.button(label="Accept", style=discord.ButtonStyle.success)
-    async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Handle the accept button press."""
-        assert interaction.guild is not None
-        # check if player has country spectator role already (HAS NOT LEFT THE SERVER AFTER SPECTATING)
-        if self.spec_role in self.member.roles:
-            await interaction.response.send_message(
-                f"{self.member.mention} is already spectating a player!", ephemeral=True
-            )
-            if interaction.message:
-                await interaction.message.delete()
-            return
+	def __init__(
+		self,
+		member: discord.Member,
+		game_name: str,
+		admin_channel: discord.TextChannel,
+		channel_url: str,
+		role: discord.Role,
+		cspec_role: discord.Role,
+	):
+		super().__init__(timeout=None)
+		self.member = member
+		self.game_name = game_name
+		self.admin_channel = admin_channel
+		self.url = channel_url
+		self.power_role = role
+		self.spec_role = cspec_role
 
-        # check if db has a log of requesting player being accepted (HAS LEFT AND REJOINED THE SERVER AFTER SPECTATING)
-        if manager.get_spec_request(interaction.guild.id, self.member.id):
-            await interaction.response.send_message(
-                f"{self.member.mention} has previously been accepted as a Spectator.",
-                ephemeral=True,
-            )
-            if interaction.message:
-                await interaction.message.delete()
-            return
+	@discord.ui.button(label="Accept", style=discord.ButtonStyle.success)
+	async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
+		"""Handle the accept button press."""
+		assert interaction.guild is not None
+		# check if player has country spectator role already (HAS NOT LEFT THE SERVER AFTER SPECTATING)
+		if self.spec_role in self.member.roles:
+			await interaction.response.send_message(
+				f"{self.member.mention} is already spectating a player!", ephemeral=True
+			)
+			if interaction.message:
+				await interaction.message.delete()
+			return
 
-        try:
-            await self.member.send(
-                f"Response from: {self.game_name}\n"
-                + f"You have been accepted as a spectator for: @{self.power_role.name}\n"
-                + f"Go to {self.url} to watch them play!"
-            )
-            await interaction.response.send_message(
-                f"Accept response sent to {self.member.mention}!", ephemeral=True
-            )
-        except discord.Forbidden:
-            logger.warning("Unable to send a message to direct message. The user might have DMs blocked.")
-        await self.member.add_roles(self.power_role, self.spec_role)
+		# check if db has a log of requesting player being accepted (HAS LEFT AND REJOINED THE SERVER AFTER SPECTATING)
+		if manager.get_spec_request(interaction.guild.id, self.member.id):
+			await interaction.response.send_message(
+				f"{self.member.mention} has previously been accepted as a Spectator.",
+				ephemeral=True,
+			)
+			if interaction.message:
+				await interaction.message.delete()
+			return
 
-        out = f"[SPECTATOR LOG] {self.member.mention} approved for power {self.power_role.mention}"
-        await self.admin_channel.send(out)
+		try:
+			await self.member.send(
+				f"Response from: {self.game_name}\n"
+				+ f"You have been accepted as a spectator for: @{self.power_role.name}\n"
+				+ f"Go to {self.url} to watch them play!"
+			)
+			await interaction.response.send_message(
+				f"Accept response sent to {self.member.mention}!", ephemeral=True
+			)
+		except discord.Forbidden:
+			logger.warning(
+				"Unable to send a message to direct message. The user might have DMs blocked."
+			)
+		await self.member.add_roles(self.power_role, self.spec_role)
 
-        # record acceptance to db and manager
-        resp = manager.save_spec_request(interaction.guild.id, self.member.id, self.power_role.id)
-        await self.admin_channel.send(f"[SPECTATOR LOG] for {self.member.mention}: {resp}")
+		out = f"[SPECTATOR LOG] {self.member.mention} approved for power {self.power_role.mention}"
+		await self.admin_channel.send(out)
 
-        if interaction.message:
-            await interaction.message.delete()
+		# record acceptance to db and manager
+		resp = manager.save_spec_request(
+			interaction.guild.id, self.member.id, self.power_role.id
+		)
+		await self.admin_channel.send(
+			f"[SPECTATOR LOG] for {self.member.mention}: {resp}"
+		)
 
-    @discord.ui.button(label="Reject", style=discord.ButtonStyle.danger)
-    async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Handle the reject button press."""
-        try:
-            await self.member.send(
-                f"Response from: {self.game_name}\n"
-                + f"You have been rejected as a spectator for: @{self.power_role.name}\n"
-            )
-            await interaction.response.send_message(
-                f"Reject response sent to {self.member.mention}!", ephemeral=True
-            )
-        except discord.Forbidden:
-            logger.warning("Unable to send a message to direct message. The user might have DMs blocked.")
+		if interaction.message:
+			await interaction.message.delete()
 
-        out = f"[SPECTATOR LOG] {self.member.mention} rejected for power {self.power_role.mention}"
-        await self.admin_channel.send(out)
+	@discord.ui.button(label="Reject", style=discord.ButtonStyle.danger)
+	async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
+		"""Handle the reject button press."""
+		try:
+			await self.member.send(
+				f"Response from: {self.game_name}\n"
+				+ f"You have been rejected as a spectator for: @{self.power_role.name}\n"
+			)
+			await interaction.response.send_message(
+				f"Reject response sent to {self.member.mention}!", ephemeral=True
+			)
+		except discord.Forbidden:
+			logger.warning(
+				"Unable to send a message to direct message. The user might have DMs blocked."
+			)
 
-        if interaction.message:
-            await interaction.message.delete()
+		out = f"[SPECTATOR LOG] {self.member.mention} rejected for power {self.power_role.mention}"
+		await self.admin_channel.send(out)
+
+		if interaction.message:
+			await interaction.message.delete()
 
 
 class SpectatorCog(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        self.ban_repo = SpectatorBanRepository("assets/spec_bans.json")
+	def __init__(self, bot):
+		self.bot = bot
+		self.ban_repo = SpectatorBanRepository("assets/spec_bans.json")
 
-    async def close(self):
-        logger.info("Saved spectating ban list")
-        self.ban_repo._save_to_file()
+	async def close(self):
+		logger.info("Saved spectating ban list")
+		self.ban_repo._save_to_file()
 
-    @commands.group(name="spec_ban", invoke_without_command=True)
-    @perms.mod_only("interact with spectator bans")
-    async def spec_ban(self, ctx: commands.Context):
-        await send_message_and_file(
-            channel=ctx.channel,
-            message="You may use arguments: 'add', 'remove', 'view'",
-            embed_colour=PARTIAL_ERROR_COLOUR,
-        )
+	@commands.group(name="spec_ban", invoke_without_command=True)
+	@perms.mod_only("interact with spectator bans")
+	async def spec_ban(self, ctx: commands.Context):
+		await send_message_and_file(
+			channel=ctx.channel,
+			message="You may use arguments: 'add', 'remove', 'view'",
+			embed_colour=PARTIAL_ERROR_COLOUR,
+		)
 
-    @spec_ban.command(name="add")
-    @perms.mod_only("ban a user from spectating")
-    async def spec_ban_add(
-        self,
-        ctx: commands.Context,
-        user: discord.User,
-        end_timestamp: str | None = None,
-    ):
-        """Ban a user from country spectating with /spec
+	@spec_ban.command(name="add")
+	@perms.mod_only("ban a user from spectating")
+	async def spec_ban_add(
+		self,
+		ctx: commands.Context,
+		user: discord.User,
+		end_timestamp: str | None = None,
+	):
+		"""Ban a user from country spectating with /spec
 
-        Usage: 
-            Used as `.spec_ban add <user> <?timestamp>`
+		Usage:
+		    Used as `.spec_ban add <user> <?timestamp>`
 
-        Note: 
-            Timestamps will be automatically checked and bans removed after expiration
+		Note:
+		    Timestamps will be automatically checked and bans removed after expiration
 
-        Args:
-            ctx (commands.Context): Context from discord regarding command invocation
-            user (discord.User): mention, username, or user id of the individual to ban
-            end_timestamp (str): discord timestamp for end of ban (defaults to 2100/01/01)
+		Args:
+		    ctx (commands.Context): Context from discord regarding command invocation
+		    user (discord.User): mention, username, or user id of the individual to ban
+		    end_timestamp (str): discord timestamp for end of ban (defaults to 2100/01/01)
 
-        Returns:
-            None
+		Returns:
+		    None
 
-        Raises:
-            None:
-            Messages:
-                Invalid timestamp provided
-        """
-        if end_timestamp is None:
-            end_timestamp = "<t:4102444800:F>"
-        elif utils.get_value_from_timestamp(end_timestamp) is None:
-            await send_message_and_file(
-                channel=ctx.channel,
-                message=f"Invalid timestamp provided! '{end_timestamp}'",
-                embed_colour=ERROR_COLOUR,
-            )
-            return
+		Raises:
+		    None:
+		    Messages:
+		        Invalid timestamp provided
+		"""
+		if end_timestamp is None:
+			end_timestamp = "<t:4102444800:F>"
+		elif utils.get_value_from_timestamp(end_timestamp) is None:
+			await send_message_and_file(
+				channel=ctx.channel,
+				message=f"Invalid timestamp provided! '{end_timestamp}'",
+				embed_colour=ERROR_COLOUR,
+			)
+			return
 
-        ban = SpectatorBan(user.id, end_timestamp)
-        self.ban_repo.save(ban)
-        await send_message_and_file(
-            channel=ctx.channel,
-            message=f"User '{user.mention}' banned from spectating until: {end_timestamp}",
-        )
+		ban = SpectatorBan(user.id, end_timestamp)
+		self.ban_repo.save(ban)
+		await send_message_and_file(
+			channel=ctx.channel,
+			message=f"User '{user.mention}' banned from spectating until: {end_timestamp}",
+		)
 
-    @spec_ban_add.error
-    async def spec_ban_add_error(self, ctx: commands.Context, exc):
-        if isinstance(exc, commands.errors.UserNotFound):
-            await send_message_and_file(channel=ctx.channel,
-                                        message="Could not find that user!",
-                                        embed_colour=ERROR_COLOUR)
-            ctx.handled = True # type: ignore
+	@spec_ban_add.error
+	async def spec_ban_add_error(self, ctx: commands.Context, exc):
+		if isinstance(exc, commands.errors.UserNotFound):
+			await send_message_and_file(
+				channel=ctx.channel,
+				message="Could not find that user!",
+				embed_colour=ERROR_COLOUR,
+			)
+			ctx.handled = True  # type: ignore
 
-    @spec_ban.command(name="remove")
-    @perms.mod_only("remove a spectating ban")
-    async def spec_ban_remove(self, ctx: commands.Context, user: discord.User):
-        """Unban a user from spectating
+	@spec_ban.command(name="remove")
+	@perms.mod_only("remove a spectating ban")
+	async def spec_ban_remove(self, ctx: commands.Context, user: discord.User):
+		"""Unban a user from spectating
 
-        Usage: 
-            Used as `.spec_ban remove <user>`
+		Usage:
+		    Used as `.spec_ban remove <user>`
 
-        Note: 
-            Removes first from the board object and then from the database
-            Use in a GM Channel will remove all orders globally
-            Use in a Player Channel will remove all orders for that player
+		Note:
+		    Removes first from the board object and then from the database
+		    Use in a GM Channel will remove all orders globally
+		    Use in a Player Channel will remove all orders for that player
 
-        Args:
-            ctx (commands.Context): Context from discord regarding command invocation
-            user (discord.User): mention, username, or user id of the individual to ban
+		Args:
+		    ctx (commands.Context): Context from discord regarding command invocation
+		    user (discord.User): mention, username, or user id of the individual to ban
 
-        Returns:
-            None
+		Returns:
+		    None
 
-        Raises:
-            None:
-            Messages:
-        """
-        self.ban_repo.delete(user.id)
-        await send_message_and_file(
-            channel=ctx.channel,
-            message="Any spectating ban on this user has been removed.",
-        )
+		Raises:
+		    None:
+		    Messages:
+		"""
+		self.ban_repo.delete(user.id)
+		await send_message_and_file(
+			channel=ctx.channel,
+			message="Any spectating ban on this user has been removed.",
+		)
 
-    @spec_ban.command(name="view")
-    @perms.mod_only("view ongoing spectating bans")
-    async def spec_ban_view(
-        self, ctx: commands.Context, user: discord.User | None = None
-    ):
-        """Unban a user from spectating
+	@spec_ban.command(name="view")
+	@perms.mod_only("view ongoing spectating bans")
+	async def spec_ban_view(
+		self, ctx: commands.Context, user: discord.User | None = None
+	):
+		"""Unban a user from spectating
 
-        Usage: 
-            Used as `.spec_ban remove <?user>`
+		Usage:
+		    Used as `.spec_ban remove <?user>`
 
-        Note: 
-            if no user is provided, list all current outstanding bans
+		Note:
+		    if no user is provided, list all current outstanding bans
 
-        Args:
-            ctx (commands.Context): Context from discord regarding command invocation
-            user (discord.User, default=None): mention, username, or user id of the individual with a ban
+		Args:
+		    ctx (commands.Context): Context from discord regarding command invocation
+		    user (discord.User, default=None): mention, username, or user id of the individual with a ban
 
-        Returns:
-            None
+		Returns:
+		    None
 
-        Raises:
-            None:
-            Messages:
-                This user is not banned from spectating.
-        """
-        bans = []
-        if user is None:
-            bans = list(self.ban_repo.all())
-        else:
-            prev_ban = self.ban_repo.load(user.id)
-            if prev_ban is not None:
-                bans = [prev_ban]
-            else:
-                await send_message_and_file(
-                    channel=ctx.channel,
-                    message="This user is not banned from spectating.",
-                    embed_colour=ERROR_COLOUR,
-                )
+		Raises:
+		    None:
+		    Messages:
+		        This user is not banned from spectating.
+		"""
+		bans = []
+		if user is None:
+			bans = list(self.ban_repo.all())
+		else:
+			prev_ban = self.ban_repo.load(user.id)
+			if prev_ban is not None:
+				bans = [prev_ban]
+			else:
+				await send_message_and_file(
+					channel=ctx.channel,
+					message="This user is not banned from spectating.",
+					embed_colour=ERROR_COLOUR,
+				)
 
-        out = ""
-        for ban in bans:
-            line = ""
-            user = self.bot.get_user(ban.user_id)
-            if user is not None:
-                line += f"{user.mention}:\n"
+		out = ""
+		for ban in bans:
+			line = ""
+			user = self.bot.get_user(ban.user_id)
+			if user is not None:
+				line += f"{user.mention}:\n"
 
-            line += f"- Banned until: {ban.end_time}"
-            out += f"{line}\n"
+			line += f"- Banned until: {ban.end_time}"
+			out += f"{line}\n"
 
-        await send_message_and_file(
-            channel=ctx.channel, title="Current spectator bans", message=out
-        )
+		await send_message_and_file(
+			channel=ctx.channel, title="Current spectator bans", message=out
+		)
 
-    async def _validate_spec_request(self, interaction: discord.Interaction) -> bool:
-        guild = interaction.guild
-        if not guild or not self.bot.user or not interaction.channel:
-            return False
+	async def _validate_spec_request(self, interaction: discord.Interaction) -> bool:
+		guild = interaction.guild
+		if not guild or not self.bot.user or not interaction.channel:
+			return False
 
-        # server ignore list
-        if guild.id in [HUB_SERVER_ID]:
-            await interaction.response.send_message(
-                "Can't request to spectate in the Hub server!", ephemeral=True
-            )
-            return False
+		# server ignore list
+		if guild.id in [HUB_SERVER_ID]:
+			await interaction.response.send_message(
+				"Can't request to spectate in the Hub server!", ephemeral=True
+			)
+			return False
 
-        # ignore if DM channel
-        if isinstance(interaction.channel, discord.DMChannel):
-            await interaction.response.send_message(
-                "Please use the spectate command in a Game server!"
-            )
-            return False
+		# ignore if DM channel
+		if isinstance(interaction.channel, discord.DMChannel):
+			await interaction.response.send_message(
+				"Please use the spectate command in a Game server!"
+			)
+			return False
 
-        if interaction.channel.name != "the-public-square":
-            channel = discord.utils.find(
-                lambda c: c.name == "the-public-square", guild.text_channels
-            )
-            if channel:
-                await interaction.response.send_message(
-                    f"Can't request here! Go to the public square: {channel.mention}",
-                    ephemeral=True,
-                )
-            return False
+		if interaction.channel.name != "the-public-square":
+			channel = discord.utils.find(
+				lambda c: c.name == "the-public-square", guild.text_channels
+			)
+			if channel:
+				await interaction.response.send_message(
+					f"Can't request here! Go to the public square: {channel.mention}",
+					ephemeral=True,
+				)
+			return False
 
-        return True
+		return True
 
-    async def _validate_good_standing(self, interaction: discord.Interaction) -> bool:
-        guild = interaction.guild
-        if not (guild
-                and (_member := guild.get_member(self.bot.user.id))
-                and (requester := self.bot.get_user(interaction.user.id))):
-            return False
+	async def _validate_good_standing(self, interaction: discord.Interaction) -> bool:
+		guild = interaction.guild
+		if not (
+			guild
+			and (_member := guild.get_member(self.bot.user.id))
+			and (requester := self.bot.get_user(interaction.user.id))
+		):
+			return False
 
-        if (_team := discord.utils.get(guild.roles, name="GM Team")) is None:
-            await interaction.response.send_message("This server has no GM Team!")
-            return False
+		if (_team := discord.utils.get(guild.roles, name="GM Team")) is None:
+			await interaction.response.send_message("This server has no GM Team!")
+			return False
 
-        _team_roles = [
-            _team,
-            discord.utils.get(guild.roles, name="GM"),
-            discord.utils.get(guild.roles, name="Heavenly Angel"),
-        ]
+		_team_roles = [
+			_team,
+			discord.utils.get(guild.roles, name="GM"),
+			discord.utils.get(guild.roles, name="Heavenly Angel"),
+		]
 
-        if not any([_role in _member.roles for _role in _team_roles]):
-            _elle = discord.utils.get(guild.members, name="eelisha")
-            await interaction.response.send_message(
-                f"Bot is not on GM Team! Alerting {_team.mention}" + (f" and {_elle.mention}" if _elle else "")
-            )
-            return False
+		if not any([_role in _member.roles for _role in _team_roles]):
+			_elle = discord.utils.get(guild.members, name="eelisha")
+			await interaction.response.send_message(
+				f"Bot is not on GM Team! Alerting {_team.mention}"
+				+ (f" and {_elle.mention}" if _elle else "")
+			)
+			return False
 
-        prev_ban = self.ban_repo.load(requester.id)
-        if prev_ban is not None:
-            now_ts = discord.utils.utcnow().timestamp()
-            end_ts = utils.get_value_from_timestamp(prev_ban.end_time)
+		prev_ban = self.ban_repo.load(requester.id)
+		if prev_ban is not None:
+			now_ts = discord.utils.utcnow().timestamp()
+			end_ts = utils.get_value_from_timestamp(prev_ban.end_time)
 
-            if end_ts is not None and now_ts < end_ts:
-                await interaction.response.send_message(
-                    "You are currently banned from spectating with DiploGM until this time:\n\n" +
-                    f"{end_ts}\n\nContact the Moderation team if you are unsure why.",
-                    ephemeral=True,
-                )
-                return False
-            self.ban_repo.delete(requester.id)
+			if end_ts is not None and now_ts < end_ts:
+				await interaction.response.send_message(
+					"You are currently banned from spectating with DiploGM until this time:\n\n"
+					+ f"{end_ts}\n\nContact the Moderation team if you are unsure why.",
+					ephemeral=True,
+				)
+				return False
+			self.ban_repo.delete(requester.id)
 
-        # check for membership and verification on the hub Server
-        if not (hub := self.bot.get_guild(HUB_SERVER_ID)):
-            return False
-        hub_requester = discord.utils.get(hub.members, name=interaction.user.name)
-        if not hub_requester:
-            await interaction.response.send_message(
-                f"You are not a member of the Hub Server! Notifying {_team.mention}!"
-            )
-            return False
+		# check for membership and verification on the hub Server
+		if not (hub := self.bot.get_guild(HUB_SERVER_ID)):
+			return False
+		hub_requester = discord.utils.get(hub.members, name=interaction.user.name)
+		if not hub_requester:
+			await interaction.response.send_message(
+				f"You are not a member of the Hub Server! Notifying {_team.mention}!"
+			)
+			return False
 
-        if not discord.utils.get(hub_requester.roles, name=HUB_SERVER_VERIFIED_ROLE):
-            await interaction.response.send_message(
-                f"You are not verified on the Hub Server! Notifying {_team.mention}!"
-            )
-            return False
+		if not discord.utils.get(hub_requester.roles, name=HUB_SERVER_VERIFIED_ROLE):
+			await interaction.response.send_message(
+				f"You are not verified on the Hub Server! Notifying {_team.mention}!"
+			)
+			return False
 
-        return True
+		return True
 
-    @discord.app_commands.command(
-        name="spec",
-        description="Specatate a Player",
-    )
-    async def spec(self, interaction: discord.Interaction, power_role: discord.Role):
-        """Request to spectate a player."""
-        guild = interaction.guild
-        if not (guild and self.bot.user and interaction.channel and await self._validate_spec_request(interaction)):
-            return
+	@discord.app_commands.command(
+		name="spec",
+		description="Specatate a Player",
+	)
+	async def spec(self, interaction: discord.Interaction, power_role: discord.Role):
+		"""Request to spectate a player."""
+		guild = interaction.guild
+		if not (
+			guild
+			and self.bot.user
+			and interaction.channel
+			and await self._validate_spec_request(interaction)
+		):
+			return
 
-        requester = guild.get_member(interaction.user.id)
-        if not requester:
-            return
+		requester = guild.get_member(interaction.user.id)
+		if not requester:
+			return
 
-        if not await self._validate_good_standing(interaction):
-            return
+		if not await self._validate_good_standing(interaction):
+			return
 
-        admin_channel_names = ["admin-chat", "admin-spam", "gm-bot-commands"]
-        admin_channel = discord.utils.find(
-            lambda c: c.name in admin_channel_names, guild.text_channels
-        )
-        if not admin_channel:
-            logger.warning("Server: %s does not have a #gm-bot-commands channel.", guild.name)
-            await interaction.response.send_message(
-                "Could not process your request. (Contact Admin)", ephemeral=True
-            )
-            return
+		admin_channel_names = ["admin-chat", "admin-spam", "gm-bot-commands"]
+		admin_channel = discord.utils.find(
+			lambda c: c.name in admin_channel_names, guild.text_channels
+		)
+		if not admin_channel:
+			logger.warning(
+				"Server: %s does not have a #gm-bot-commands channel.", guild.name
+			)
+			await interaction.response.send_message(
+				"Could not process your request. (Contact Admin)", ephemeral=True
+			)
+			return
 
-        # CHECK IF USER HAS BEEN ACCEPTED IN THIS SERVER BEFORE
-        prev_request = manager.get_spec_request(guild.id, interaction.user.id)
-        if prev_request and prev_request.role_id != power_role.id:
-            prev_role = guild.get_role(prev_request.role_id)
-            if prev_role:
-                await admin_channel.send(
-                    f"[SPECTATOR LOG] {interaction.user.mention} has requested to spectate {power_role.mention} " +
-                    f"after already being accepted for role: {prev_role.mention}"
-                )
+		# CHECK IF USER HAS BEEN ACCEPTED IN THIS SERVER BEFORE
+		prev_request = manager.get_spec_request(guild.id, interaction.user.id)
+		if prev_request and prev_request.role_id != power_role.id:
+			prev_role = guild.get_role(prev_request.role_id)
+			if prev_role:
+				await admin_channel.send(
+					f"[SPECTATOR LOG] {interaction.user.mention} has requested to spectate {power_role.mention} "
+					+ f"after already being accepted for role: {prev_role.mention}"
+				)
 
-                await interaction.response.send_message(
-                    "You have already been approved as a spectator in this server.",
-                    ephemeral=True,
-                )
-            return
+				await interaction.response.send_message(
+					"You have already been approved as a spectator in this server.",
+					ephemeral=True,
+				)
+			return
 
-        # prevent spectating non-power roles
-        if (
-            power_role.name in [
-                "Admin", "Moderators", "GM", "Heavenly Angel", "GM Team", "Player",
-                "Spectator", "Country Spectator", "Dead", "DiploGM",
-            ]
-            or power_role.name.find("-orders") != -1
-        ):
-            await interaction.response.send_message(
-                "Can't spectate that role!", ephemeral=True
-            )
-            return
+		# prevent spectating non-power roles
+		if (
+			power_role.name
+			in [
+				"Admin",
+				"Moderators",
+				"GM",
+				"Heavenly Angel",
+				"GM Team",
+				"Player",
+				"Spectator",
+				"Country Spectator",
+				"Dead",
+				"DiploGM",
+			]
+			or power_role.name.find("-orders") != -1
+		):
+			await interaction.response.send_message(
+				"Can't spectate that role!", ephemeral=True
+			)
+			return
 
-        # get country spectator role
-        cspec_role = discord.utils.find(
-            lambda r: r.name == "Country Spectator", guild.roles
-        )
-        if not cspec_role:
-            await interaction.response.send_message(
-                "Could not find country spectator role! Contact GM."
-            )
-            return
+		# get country spectator role
+		cspec_role = discord.utils.find(
+			lambda r: r.name == "Country Spectator", guild.roles
+		)
+		if not cspec_role:
+			await interaction.response.send_message(
+				"Could not find country spectator role! Contact GM."
+			)
+			return
 
-        # if player already a player or country spec
-        if any(
-            map(
-                lambda r: r.name
-                in ["Player", "Spectator", "Country Spectator", "Dead"],
-                requester.roles,
-            )
-        ):
-            await interaction.response.send_message(
-                "Can't request to spectate that power, you are either a Player or already a Spectator.",
-                ephemeral=True,
-            )
+		# if player already a player or country spec
+		if any(
+			map(
+				lambda r: (
+					r.name in ["Player", "Spectator", "Country Spectator", "Dead"]
+				),
+				requester.roles,
+			)
+		):
+			await interaction.response.send_message(
+				"Can't request to spectate that power, you are either a Player or already a Spectator.",
+				ephemeral=True,
+			)
 
-            return
+			return
 
-        # get power channel to send request
-        role_channel = discord.utils.find(
-            lambda c: c.name == f"{power_role.name.lower()}{PLAYER_CHANNEL_SUFFIX}", guild.text_channels
-        )
-        role_void = discord.utils.find(
-            lambda c: c.name == f"{power_role.name.lower()}-void", guild.text_channels
-        )
-        if not role_channel or not role_void:
-            await interaction.response.send_message(
-                "Please specify a playable power.", ephemeral=True
-            )
-            return
+		# get power channel to send request
+		role_channel = discord.utils.find(
+			lambda c: c.name == f"{power_role.name.lower()}{PLAYER_CHANNEL_SUFFIX}",
+			guild.text_channels,
+		)
+		role_void = discord.utils.find(
+			lambda c: c.name == f"{power_role.name.lower()}-void", guild.text_channels
+		)
+		if not role_channel or not role_void:
+			await interaction.response.send_message(
+				"Please specify a playable power.", ephemeral=True
+			)
+			return
 
-        out = f"[SPECTATOR LOG] {requester.mention} requested for power {power_role.mention}"
-        await admin_channel.send(out)
+		out = f"[SPECTATOR LOG] {requester.mention} requested for power {power_role.mention}"
+		await admin_channel.send(out)
 
-        # send request message to player
-        out = (
-            f"{power_role.mention}: Spectator request from {interaction.user.mention}\n"
-            + "- (if the buttons do not work, contact your GM)"
-        )
-        url = f"https://discord.com/channels/{guild.id}/{role_void.id}"  # link to void channel (for accept message)
-        await role_channel.send(
-            content=out,
-            view=SpecView(
-                requester, guild.name, admin_channel, url, power_role, cspec_role
-            ),
-        )
+		# send request message to player
+		out = (
+			f"{power_role.mention}: Spectator request from {interaction.user.mention}\n"
+			+ "- (if the buttons do not work, contact your GM)"
+		)
+		url = f"https://discord.com/channels/{guild.id}/{role_void.id}"  # link to void channel (for accept message)
+		await role_channel.send(
+			content=out,
+			view=SpecView(
+				requester, guild.name, admin_channel, url, power_role, cspec_role
+			),
+		)
 
-        # send ack to requesting user
-        await interaction.response.send_message(
-            "Spectator application sent! You should hear a response via DM.",
-            ephemeral=True,
-        )
+		# send ack to requesting user
+		await interaction.response.send_message(
+			"Spectator application sent! You should hear a response via DM.",
+			ephemeral=True,
+		)
 
-    @commands.command(
-        brief="Records the approval of a spec request",
-        description="""[Only to be used by GMs]
+	@commands.command(
+		brief="Records the approval of a spec request",
+		description="""[Only to be used by GMs]
         Used to record an approved spectator request if /spec fails.
         Usage: .record_spec @User @Nation""",
-    )
-    @perms.gm_only("record a spec")
-    async def record_spec(self, ctx: commands.Context) -> None:
-        """Records the approval of a spec request."""
-        guild = ctx.guild
-        if not guild:
-            return
+	)
+	@perms.gm_only("record a spec")
+	async def record_spec(self, ctx: commands.Context) -> None:
+		"""Records the approval of a spec request."""
+		guild = ctx.guild
+		if not guild:
+			return
 
-        if len(ctx.message.role_mentions) == 0:
-            await send_error(ctx.channel, ErrorMessage.POWER_NOT_MENTIONED)
-            return
+		if len(ctx.message.role_mentions) == 0:
+			await send_error(ctx.channel, ErrorMessage.POWER_NOT_MENTIONED)
+			return
 
-        if len(ctx.message.mentions) == 0:
-            await send_error(ctx.channel, ErrorMessage.USER_NOT_MENTIONED)
-            return
+		if len(ctx.message.mentions) == 0:
+			await send_error(ctx.channel, ErrorMessage.USER_NOT_MENTIONED)
+			return
 
-        user = ctx.message.mentions[0]
-        user_id = user.id
+		user = ctx.message.mentions[0]
+		user_id = user.id
 
-        power_role = ctx.message.role_mentions[0]
-        power_id = power_role.id
+		power_role = ctx.message.role_mentions[0]
+		power_id = power_role.id
 
-        out = manager.save_spec_request(guild.id, user_id, power_id, override=True)
-        await send_message_and_file(channel=ctx.channel, message=out)
+		out = manager.save_spec_request(guild.id, user_id, power_id, override=True)
+		await send_message_and_file(channel=ctx.channel, message=out)
 
-    @commands.command(
-        brief="Backlogs the approval for all current Country Spectators", hidden=True
-    )
-    @perms.gm_only("backlog spectators")
-    async def backlog_specs(self, ctx: commands.Context) -> None:
-        """Backlog the approval for all current Country Spectators."""
-        guild = ctx.guild
-        if not guild:
-            return
+	@commands.command(
+		brief="Backlogs the approval for all current Country Spectators", hidden=True
+	)
+	@perms.gm_only("backlog spectators")
+	async def backlog_specs(self, ctx: commands.Context) -> None:
+		"""Backlog the approval for all current Country Spectators."""
+		guild = ctx.guild
+		if not guild:
+			return
 
-        cspec = discord_find(lambda r: r.name == "Country Spectator", guild.roles)
-        if cspec is None:
-            await send_message_and_file(
-                channel=ctx.channel,
-                title="Error",
-                message="There is no Country Spectator role in this server.",
-            )
-            return
+		cspec = discord_find(lambda r: r.name == "Country Spectator", guild.roles)
+		if cspec is None:
+			await send_message_and_file(
+				channel=ctx.channel,
+				title="Error",
+				message="There is no Country Spectator role in this server.",
+			)
+			return
 
-        out = ""
-        for member in guild.members:
-            if cspec not in member.roles:
-                continue
+		out = ""
+		for member in guild.members:
+			if cspec not in member.roles:
+				continue
 
-            power_role = None
-            for role in member.roles:
-                if discord_find(
-                    lambda c: c.name == f"{role.name.lower()}-orders",
-                    guild.text_channels,
-                ):
-                    power_role = role
-                    break
+			power_role = None
+			for role in member.roles:
+				if discord_find(
+					lambda c: c.name == f"{role.name.lower()}-orders",
+					guild.text_channels,
+				):
+					power_role = role
+					break
 
-            if power_role is None:
-                continue
+			if power_role is None:
+				continue
 
-            result = manager.save_spec_request(guild.id, member.id, power_role.id)
-            out += f"{member.mention} -> {power_role.mention}: {result}\n"
+			result = manager.save_spec_request(guild.id, member.id, power_role.id)
+			out += f"{member.mention} -> {power_role.mention}: {result}\n"
 
-        await send_message_and_file(
-            channel=ctx.channel, title="Spectator Backlog Results", message=out
-        )
+		await send_message_and_file(
+			channel=ctx.channel, title="Spectator Backlog Results", message=out
+		)
 
 
 async def setup(bot):
-    """Set up the spectator cog."""
-    cog = SpectatorCog(bot)
-    await bot.add_cog(cog)
+	"""Set up the spectator cog."""
+	cog = SpectatorCog(bot)
+	await bot.add_cog(cog)

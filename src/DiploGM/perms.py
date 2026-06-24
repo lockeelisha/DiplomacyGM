@@ -8,223 +8,248 @@ from discord.ext import commands
 from DiploGM import config
 from DiploGM.errors import CommandPermissionError
 from DiploGM.config import HUB_SERVER_ID, SUPERUSERS, is_player_category
-from DiploGM.utils import (simple_player_name)
+from DiploGM.utils import simple_player_name
 from DiploGM.manager import Manager
 from DiploGM.models.player import Player
 
 if TYPE_CHECKING:
-    from discord.abc import Messageable
-    from DiploGM.models.board import Board
+	from discord.abc import Messageable
+	from DiploGM.models.board import Board
 
 manager = Manager()
 
 
 def get_player_by_context(ctx: commands.Context) -> Player | None:
-    """Gets the player associated with the command context, if it exists."""
-    assert ctx.guild is not None
-    if not isinstance(ctx.author, discord.Member):
-        return None
+	"""Gets the player associated with the command context, if it exists."""
+	assert ctx.guild is not None
+	if not isinstance(ctx.author, discord.Member):
+		return None
 
-    player = manager.get_member_player_object(ctx.message.author)
-    if player is not None:
-        return player
+	player = manager.get_member_player_object(ctx.message.author)
+	if player is not None:
+		return player
 
-    board = manager.get_board(ctx.guild.id)
-    if board.data.get("fow", "disabled") == "enabled" or board.is_chaos():
-        return get_player_by_channel(board, ctx.channel, ignore_category=board.is_chaos())
-    return None
+	board = manager.get_board(ctx.guild.id)
+	if board.data.get("fow", "disabled") == "enabled" or board.is_chaos():
+		return get_player_by_channel(
+			board, ctx.channel, ignore_category=board.is_chaos()
+		)
+	return None
+
 
 def get_player_by_channel(
-        board: Board,
-        channel: Messageable,
-        ignore_category=False,
+	board: Board,
+	channel: Messageable,
+	ignore_category=False,
 ) -> Player | None:
-    """Given a Discord channel, tries to find a matching Player."""
-    # thread -> main channel
-    if isinstance(channel, discord.Thread):
-        if not isinstance(channel.parent, discord.TextChannel):
-            return None
-        channel = channel.parent
-    if not isinstance(channel, discord.TextChannel):
-        return None
+	"""Given a Discord channel, tries to find a matching Player."""
+	# thread -> main channel
+	if isinstance(channel, discord.Thread):
+		if not isinstance(channel.parent, discord.TextChannel):
+			return None
+		channel = channel.parent
+	if not isinstance(channel, discord.TextChannel):
+		return None
 
-    name = channel.name
-    if (not ignore_category) and not is_player_category(channel.category):
-        return None
+	name = channel.name
+	if (not ignore_category) and not is_player_category(channel.category):
+		return None
 
-    if board.is_chaos() and name.endswith("-void"):
-        name = name[:-5]
-    else:
-        if not name.endswith(config.PLAYER_CHANNEL_SUFFIX):
-            return None
+	if board.is_chaos() and name.endswith("-void"):
+		name = name[:-5]
+	else:
+		if not name.endswith(config.PLAYER_CHANNEL_SUFFIX):
+			return None
 
-        name = name[: -(len(config.PLAYER_CHANNEL_SUFFIX))]
+		name = name[: -(len(config.PLAYER_CHANNEL_SUFFIX))]
 
-    try:
-        return board.get_player(name)
-    except ValueError:
-        return None
+	try:
+		return board.get_player(name)
+	except ValueError:
+		return None
+
 
 def is_player_channel(player_role: Player, channel: Messageable) -> bool:
-    """Checks to see if the given channel is the player's orders channel."""
-    if not isinstance(channel, discord.TextChannel) or channel.category is None:
-        return False
-    player_channel = player_role.name + config.PLAYER_CHANNEL_SUFFIX
-    nickname_channel = player_role.get_name() + config.PLAYER_CHANNEL_SUFFIX
-    return ((simple_player_name(player_channel) == simple_player_name(channel.name)
-             or simple_player_name(nickname_channel) == simple_player_name(channel.name))
-            and config.is_player_category(channel.category))
+	"""Checks to see if the given channel is the player's orders channel."""
+	if not isinstance(channel, discord.TextChannel) or channel.category is None:
+		return False
+	player_channel = player_role.name + config.PLAYER_CHANNEL_SUFFIX
+	nickname_channel = player_role.get_name() + config.PLAYER_CHANNEL_SUFFIX
+	return (
+		simple_player_name(player_channel) == simple_player_name(channel.name)
+		or simple_player_name(nickname_channel) == simple_player_name(channel.name)
+	) and config.is_player_category(channel.category)
+
 
 def require_player_by_context(ctx: commands.Context, description: str) -> Player | None:
-    """Gets the player associated with the command context, if it exists,
-    but requires that the command is run by a player in their orders channel
-    or by a GM in a GM channel or a player's orders channel."""
-    assert ctx.guild is not None and ctx.message is not None
-    board = manager.get_board(ctx.guild.id)
-    # return if in order channel
-    ctx_player = manager.get_member_player_object(ctx.message.author)
-    if ctx_player is None and (board.data.get("fow", "disabled") == "enabled" or board.is_chaos()):
-        ctx_player = get_player_by_channel(board, ctx.channel, ignore_category=board.is_chaos())
-        if ctx_player:
-            return ctx_player
+	"""Gets the player associated with the command context, if it exists,
+	but requires that the command is run by a player in their orders channel
+	or by a GM in a GM channel or a player's orders channel."""
+	assert ctx.guild is not None and ctx.message is not None
+	board = manager.get_board(ctx.guild.id)
+	# return if in order channel
+	ctx_player = manager.get_member_player_object(ctx.message.author)
+	if ctx_player is None and (
+		board.data.get("fow", "disabled") == "enabled" or board.is_chaos()
+	):
+		ctx_player = get_player_by_channel(
+			board, ctx.channel, ignore_category=board.is_chaos()
+		)
+		if ctx_player:
+			return ctx_player
 
-    if ctx_player:
-        if not is_player_channel(ctx_player, ctx.channel):
-            raise CommandPermissionError(
-                f"You cannot {description} as a player outside of your orders channel."
-            )
-    else:
-        if not is_gm(ctx.message.author):
-            raise CommandPermissionError(
-                f"You cannot {description} because you are neither a GM nor a player."
-            )
-        player_channel = get_player_by_channel(board, ctx.channel)
-        if player_channel is not None:
-            ctx_player = player_channel
-        elif not is_gm_channel(ctx.channel):
-            raise CommandPermissionError(
-                f"You cannot {description} as a GM in non-player and non-GM channels."
-            )
-    return ctx_player
+	if ctx_player:
+		if not is_player_channel(ctx_player, ctx.channel):
+			raise CommandPermissionError(
+				f"You cannot {description} as a player outside of your orders channel."
+			)
+	else:
+		if not is_gm(ctx.message.author):
+			raise CommandPermissionError(
+				f"You cannot {description} because you are neither a GM nor a player."
+			)
+		player_channel = get_player_by_channel(board, ctx.channel)
+		if player_channel is not None:
+			ctx_player = player_channel
+		elif not is_gm_channel(ctx.channel):
+			raise CommandPermissionError(
+				f"You cannot {description} as a GM in non-player and non-GM channels."
+			)
+	return ctx_player
+
 
 # Player
 
+
 def player(description: str = "run this command"):
-    """Adds one extra argument, player in a player's channel, which is None if run by a GM in a GM channel"""
-    def decorator(func: Callable[..., Awaitable[Any]]):
-        @wraps(func)
-        async def wrapper(self, ctx: commands.Context, player: Player | None):
-            # manager should live on bot or cog; here I assume cog
-            player = require_player_by_context(ctx, description)
+	"""Adds one extra argument, player in a player's channel, which is None if run by a GM in a GM channel"""
 
-            # Inject the resolved player into the *real* function call
-            return await func(self, ctx, player)
+	def decorator(func: Callable[..., Awaitable[Any]]):
+		@wraps(func)
+		async def wrapper(self, ctx: commands.Context, player: Player | None):
+			# manager should live on bot or cog; here I assume cog
+			player = require_player_by_context(ctx, description)
 
-        return wrapper
+			# Inject the resolved player into the *real* function call
+			return await func(self, ctx, player)
 
-    return decorator
+		return wrapper
+
+	return decorator
+
 
 # Moderator
 
+
 async def assert_mod_only(
-    ctx: commands.Context, description: str = "run this command"
+	ctx: commands.Context, description: str = "run this command"
 ) -> bool:
-    """Checks that the command invoker is a moderator on the Hub server and the current server.
-    Raises a CommandPermissionError if not, otherwise returns True."""
-    _hub = ctx.bot.get_guild(HUB_SERVER_ID)
-    if not _hub:
-        raise CommandPermissionError(
-            "Cannot fetch the Hub server moderator permissions."
-        )
+	"""Checks that the command invoker is a moderator on the Hub server and the current server.
+	Raises a CommandPermissionError if not, otherwise returns True."""
+	_hub = ctx.bot.get_guild(HUB_SERVER_ID)
+	if not _hub:
+		raise CommandPermissionError(
+			"Cannot fetch the Hub server moderator permissions."
+		)
 
-    _member = _hub.get_member(ctx.author.id)
-    if not _member:
-        raise CommandPermissionError(
-            f"You cannot {description} as you could not be found as a member of the Hub server."
-        )
+	_member = _hub.get_member(ctx.author.id)
+	if not _member:
+		raise CommandPermissionError(
+			f"You cannot {description} as you could not be found as a member of the Hub server."
+		)
 
-    if not is_moderator(_member):
-        raise CommandPermissionError(
-            f"You cannot {description} as you are not a moderator on the Hub server."
-        )
+	if not is_moderator(_member):
+		raise CommandPermissionError(
+			f"You cannot {description} as you are not a moderator on the Hub server."
+		)
 
-    if not is_moderator(ctx.author):
-        raise CommandPermissionError(
-            f"You cannot {description} as you are not a moderator on the current server."
-        )
+	if not is_moderator(ctx.author):
+		raise CommandPermissionError(
+			f"You cannot {description} as you are not a moderator on the current server."
+		)
 
-    return True
+	return True
 
 
 def mod_only(description: str = "run this command"):
-    """Checks that the command invoker is a moderator on the Hub server and the current server.
-    Raises a CommandPermissionError if not, otherwise returns True."""
-    return commands.check(lambda ctx: assert_mod_only(ctx, description))
+	"""Checks that the command invoker is a moderator on the Hub server and the current server.
+	Raises a CommandPermissionError if not, otherwise returns True."""
+	return commands.check(lambda ctx: assert_mod_only(ctx, description))
+
 
 def is_moderator(author: discord.Member | discord.User) -> bool:
-    """Checks if the given author is a moderator on the current server."""
-    if not isinstance(author, discord.Member):
-        return False
-    for role in author.roles:
-        if config.is_mod_role(role):
-            return True
+	"""Checks if the given author is a moderator on the current server."""
+	if not isinstance(author, discord.Member):
+		return False
+	for role in author.roles:
+		if config.is_mod_role(role):
+			return True
 
-    return False
+	return False
+
 
 # GM
 
+
 def assert_gm_only(
-    ctx: commands.Context, description: str = "run this command", non_gm_alt: str = ""
+	ctx: commands.Context, description: str = "run this command", non_gm_alt: str = ""
 ):
-    """Checks that the command invoker is a GM and the command is run in a GM channel.
-    Raises a CommandPermissionError if not, otherwise returns True."""
-    assert ctx.message is not None
-    if not is_gm(ctx.message.author):
-        raise CommandPermissionError(
-            non_gm_alt or f"You cannot {description} because you are not a GM."
-        )
-    if not is_gm_channel(ctx.channel):
-        raise CommandPermissionError(f"You cannot {description} in a non-GM channel.")
-    return True
+	"""Checks that the command invoker is a GM and the command is run in a GM channel.
+	Raises a CommandPermissionError if not, otherwise returns True."""
+	assert ctx.message is not None
+	if not is_gm(ctx.message.author):
+		raise CommandPermissionError(
+			non_gm_alt or f"You cannot {description} because you are not a GM."
+		)
+	if not is_gm_channel(ctx.channel):
+		raise CommandPermissionError(f"You cannot {description} in a non-GM channel.")
+	return True
 
 
 def gm_only(description: str = "run this command"):
-    """Checks that the command invoker is a GM and the command is run in a GM channel.
-    Raises a CommandPermissionError if not, otherwise returns True."""
-    return commands.check(lambda ctx: assert_gm_only(ctx, description))
+	"""Checks that the command invoker is a GM and the command is run in a GM channel.
+	Raises a CommandPermissionError if not, otherwise returns True."""
+	return commands.check(lambda ctx: assert_gm_only(ctx, description))
+
 
 def is_gm_channel(channel: Messageable) -> bool:
-    """Checks if the given channel is a GM channel in the GM category."""
-    return (isinstance(channel, discord.TextChannel)
-            and config.is_gm_channel(channel)
-            and config.is_gm_category(channel.category))
+	"""Checks if the given channel is a GM channel in the GM category."""
+	return (
+		isinstance(channel, discord.TextChannel)
+		and config.is_gm_channel(channel)
+		and config.is_gm_category(channel.category)
+	)
+
 
 def is_gm(author: discord.Member | discord.User) -> bool:
-    """Checks if the given author is a GM on the current server."""
-    if isinstance(author, discord.User):
-        return False
-    for role in author.roles:
-        if config.is_gm_role(role):
-            return True
-    return False
+	"""Checks if the given author is a GM on the current server."""
+	if isinstance(author, discord.User):
+		return False
+	for role in author.roles:
+		if config.is_gm_role(role):
+			return True
+	return False
+
 
 # Superuser
 
+
 def assert_superuser_only(ctx: commands.Context, description: str = "run this command"):
-    """Checks that the command invoker is a superuser.
-    Raises a CommandPermissionError if not, otherwise returns True."""
-    if not is_superuser(ctx.message.author):
-        raise CommandPermissionError(
-            f"You cannot {description} as you are not a superuser"
-        )
-    return True
+	"""Checks that the command invoker is a superuser.
+	Raises a CommandPermissionError if not, otherwise returns True."""
+	if not is_superuser(ctx.message.author):
+		raise CommandPermissionError(
+			f"You cannot {description} as you are not a superuser"
+		)
+	return True
 
 
 def superuser_only(description: str = "run this command"):
-    """Checks that the command invoker is a superuser.
-    Raises a CommandPermissionError if not, otherwise returns True."""
-    return commands.check(lambda ctx: assert_superuser_only(ctx, description))
+	"""Checks that the command invoker is a superuser.
+	Raises a CommandPermissionError if not, otherwise returns True."""
+	return commands.check(lambda ctx: assert_superuser_only(ctx, description))
+
 
 def is_superuser(author: discord.Member | discord.User) -> bool:
-    """Checks if the given author is a superuser."""
-    return author.id in SUPERUSERS
+	"""Checks if the given author is a superuser."""
+	return author.id in SUPERUSERS

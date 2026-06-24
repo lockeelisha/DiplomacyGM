@@ -92,7 +92,6 @@ exclude = [
     "networkx.*",
     "matplotlib.*",
     "PIL.*",
-    "DiploGM.utils.*"
 ]
 
 # Cleaner graph output

@@ -19,196 +19,201 @@ SERVER_OVERRIDE = True
 
 
 class SlashSubstituteCog(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        self.service = reputation_service
+	def __init__(self, bot):
+		self.bot = bot
+		self.service = reputation_service
 
-    @app_commands.command(
-        name="advertise",
-        description="Places a substitute advertisement for a power",
-        extras={
-            "help": """
+	@app_commands.command(
+		name="advertise",
+		description="Places a substitute advertisement for a power",
+		extras={
+			"help": """
     Usage:
     .advertise <power> # Advertise permanent position, no extra message
     .advertise <power> <message> # Advertise permanent position, extra message
     .advertise <power> <timestamp> # Advertise temporary position, no extra message
     .advertise <power> <timestamp> <message> # Advertise temporary position, extra message
         """
-        },
-    )
-    async def advertise(
-        self,
-        interaction: discord.Interaction,
-        power_role: discord.Role,
-        timestamp: Optional[str] = None,
-        message: Optional[str] = "No message given.",
-    ):
-        """
-        Create an advertisement for substitutes automatically,
-        to enforce a standard of information that should be contained within.
+		},
+	)
+	async def advertise(
+		self,
+		interaction: discord.Interaction,
+		power_role: discord.Role,
+		timestamp: Optional[str] = None,
+		message: Optional[str] = "No message given.",
+	):
+		"""
+		Create an advertisement for substitutes automatically,
+		to enforce a standard of information that should be contained within.
 
-        Process:
-            1. If nothing is given for *message, set to string "No message given.", else join with space delimiter
-            2. Find the Hub Server and Get Interested Substitute Role
-            3. Get the Player object from the Boardstate using the supplied power_role
-            4. Check that timestamp arg is a valid timestamp, else prepend to message.
-            5. Get channel to create tickets and channel to post advertisement
-            6. Format Player data (period, game_name, game_phase, power, sc count, vscc)
-            7. Post advertisement in correct channel
-            8. Ghost Ping "Interested Substitute" to function as embed ping
-                a. TODO: look into text as well as embed to remove this
+		Process:
+		    1. If nothing is given for *message, set to string "No message given.", else join with space delimiter
+		    2. Find the Hub Server and Get Interested Substitute Role
+		    3. Get the Player object from the Boardstate using the supplied power_role
+		    4. Check that timestamp arg is a valid timestamp, else prepend to message.
+		    5. Get channel to create tickets and channel to post advertisement
+		    6. Format Player data (period, game_name, game_phase, power, sc count, vscc)
+		    7. Post advertisement in correct channel
+		    8. Ghost Ping "Interested Substitute" to function as embed ping
+		        a. TODO: look into text as well as embed to remove this
 
 
-        Parameters
-        ----------
-        power_role (discord.Role): Role of the power that has requested a substitution
-        timestamp (str | None): Optional timestamp for declaring temporary substitute period
-        *message (tuple): Analagous to *args, for purpose of collecting a string to inform advert
+		Parameters
+		----------
+		power_role (discord.Role): Role of the power that has requested a substitution
+		timestamp (str | None): Optional timestamp for declaring temporary substitute period
+		*message (tuple): Analagous to *args, for purpose of collecting a string to inform advert
 
-        Returns
-        -------
-        None
+		Returns
+		-------
+		None
 
-        """
-        def send_advertise_error(message: str):
-            assert isinstance(interaction.channel, discord.TextChannel)
-            return send_message_and_file(
-                channel=interaction.channel,
-                title="Error running /advertise",
-                message=message,
-                embed_colour=config.ERROR_COLOUR,
-            )
+		"""
 
-        guild = interaction.guild
-        if (not guild
-            or not isinstance(interaction.user, discord.Member)
-            or not isinstance(interaction.channel, discord.TextChannel)):
-            return
+		def send_advertise_error(message: str):
+			assert isinstance(interaction.channel, discord.TextChannel)
+			return send_message_and_file(
+				channel=interaction.channel,
+				title="Error running /advertise",
+				message=message,
+				embed_colour=config.ERROR_COLOUR,
+			)
 
-        bot = interaction.client
+		guild = interaction.guild
+		if (
+			not guild
+			or not isinstance(interaction.user, discord.Member)
+			or not isinstance(interaction.channel, discord.TextChannel)
+		):
+			return
 
-        # TODO: app_commands permissions check decorators
-        if not perms.is_gm(interaction.user):
-            await interaction.response.send_message(
-                "You are not allowed to use `.advertise`!", ephemeral=True
-            )
-            return
+		bot = interaction.client
 
-        if not perms.is_gm_channel(interaction.channel):
-            await interaction.response.send_message(
-                "You are not allowed to use `.advertise` here!", ephemeral=True
-            )
-            return
+		# TODO: app_commands permissions check decorators
+		if not perms.is_gm(interaction.user):
+			await interaction.response.send_message(
+				"You are not allowed to use `.advertise`!", ephemeral=True
+			)
+			return
 
-        # HACK: Should create an approved list of servers
-        if not SERVER_OVERRIDE and not guild.name.startswith("Imperial Diplomacy"):
-            await interaction.response.send_message(
-                "You are not permitted to use `.advertise` in this server!",
-                ephemeral=True,
-            )
-            return
+		if not perms.is_gm_channel(interaction.channel):
+			await interaction.response.send_message(
+				"You are not allowed to use `.advertise` here!", ephemeral=True
+			)
+			return
 
-        locations = {
-            "hub_server": bot.get_guild(config.HUB_SERVER_ID),
-            "advertise_channel": bot.get_channel(
-                config.HUB_SERVER_SUBSTITUTE_ADVERTISE_CHANNEL_ID
-            ),
-            "tickets_channel": bot.get_channel(
-                config.HUB_SERVER_SUBSTITUTE_TICKET_CHANNEL_ID
-            ),
-        }
+		# HACK: Should create an approved list of servers
+		if not SERVER_OVERRIDE and not guild.name.startswith("Imperial Diplomacy"):
+			await interaction.response.send_message(
+				"You are not permitted to use `.advertise` in this server!",
+				ephemeral=True,
+			)
+			return
 
-        if any(map(lambda pair: pair[1] is None, locations.items())):
-            out = "Could not access the relevant locations:\n"
-            for k, v in locations.items():
-                if v is None:
-                    out += f"- {k}\n"
+		locations = {
+			"hub_server": bot.get_guild(config.HUB_SERVER_ID),
+			"advertise_channel": bot.get_channel(
+				config.HUB_SERVER_SUBSTITUTE_ADVERTISE_CHANNEL_ID
+			),
+			"tickets_channel": bot.get_channel(
+				config.HUB_SERVER_SUBSTITUTE_TICKET_CHANNEL_ID
+			),
+		}
 
-            await send_advertise_error(f"{out}")
-            await interaction.response.send_message("Failure!", ephemeral=True)
-            return
+		if any(map(lambda pair: pair[1] is None, locations.items())):
+			out = "Could not access the relevant locations:\n"
+			for k, v in locations.items():
+				if v is None:
+					out += f"- {k}\n"
 
-        interested_sub_role = discord_find(
-            lambda r: r.name == "Interested Substitute", locations["hub_server"].roles
-        )
-        if not interested_sub_role:
-            await send_advertise_error("Could not find the role for interested substitutes.")
-            return
+			await send_advertise_error(f"{out}")
+			await interaction.response.send_message("Failure!", ephemeral=True)
+			return
 
-        board = manager.get_board(guild.id)
-        player = None
-        scrap = power_role.name == "scrap"
+		interested_sub_role = discord_find(
+			lambda r: r.name == "Interested Substitute", locations["hub_server"].roles
+		)
+		if not interested_sub_role:
+			await send_advertise_error(
+				"Could not find the role for interested substitutes."
+			)
+			return
 
-        if not scrap:
-            player = board.get_player(power_role.name)
-        if not player and not scrap:
-            out = f"Could not find Player object for given role {power_role.mention}"
-            await send_advertise_error(f"{out}")
-            await interaction.response.send_message("Failure!", ephemeral=True)
-            return
+		board = manager.get_board(guild.id)
+		player = None
+		scrap = power_role.name == "scrap"
 
-        await interaction.response.defer()
+		if not scrap:
+			player = board.get_player(power_role.name)
+		if not player and not scrap:
+			out = f"Could not find Player object for given role {power_role.mention}"
+			await send_advertise_error(f"{out}")
+			await interaction.response.send_message("Failure!", ephemeral=True)
+			return
 
-        if timestamp is None:
-            timestamp_msg = "Permanent"
-        else:
-            match = re.match(r"<t:(\d{10}):?(f|F|d|D|t|T|R)>", timestamp)
-            if match:
-                timestamp_msg = f"until <t:{match.group(1)}:F>"
-            else:
-                out = "Improper value for argument 'timestamp'"
-                await send_advertise_error(f"{out}")
-                await interaction.followup.send("Failure!", ephemeral=True)
-                return
+		await interaction.response.defer()
 
-        centers = 0
-        vscc = 0
-        if player:
-            centers = len(player.centers)
-            vscc = round(board.get_score(player) * 100, 2)
+		if timestamp is None:
+			timestamp_msg = "Permanent"
+		else:
+			match = re.match(r"<t:(\d{10}):?(f|F|d|D|t|T|R)>", timestamp)
+			if match:
+				timestamp_msg = f"until <t:{match.group(1)}:F>"
+			else:
+				out = "Improper value for argument 'timestamp'"
+				await send_advertise_error(f"{out}")
+				await interaction.followup.send("Failure!", ephemeral=True)
+				return
 
-        out = (
-            f"Period: {timestamp_msg}\n"
-            f"Game: {guild.name}\n"
-            f"Phase: {board.turn}\n"
-            f"Power: {power_role.name}\n"
-            f"SC Count: {centers}\n"
-            f"VSCC: {vscc}%\n"
-            "\n"
-            f"Message: {message}\n"
-            "\n"
-            f"If you are interested, please go to {locations['tickets_channel'].mention} and create a ticket. " +
-            f"Don't forget to ping {interaction.user.mention}[{interaction.user.name}] " +
-            "so that they know you want to join the game!"
-        )
-        file, file_name = manager.draw_map_for_board(
-            board, player_restriction=None, draw_moves=False, color_mode="standard"
-        )
+		centers = 0
+		vscc = 0
+		if player:
+			centers = len(player.centers)
+			vscc = round(board.get_score(player) * 100, 2)
 
-        link = await send_message_and_file(
-            channel=locations["advertise_channel"],
-            title="Substitute Advertisemenet",
-            message=out,
-            file=file,
-            file_name=file_name,
-            convert_svg=True,
-            dpi=board.data["svg config"].get("dpi", 200),
-        )
-        try:
-            msg = await locations["advertise_channel"].send(interested_sub_role.mention)
-            await msg.delete(delay=2)
-        except discord.HTTPException as e:
-            logger.warning(f"failed to ping interested substitutes: {e}")
+		out = (
+			f"Period: {timestamp_msg}\n"
+			f"Game: {guild.name}\n"
+			f"Phase: {board.turn}\n"
+			f"Power: {power_role.name}\n"
+			f"SC Count: {centers}\n"
+			f"VSCC: {vscc}%\n"
+			"\n"
+			f"Message: {message}\n"
+			"\n"
+			f"If you are interested, please go to {locations['tickets_channel'].mention} and create a ticket. "
+			+ f"Don't forget to ping {interaction.user.mention}[{interaction.user.name}] "
+			+ "so that they know you want to join the game!"
+		)
+		file, file_name = manager.draw_map_for_board(
+			board, player_restriction=None, draw_moves=False, color_mode="standard"
+		)
 
-        await interaction.followup.send(
-            f"Advertisement put out for {power_role.mention}: {link.jump_url}"
-        )
+		link = await send_message_and_file(
+			channel=locations["advertise_channel"],
+			title="Substitute Advertisemenet",
+			message=out,
+			file=file,
+			file_name=file_name,
+			convert_svg=True,
+			dpi=board.data["svg config"].get("dpi", 200),
+		)
+		try:
+			msg = await locations["advertise_channel"].send(interested_sub_role.mention)
+			await msg.delete(delay=2)
+		except discord.HTTPException as e:
+			logger.warning(f"failed to ping interested substitutes: {e}")
 
-    @app_commands.command(
-        name="substitute",
-        description="Handles the in/out substitution of two users",
-        extras={
-            "help": """
+		await interaction.followup.send(
+			f"Advertisement put out for {power_role.mention}: {link.jump_url}"
+		)
+
+	@app_commands.command(
+		name="substitute",
+		description="Handles the in/out substitution of two users",
+		extras={
+			"help": """
         TODO: Add more explicit support for temporary substitutes...
         In the mean time, use the reason argument to explain a temp sub
 
@@ -216,245 +221,248 @@ class SlashSubstituteCog(commands.Cog):
             .substitute <usernameA> <usernameB> @France <reason>
             .substitute <pingUserA> <pingUserB> @Mughal
         """
-        },
-    )
-    async def substitute(
-        self,
-        interaction: discord.Interaction,
-        incoming_user: discord.Member,
-        outgoing_username: str,
-        power_role: discord.Role,
-        recommended_penalty: Optional[int],
-        reason: Optional[str] = "No reason provided.",
-    ):
-        """
-        Easily handle automatic processing of substitutes, both role switching and documentation.
-        Primarily created to enforce correct outputs for the Reputation Tracker...
+		},
+	)
+	async def substitute(
+		self,
+		interaction: discord.Interaction,
+		incoming_user: discord.Member,
+		outgoing_username: str,
+		power_role: discord.Role,
+		recommended_penalty: Optional[int],
+		reason: Optional[str] = "No reason provided.",
+	):
+		"""
+		Easily handle automatic processing of substitutes, both role switching and documentation.
+		Primarily created to enforce correct outputs for the Reputation Tracker...
 
 
-        Process:
-            1. If nothing is given for *reason, set to string "No reason provided.", else join with space delimiter
-            2. Validate server is within the Reputation system (for output to Reputation-Tracker)
-                a. guild.name.startswith("Imperial Diplomacy")
-            3. Check that incoming player is within the server for processing
-                a. Check that the role to provide the incoming player is an actual Power role for gametype
-            4. Log incoming and outgoing users to #Reputation-Tracker
-            5. Obtain relevant roles for auto-switching (Player, <power>-orders, Country Spectator)
-            6. Check substitution is correct
-                a. Incoming is not a current player
-                b. Incoming player is/has not spectating another power
-            7. Remove any Player roles on outgoing player, add new position roles
-            7. Remove any Spectator roles on incoming player, add new position roles
+		Process:
+		    1. If nothing is given for *reason, set to string "No reason provided.", else join with space delimiter
+		    2. Validate server is within the Reputation system (for output to Reputation-Tracker)
+		        a. guild.name.startswith("Imperial Diplomacy")
+		    3. Check that incoming player is within the server for processing
+		        a. Check that the role to provide the incoming player is an actual Power role for gametype
+		    4. Log incoming and outgoing users to #Reputation-Tracker
+		    5. Obtain relevant roles for auto-switching (Player, <power>-orders, Country Spectator)
+		    6. Check substitution is correct
+		        a. Incoming is not a current player
+		        b. Incoming player is/has not spectating another power
+		    7. Remove any Player roles on outgoing player, add new position roles
+		    7. Remove any Spectator roles on incoming player, add new position roles
 
-        Parameters
-        ----------
-        out_user (discord.User): Prefers mention, can use a username if accurate
-        in_user (discord.User): Prefers mention, can use a username if accurate
-        power_role (discord.Role): Prefers mention, can use a name if accurate
-        *reason (tuple): Analagous to *args, for purpose of collecting a string to inform advert
+		Parameters
+		----------
+		out_user (discord.User): Prefers mention, can use a username if accurate
+		in_user (discord.User): Prefers mention, can use a username if accurate
+		power_role (discord.Role): Prefers mention, can use a name if accurate
+		*reason (tuple): Analagous to *args, for purpose of collecting a string to inform advert
 
-        Returns
-        -------
-        None
+		Returns
+		-------
+		None
 
-        """
-        def send_substitute_error(message: str):
-            assert isinstance(interaction.channel, discord.TextChannel)
-            return send_message_and_file(
-                channel=interaction.channel,
-                title="Error running /substitute",
-                message=message,
-                embed_colour=config.ERROR_COLOUR,
-            )
+		"""
 
-        guild = interaction.guild
-        bot = interaction.client
-        if (not guild
-            or not isinstance(interaction.user, discord.Member)
-            or not isinstance(interaction.channel, discord.TextChannel)):
-            return
+		def send_substitute_error(message: str):
+			assert isinstance(interaction.channel, discord.TextChannel)
+			return send_message_and_file(
+				channel=interaction.channel,
+				title="Error running /substitute",
+				message=message,
+				embed_colour=config.ERROR_COLOUR,
+			)
 
-        # TODO: app_commands permissions check decorators
-        if not perms.is_gm(interaction.user):
-            await interaction.response.send_message(
-                "You are not allowed to use `.substitute`!", ephemeral=True
-            )
-            return
+		guild = interaction.guild
+		bot = interaction.client
+		if (
+			not guild
+			or not isinstance(interaction.user, discord.Member)
+			or not isinstance(interaction.channel, discord.TextChannel)
+		):
+			return
 
-        if not perms.is_gm_channel(interaction.channel):
-            await interaction.response.send_message(
-                "You are not allowed to use `.substitute` here!", ephemeral=True
-            )
-            return
+		# TODO: app_commands permissions check decorators
+		if not perms.is_gm(interaction.user):
+			await interaction.response.send_message(
+				"You are not allowed to use `.substitute`!", ephemeral=True
+			)
+			return
 
-        # HACK: Should create an approved list of servers
-        if not SERVER_OVERRIDE and not guild.name.startswith("Imperial Diplomacy"):
-            await interaction.response.send_message(
-                "You are not permitted to use `.substitute` in this server!",
-                ephemeral=True,
-            )
-            return
+		if not perms.is_gm_channel(interaction.channel):
+			await interaction.response.send_message(
+				"You are not allowed to use `.substitute` here!", ephemeral=True
+			)
+			return
 
-        await interaction.response.defer()
+		# HACK: Should create an approved list of servers
+		if not SERVER_OVERRIDE and not guild.name.startswith("Imperial Diplomacy"):
+			await interaction.response.send_message(
+				"You are not permitted to use `.substitute` in this server!",
+				ephemeral=True,
+			)
+			return
 
-        # CHECK ALL LOCATIONS ARE AVAILABLE
-        locations = {
-            "hub_server": bot.get_guild(config.HUB_SERVER_ID),
-            "tracker_channel": bot.get_channel(
-                config.HUB_SERVER_SUBSTITUTE_LOG_CHANNEL_ID
-            ),
-        }
+		await interaction.response.defer()
 
-        if any(map(lambda pair: pair[1] is None, locations.items())):
-            out = "Could not access the relevant locations:\n"
-            for k, v in locations.items():
-                if v is None:
-                    out += f"- {k}\n"
+		# CHECK ALL LOCATIONS ARE AVAILABLE
+		locations = {
+			"hub_server": bot.get_guild(config.HUB_SERVER_ID),
+			"tracker_channel": bot.get_channel(
+				config.HUB_SERVER_SUBSTITUTE_LOG_CHANNEL_ID
+			),
+		}
 
-            await send_substitute_error(f"{out}")
-            await interaction.response.send_message("Failure!", ephemeral=True)
-            return
+		if any(map(lambda pair: pair[1] is None, locations.items())):
+			out = "Could not access the relevant locations:\n"
+			for k, v in locations.items():
+				if v is None:
+					out += f"- {k}\n"
 
-        # CHECK A VALID PLAYER HAS BEEN GIVEN
-        board = manager.get_board(guild.id)
-        player = board.get_player(power_role.name)
-        if not player:
-            out = f"Could not find Player object for given role {power_role.mention}"
-            await send_substitute_error(f"{out}")
-            await interaction.response.send_message("Failure!", ephemeral=True)
-            return
+			await send_substitute_error(f"{out}")
+			await interaction.response.send_message("Failure!", ephemeral=True)
+			return
 
-        # CHECK ALL ROLES ARE AVAILABLE
-        roles = {
-            "power": power_role,
-            "power-orders": discord_find(
-                lambda r: r.name == f"orders-{power_role.name.lower()}", guild.roles
-            ),
-            "player": discord_find(lambda r: r.name == "Player", guild.roles),
-            "cspec": discord_find(
-                lambda r: r.name == "Country Spectator", guild.roles
-            ),
-        }
+		# CHECK A VALID PLAYER HAS BEEN GIVEN
+		board = manager.get_board(guild.id)
+		player = board.get_player(power_role.name)
+		if not player:
+			out = f"Could not find Player object for given role {power_role.mention}"
+			await send_substitute_error(f"{out}")
+			await interaction.response.send_message("Failure!", ephemeral=True)
+			return
 
-        if any(map(lambda pair: pair[1] is None, roles.items())):
-            out = "Could not access the relevant roles:\n"
-            for k, v in roles.items():
-                if v is None:
-                    out += f"- {k}\n"
+		# CHECK ALL ROLES ARE AVAILABLE
+		roles = {
+			"power": power_role,
+			"power-orders": discord_find(
+				lambda r: r.name == f"orders-{power_role.name.lower()}", guild.roles
+			),
+			"player": discord_find(lambda r: r.name == "Player", guild.roles),
+			"cspec": discord_find(lambda r: r.name == "Country Spectator", guild.roles),
+		}
 
-            await send_substitute_error(f"{out}")
-            await interaction.response.send_message("Failure!", ephemeral=True)
-            return
+		if any(map(lambda pair: pair[1] is None, roles.items())):
+			out = "Could not access the relevant roles:\n"
+			for k, v in roles.items():
+				if v is None:
+					out += f"- {k}\n"
 
-        if roles["player"] in incoming_user.roles:
-            await interaction.followup.send(
-                f"{incoming_user.mention} is already a player!"
-            )
-            return
+			await send_substitute_error(f"{out}")
+			await interaction.response.send_message("Failure!", ephemeral=True)
+			return
 
-        if (
-            roles["cspec"] in incoming_user.roles
-            and power_role not in incoming_user.roles
-        ):
-            await interaction.followup.send(
-                f"{incoming_user.mention} is a Country Spectator for another Power!"
-            )
-            return
+		if roles["player"] in incoming_user.roles:
+			await interaction.followup.send(
+				f"{incoming_user.mention} is already a player!"
+			)
+			return
 
-        prev_spec = manager.get_spec_request(guild.id, incoming_user.id)
-        if prev_spec and prev_spec.role_id != power_role.id:
-            other = guild.get_role(prev_spec.role_id)
-            if not other:
-                await send_message_and_file(
-                    channel=interaction.channel,
-                    embed_colour=config.PARTIAL_ERROR_COLOUR,
-                    message=f"{incoming_user.mention} is previously spectated a currently unknown power.",
-                )
-                return
-            else:
-                await interaction.followup.send(
-                    f"{incoming_user.mention} is previously spectated {other.mention}!"
-                )
-                return
+		if (
+			roles["cspec"] in incoming_user.roles
+			and power_role not in incoming_user.roles
+		):
+			await interaction.followup.send(
+				f"{incoming_user.mention} is a Country Spectator for another Power!"
+			)
+			return
 
-        # OUTPUT TO REPUTATION-TRACKER
-        outgoing_username = outgoing_username.strip()
-        if outgoing_username.startswith("@"):
-            outgoing_username = outgoing_username[1:]
+		prev_spec = manager.get_spec_request(guild.id, incoming_user.id)
+		if prev_spec and prev_spec.role_id != power_role.id:
+			other = guild.get_role(prev_spec.role_id)
+			if not other:
+				await send_message_and_file(
+					channel=interaction.channel,
+					embed_colour=config.PARTIAL_ERROR_COLOUR,
+					message=f"{incoming_user.mention} is previously spectated a currently unknown power.",
+				)
+				return
+			else:
+				await interaction.followup.send(
+					f"{incoming_user.mention} is previously spectated {other.mention}!"
+				)
+				return
 
-        match = re.match(r"<@(\d+)>", outgoing_username)
-        if match:
-            await interaction.followup.send(
-                "Argument `outgoing_username` does not support user mentions."
-            )
-            return
-        else:
-            outgoing_user = discord_find(
-                lambda m: m.name == outgoing_username, guild.members
-            )
+		# OUTPUT TO REPUTATION-TRACKER
+		outgoing_username = outgoing_username.strip()
+		if outgoing_username.startswith("@"):
+			outgoing_username = outgoing_username[1:]
 
-        # try to get outgoing user: if username provided and not in game server but still in the hub
-        if not outgoing_user:
-            outgoing_user = discord_find(
-                lambda m: m.name == outgoing_username, locations["hub_server"].members
-            )
+		match = re.match(r"<@(\d+)>", outgoing_username)
+		if match:
+			await interaction.followup.send(
+				"Argument `outgoing_username` does not support user mentions."
+			)
+			return
+		else:
+			outgoing_user = discord_find(
+				lambda m: m.name == outgoing_username, guild.members
+			)
 
-        try:
-            await incoming_user.add_roles(
-                power_role, roles["power-orders"], roles["player"]
-            )
-            await incoming_user.remove_roles(roles["cspec"])
+		# try to get outgoing user: if username provided and not in game server but still in the hub
+		if not outgoing_user:
+			outgoing_user = discord_find(
+				lambda m: m.name == outgoing_username, locations["hub_server"].members
+			)
 
-            if not outgoing_user:
-                await interaction.followup.send(
-                    f"{outgoing_user} not in this server or the hub server."
-                )
-            else:
-                outgoing_member = guild.get_member(outgoing_user.id)
-                if outgoing_member:
-                    await outgoing_member.add_roles(power_role, roles["cspec"])
-                    await outgoing_member.remove_roles(
-                        roles["power-orders"], roles["player"]
-                    )
-        except discord.HTTPException as e:
-            await send_message_and_file(
-                channel=interaction.channel,
-                title="Could not completely auto-handle Role switching...",
-                message=f"Will have to be done manually.\n`{e}`",
-                embed_colour=config.ERROR_COLOUR,
-            )
-            pass
+		try:
+			await incoming_user.add_roles(
+				power_role, roles["power-orders"], roles["player"]
+			)
+			await incoming_user.remove_roles(roles["cspec"])
 
-        # OUTPUT TO REPUTATION TRACKER
-        board = manager.get_board(guild.id)
-        out = (
-            f"Game: {guild.name}\n"
-            f"- GuildID: {guild.id}\n"
-            f"In: {incoming_user.mention}[{incoming_user.name}]\n"
-            f"Out: {outgoing_user.mention if outgoing_user else '(null)'}[{outgoing_username}]\n"
-            f"Phase: {board.turn}\n"
-            f"Reason: {reason}"
-        )
-        self.service.create_delta(incoming_user.id, delta=3, reason=f"Substituted into: {guild.name}")
+			if not outgoing_user:
+				await interaction.followup.send(
+					f"{outgoing_user} not in this server or the hub server."
+				)
+			else:
+				outgoing_member = guild.get_member(outgoing_user.id)
+				if outgoing_member:
+					await outgoing_member.add_roles(power_role, roles["cspec"])
+					await outgoing_member.remove_roles(
+						roles["power-orders"], roles["player"]
+					)
+		except discord.HTTPException as e:
+			await send_message_and_file(
+				channel=interaction.channel,
+				title="Could not completely auto-handle Role switching...",
+				message=f"Will have to be done manually.\n`{e}`",
+				embed_colour=config.ERROR_COLOUR,
+			)
+			pass
 
-        if recommended_penalty:
-            out += f"\nRecommended Penalty: {recommended_penalty}"
+		# OUTPUT TO REPUTATION TRACKER
+		board = manager.get_board(guild.id)
+		out = (
+			f"Game: {guild.name}\n"
+			f"- GuildID: {guild.id}\n"
+			f"In: {incoming_user.mention}[{incoming_user.name}]\n"
+			f"Out: {outgoing_user.mention if outgoing_user else '(null)'}[{outgoing_username}]\n"
+			f"Phase: {board.turn}\n"
+			f"Reason: {reason}"
+		)
+		self.service.create_delta(
+			incoming_user.id, delta=3, reason=f"Substituted into: {guild.name}"
+		)
 
-        link = await send_message_and_file(
-            channel=locations["tracker_channel"], message=out
-        )
+		if recommended_penalty:
+			out += f"\nRecommended Penalty: {recommended_penalty}"
 
-        sub_tracking = discord_find(
-            lambda c: c.name == "player-sub-tracking", guild.channels
-        )
-        if sub_tracking and isinstance(sub_tracking, discord.TextChannel):
-            link = await send_message_and_file(channel=sub_tracking, message=out)
+		link = await send_message_and_file(
+			channel=locations["tracker_channel"], message=out
+		)
 
-        await interaction.followup.send(
-            f"Substitution made for {power_role.mention}: {link.jump_url}"
-        )
+		sub_tracking = discord_find(
+			lambda c: c.name == "player-sub-tracking", guild.channels
+		)
+		if sub_tracking and isinstance(sub_tracking, discord.TextChannel):
+			link = await send_message_and_file(channel=sub_tracking, message=out)
+
+		await interaction.followup.send(
+			f"Substitution made for {power_role.mention}: {link.jump_url}"
+		)
 
 
 async def setup(bot):
-    cog = SlashSubstituteCog(bot)
-    await bot.add_cog(cog)
+	cog = SlashSubstituteCog(bot)
+	await bot.add_cog(cog)
