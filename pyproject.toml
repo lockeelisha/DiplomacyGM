@@ -79,3 +79,22 @@ line-ending = "auto"
 init-hook = "import sys; sys.path.insert(0, '.')"
 max-line-length = 120
 extension-pkg-allow-list = ["lxml"]
+
+[tool.pydeps]
+# Only include your internal package
+only = "DiploGM"
+
+# Ignore third-party / external libs
+exclude = [
+    "numpy.*",
+    "scipy.*",
+    "shapely.*",
+    "networkx.*",
+    "matplotlib.*",
+    "PIL.*",
+    "DiploGM.utils.*"
+]
+
+# Cleaner graph output
+no_show = true
+rankdir = "LR"
