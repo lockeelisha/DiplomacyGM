@@ -1,0 +1,592 @@
+"""Parser for typed-in orders. Will turn a text order into Order objects with associated unit/provinces/players."""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from discord.ext.commands import Paginator
+from lark import Lark, Transformer, UnexpectedEOF, UnexpectedCharacters, v_args
+from lark.exceptions import VisitError
+
+from DiploGM.config import ERROR_COLOUR, GRAMMAR_LOCATION, PARTIAL_ERROR_COLOUR
+from DiploGM.models.adjacency import Terrain
+from DiploGM.utils import _manage_coast_signature
+from DiploGM.models import order
+from DiploGM.models.board import Board
+from DiploGM.models.player import Player
+from DiploGM.models.province import Province
+from DiploGM.models.unit import DPAllocation, Unit
+
+logger = logging.getLogger(__name__)
+
+
+@v_args(inline=True)
+class TreeToOrder(Transformer):
+	"""The order parser. Each function takes in tokens (sans whitespace) as arguments."""
+
+	def __init__(self):
+		super().__init__()
+		self.board: Board
+		self.build_options: str = "classic"
+		self.transform_options: str = "disabled"
+		self.dp_options: str = "disabled"
+		self.player_restriction: Player | None = None
+
+	def set_state(self, board: Board, player_restriction: Player | None):
+		"""Passes the board information into the parser."""
+		self.board = board
+		self.build_options = board.data.get("build_options", "classic")
+		self.transform_options = board.data.get("transformation", "disabled")
+		self.dp_options = board.data.get("dp", "disabled")
+		self.player_restriction = player_restriction
+
+	@v_args(inline=False)
+	def province(self, s) -> tuple[Province, str | None]:
+		"""Provinces are 1-4 words long, sometimes including a coast."""
+		name = " ".join(s).replace("_", " ").strip()
+		name = _manage_coast_signature(name)
+		return self.board.get_province_and_coast(name)
+
+	# used for supports, specifically FoW
+	@v_args(inline=False)
+	def l_unit(self, s) -> Province:
+		"""Turns a Unit into its associated provines.
+		Handy for stuff like FoW where you don't know if there's a unit where you're trying to support/convoy."""
+		# ignore the fleet/army signifier, if exists
+		loc = s[-1][0]
+		if loc is not None and not self.board.data.get("fow", "disabled") == "enabled":
+			unit = loc.unit
+			if unit is None:
+				raise ValueError(f"No unit in {s[-1][0]}")
+
+		return loc
+
+	@v_args(inline=False)
+	def unit(self, s) -> Unit:
+		"""Gets the Unit located in a Province."""
+		# ignore the fleet/army signifier, if exists
+		unit = s[-1][0].unit
+		if unit is None:
+			raise ValueError(f"No unit in {s[-1][0]}")
+
+		return unit
+
+	@v_args(inline=False)
+	def retreat_unit(self, s) -> Unit:
+		"""Gets the dislodged Unit located in a Province."""
+		# ignore the fleet/army signifier, if exists
+		unit = s[-1][0].dislodged_unit
+		if unit is None:
+			raise ValueError(f"No dislodged unit in {s[-1][0]}")
+
+		return unit
+
+	def hold_order(self, unit: Unit, _) -> tuple[Unit, order.Hold]:
+		"""Hold order, of the form [Unit] Hold."""
+		return unit, order.Hold()
+
+	def core_order(self, unit: Unit, _) -> tuple[Unit, order.Core]:
+		"""Core order, of the form [Unit] Core."""
+		if self.build_options != "cores":
+			raise ValueError("Coring is disabled in this gamemode")
+		return unit, order.Core()
+
+	def transform_order(
+		self, unit: Unit, _, coast: str | None = None
+	) -> tuple[Unit, order.Transform]:
+		"""Transform order, of the form [Unit] Transform [Coast?]."""
+		if self.transform_options not in ["moves", "all"]:
+			raise ValueError("Transforming during moves is disabled in this gamemode")
+		return unit, order.Transform(destination_coast=coast)
+
+	def dp_order(
+		self, _, points: str, dp_order: tuple[Unit, order.UnitOrder]
+	) -> tuple[Unit, None]:
+		"""DP allocation order, of the form DP [Points] [Unit Order]."""
+		if self.dp_options == "disabled":
+			raise ValueError("DP allocation is disabled in this gamemode")
+		if self.player_restriction is None:
+			raise ValueError(
+				"DP allocation orders must be made in a player's orders channel."
+			)
+		unit, unit_order = dp_order
+		if unit.player is not None and unit.player.is_active:
+			raise ValueError(f"{unit.province} has an owner and cannot be assigned DP.")
+		if points.endswith(":"):
+			points = points[:-1]
+		if int(points) <= 0:
+			unit.dp_allocations.pop(self.player_restriction.name, None)
+		else:
+			unit.dp_allocations[self.player_restriction.name] = DPAllocation(
+				int(points), unit_order
+			)
+		return unit, None
+
+	def build_unit(
+		self,
+		_,
+		a: str | tuple[Province, str | None],
+		b: str | tuple[Province, str | None],
+	) -> tuple[Province, Player | None, order.Build]:
+		"""Build order, of the form Build [Unit Type] [Province] or Build [Province] [Unit Type]."""
+		if isinstance(a, tuple) and isinstance(b, str):
+			province, coast = a
+			unit_type_string = b.strip()
+		elif isinstance(a, str) and isinstance(b, tuple):
+			province, coast = b
+			unit_type_string = a.strip()
+		else:
+			raise ValueError("Invalid build order format")
+
+		if (unit_type := self.board.fetch_unit_types().get(unit_type_string)) is None:
+			raise ValueError(f"{unit_type_string} isn't a valid unit type")
+
+		if not province.has_supply_center:
+			raise ValueError(f"{province} does not have a supply center.")
+		if (
+			Terrain.COAST in unit_type.moves_on
+			and province.adjacencies.coasts
+			and coast not in province.adjacencies.coasts
+		):
+			raise ValueError(f"You did not specify a coast for {province}")
+		if self.player_restriction:
+			if province.owner != self.player_restriction:
+				raise ValueError(f"You do not own {province}.")
+			if not province.can_build(self.build_options):
+				raise ValueError(f"You cannot build in {province}.")
+
+		return province, province.owner, order.Build(province, unit_type, coast)
+
+	def disband_unit(
+		self, a: Unit | str, b: Unit | str
+	) -> tuple[Province, Player | None, order.Disband]:
+		"""Disband order, of the form Disband [Unit] or [Unit] Disband."""
+		if isinstance(a, Unit) and isinstance(b, str):
+			unit = a
+		elif isinstance(a, str) and isinstance(b, Unit):
+			unit = b
+		else:
+			raise ValueError("Invalid disband order format")
+		return unit.province, unit.player, order.Disband(unit.province)
+
+	def transform_unit(
+		self, a: Unit | str, b: Unit | str, coast: str | None = None
+	) -> tuple[Province, Player | None, order.TransformBuild]:
+		"""Transform order, of the form Transform [Unit] [Coast?] or [Unit] Transform [Coast?]."""
+		if self.transform_options not in ["builds", "all"]:
+			raise ValueError("Transforming during builds is disabled in this gamemode")
+		if isinstance(a, Unit) and isinstance(b, str):
+			unit = a
+		elif isinstance(a, str) and isinstance(b, Unit):
+			unit = b
+		else:
+			raise ValueError("Invalid transform order format")
+		return unit.province, unit.player, order.TransformBuild(unit.province, coast)
+
+	def waive_order(self, _, waive_num: str) -> tuple[None, Player, order.Waive]:
+		"""Waive order, of the form Waive [Number]."""
+		if self.player_restriction is None:
+			raise ValueError(
+				"Please order waives in the appropriate player's orders channel."
+			)
+		return None, self.player_restriction, order.Waive(int(waive_num))
+
+	def build(
+		self, order_data: tuple[Province | Player, Player, order.Order]
+	) -> Province | Player:
+		"""Handles winter builds orders, taking in a tuple of what was returned by the above."""
+		target, player, player_order = order_data
+		if self.player_restriction is not None and self.player_restriction != player:
+			raise ValueError(
+				f"Cannot issue order for {target.name} as you do not control it"
+			)
+		if isinstance(player_order, order.Waive):
+			player.waived_orders = player_order.quantity
+		elif isinstance(player_order, order.PlayerOrder) and isinstance(
+			target, Province
+		):
+			remove_player_order_for_province(player, target)
+			player.build_orders.add(player_order)
+		else:
+			raise ValueError("Invalid build order data")
+		return target
+
+	def non_build_order(self, _) -> None:
+		"""Handles when someone tries to issue a non-build order during builds."""
+		raise ValueError("This type of order cannot be issued during build phases")
+
+	# format for all of these is (province, order)
+	def l_hold_order(self, province: Province, _) -> tuple[Province, order.Hold]:
+		"""Hold order, of the form [Province] Hold."""
+		return province, order.Hold()
+
+	def l_move_order(
+		self, province: Province, _, destination: tuple[Province, str | None]
+	) -> tuple[Province, order.Move]:
+		"""Move order, of the form [Province] Move [Destination]."""
+		return province, order.Move(
+			destination=destination[0], destination_coast=destination[1]
+		)
+
+	def move_order(
+		self, unit: Unit, _, destination: tuple[Province, str | None]
+	) -> tuple[Unit, order.Move]:
+		"""Move order, of the form [Unit] Move [Destination]."""
+		return unit, order.Move(
+			destination=destination[0], destination_coast=destination[1]
+		)
+
+	def convoy_order(
+		self, unit: Unit, _, move: tuple[Province, order.Move]
+	) -> tuple[Unit, order.ConvoyTransport]:
+		"""Convoy order, of the form [Unit] Convoy [Move]."""
+		return unit, order.ConvoyTransport(
+			source=move[0], destination=move[1].destination
+		)
+
+	def support_order(
+		self, unit: Unit, _, target: tuple[Province, order.Move | order.Hold] | Province
+	) -> tuple[Unit, order.Support]:
+		"""Support order, of the form [Unit] Support [Province], [Unit] Support [Hold], or [Unit] Support [Move]."""
+		if isinstance(target, Province):
+			loc = target
+			unit_order = order.Hold()
+		else:
+			loc = target[0]
+			unit_order = target[1]
+
+		if isinstance(unit_order, order.Move):
+			return unit, order.Support(
+				source=loc,
+				destination=unit_order.destination,
+				destination_coast=unit_order.destination_coast,
+			)
+		if isinstance(unit_order, order.Hold):
+			return unit, order.Support(source=loc, destination=loc)
+		raise ValueError(
+			"Unknown type of support. Something has broken in the bot. Please report this"
+		)
+
+	def retreat_order(
+		self, unit: Unit, _, destination: tuple[Province, str | None]
+	) -> tuple[Unit, order.RetreatMove]:
+		"""Retreat order, of the form [Unit] Retreat [Destination]."""
+		return unit, order.RetreatMove(
+			destination=destination[0], destination_coast=destination[1]
+		)
+
+	def disband_order(self, unit: Unit, _) -> tuple[Unit, order.RetreatDisband]:
+		"""Disband order, of the form [Unit] Disband."""
+		return unit, order.RetreatDisband()
+
+	def non_retreat_order(self, _) -> None:
+		"""Handles when someone tries to issue a non-retreat order during retreats."""
+		raise ValueError("This type of order cannot be issued during retreat phases")
+
+	def order(self, unit_order: tuple[Unit, order.UnitOrder]) -> Unit:
+		"""Processes orders done in Movement phases, taking in a tuple of what was returned by the above."""
+		unit, movement_order = unit_order
+		if (
+			self.player_restriction is not None
+			and unit.player != self.player_restriction
+		):
+			if (
+				unit.player is None or not unit.player.is_active
+			) and movement_order is None:
+				return unit
+			raise PermissionError(
+				f"{self.player_restriction.name} does not control the unit in {unit.province.name}, "
+				+ f"it belongs to {unit.player.name if unit.player else 'no one'}"
+			)
+		unit.order = movement_order
+		return unit
+
+	def retreat(self, unit_order: tuple[Unit, order.UnitOrder]) -> Unit:
+		"""Processes orders done in Retreat phases, taking in a tuple of what was returned by the above."""
+		unit, retreat_order = unit_order
+		if (
+			self.player_restriction is not None
+			and unit.player != self.player_restriction
+		):
+			raise PermissionError(
+				f"{self.player_restriction.name} does not control the unit in {unit.province.name}, "
+				+ f"it belongs to {unit.player.name if unit.player else 'no one'}"
+			)
+		unit.order = retreat_order
+		return unit
+
+
+generator = TreeToOrder()
+parser_cache: dict[str, Lark] = {}
+with open(GRAMMAR_LOCATION, "r", encoding="utf-8") as f:
+	ebnf = f.read()
+
+
+def _get_parser(board: Board) -> Lark:
+	cache_key = f"{board.datafile}:{board.turn.phase}:{''.join(sorted(board.unit_types.keys()))}"
+	if cache_key in parser_cache:
+		return parser_cache[cache_key]
+	unit_strings = board.fetch_unit_types().keys()
+	ebnf_with_units = ebnf.replace("{{UNIT_TYPE_STRINGS}}", "|".join(unit_strings))
+	unit_codes = [unit_type.code.lower() for unit_type in board.unit_types.values()]
+	unit_codes.extend([c.upper() for c in unit_codes])
+	ebnf_with_units = ebnf_with_units.replace(
+		"{{UNIT_TYPE_CODES}}", "".join(unit_codes)
+	)
+	start = (
+		"order"
+		if board.turn.is_moves()
+		else "retreat"
+		if board.turn.is_retreats()
+		else "build"
+	)
+	parser = Lark(ebnf_with_units, start=start, parser="earley")
+	parser_cache[cache_key] = parser
+	return parser
+
+
+def _check_for_warnings(unit: Unit) -> str | None:
+	if isinstance(unit.order, (order.Move, order.RetreatMove)):
+		if not unit.province.adjacencies.get(unit.order.destination):
+			return "This move is not to an adjacent province. This will fail unless there is a convoy."
+		if (
+			Terrain.COAST in unit.unit_type.moves_on
+			and unit.order.destination.adjacencies.coasts
+			and not unit.order.destination_coast
+		):
+			reachable_coasts = unit.province.adjacencies.get_coasts(
+				unit.order.destination, unit.coast
+			)
+			if len(reachable_coasts) > 1:
+				return "Destination province has multiple reachable coasts, so this order will fail."
+			if reachable_coasts:
+				unit.order.destination_coast = reachable_coasts.pop()
+				return (
+					"Destination province has one reachable coast. "
+					+ f"Assigning {unit.order.destination_coast} as the destination coast."
+				)
+	if isinstance(unit.order, order.Support):
+		if not unit.province.adjacencies.get(unit.order.destination):
+			return "This support is not to an adjacent province and will fail."
+		if (
+			unit.order.source != unit.order.destination
+			and not unit.order.source.adjacencies.get(unit.order.destination)
+		):
+			return "This support is between two non-adjacent provinces, and will fail unless there is a convoy."
+	return None
+
+
+def _handle_individual_order(
+	current_order: str, parser: Lark, player_restriction: Player | None, board: Board
+) -> tuple[str, Unit | None, str | None]:
+	logger.debug(current_order)
+	cmd = parser.parse(current_order.strip().lower() + " ")
+	ordered_unit: Unit = generator.transform(cmd)
+	if board.turn.is_builds():
+		return f"\u001b[0;32m{current_order}", None, None
+	movement = ordered_unit
+	if (warning := _check_for_warnings(ordered_unit)) is not None:
+		warning = f"`{current_order}`: {warning}"
+		color = "\u001b[0;33m"
+	else:
+		color = "\u001b[0;32m"
+	if (
+		ordered_unit.player is None or not ordered_unit.player.is_active
+	) and player_restriction is not None:
+		if (
+			dp_order := ordered_unit.dp_allocations.get(player_restriction.name)
+		) is not None:
+			orderoutput = (
+				f"{color}DP {dp_order.points}: {ordered_unit} {dp_order.order}"
+			)
+		else:
+			orderoutput = f"{color}Removed DP bid for {ordered_unit}"
+	else:
+		orderoutput = f"{color}{ordered_unit} {ordered_unit.order}"
+	return orderoutput, movement, warning
+
+
+def parse_order(
+	message: str, player_restriction: Player | None, board: Board
+) -> dict[str, Any]:
+	"""Parses the order commands, adds the orders as necessary, and returns a message of the results."""
+	ordertext = message.split(maxsplit=1)
+	if len(ordertext) == 1:
+		return {
+			"message": "For information about entering orders, please use the "
+			"[player guide](https://docs.google.com/document/d/1SNZgzDViPB-7M27dTF0SdmlVuu_KYlqqzX0FQ4tWc2M/"
+			"edit#heading=h.7u3tx93dufet) for examples and syntax.",
+			"embed_colour": ERROR_COLOUR,
+			"units": [],
+		}
+	orderlist = ordertext[1].strip().splitlines()
+	movement = []
+	orderoutput = []
+	warnings = []
+	errors = []
+	parser = _get_parser(board)
+
+	generator.set_state(board, player_restriction)
+	for current_order in orderlist:
+		if not current_order.strip():
+			continue
+		try:
+			cur_order, move, warn = _handle_individual_order(
+				current_order, parser, player_restriction, board
+			)
+			orderoutput.append(cur_order)
+			if move is not None:
+				movement.append(move)
+			if warn is not None:
+				warnings.append(warn)
+		except VisitError as e:
+			orderoutput.append(f"\u001b[0;31m{current_order}")
+			errors.append(f"`{current_order}`: {str(e).splitlines()[-1]}")
+		except (UnexpectedEOF, UnexpectedCharacters):
+			orderoutput.append(f"\u001b[0;31m{current_order}")
+			errors.append(f"`{current_order}`: Please fix this order and try again")
+
+	if board.turn.is_moves() and player_restriction is not None:
+		if (
+			spent_dp := board.get_dp_spent(player_restriction)
+		) > player_restriction.dp_max:
+			errors.append(
+				f"You have allocated {spent_dp} DP but only have {player_restriction.dp_max} DP. "
+				+ "Please reduce a unit's DP allocation or set it to zero."
+			)
+
+	if board.turn.is_builds() and player_restriction is not None:
+		expected_builds = len(player_restriction.centers) - len(
+			player_restriction.units
+		)
+		build_difference = player_restriction.get_number_of_builds() - expected_builds
+		if (expected_builds < 0 and build_difference < 0) or (
+			expected_builds > 0 and build_difference > 0
+		):
+			errors.append(
+				f"You have inputted {abs(build_difference)} more "
+				+ f"{'build' if expected_builds > 0 else 'disband'} "
+				+ f"order{'' if abs(build_difference) == 1 else 's'} than necessary. "
+				+ "Please use .remove_order to fix this."
+			)
+
+	paginator = Paginator(prefix="```ansi\n", suffix="```", max_size=4096)
+	for line in orderoutput:
+		paginator.add_line(line)
+
+	output = paginator.pages
+	return_dict = {
+		"messages": output,
+		"player": player_restriction,
+		"units": movement,
+	}
+	if warnings:
+		output[-1] += (
+			"\n**Warnings (Orders validated, but might fail):**\n" + "\n".join(warnings)
+		)
+		output[-1] += "\n" if errors else ""
+	if errors:
+		output[-1] += "\n**Unable to validate the following orders:**\n" + "\n".join(
+			errors
+		)
+		embed_colour = PARTIAL_ERROR_COLOUR if len(movement) > 0 else ERROR_COLOUR
+		return_dict["embed_colour"] = embed_colour
+	else:
+		return_dict["title"] = "Orders validated successfully"
+	return return_dict
+
+
+def parse_remove_order(
+	message: str, player_restriction: Player | None, board: Board
+) -> dict[str, Any]:
+	"""Parses the .remove_order command and removes the specified orders."""
+	invalid: list[tuple[str, Exception]] = []
+	commands = message.splitlines()
+	updated_units: set[Unit] = set()
+	provinces_with_removed_builds: set[str] = set()
+	for command in commands:
+		if not command.strip():
+			continue
+		try:
+			removed = _parse_remove_order(command, player_restriction, board)
+			if isinstance(removed, Unit):
+				updated_units.add(removed)
+			elif isinstance(removed, str):
+				provinces_with_removed_builds.add(removed)
+		except (ValueError, RuntimeError) as error:
+			invalid.append((command, error))
+
+	if not invalid:
+		return {"message": "Orders removed successfully.", "units": list(updated_units)}
+	response = "The following order removals were invalid:"
+	response_colour = ERROR_COLOUR
+	for command in invalid:
+		response += f"\n- {command[0]} - {command[1]}"
+	if updated_units:
+		response += "\nOrders for the following units were removed:"
+		response_colour = PARTIAL_ERROR_COLOUR
+		for unit in updated_units:
+			response += f"\n- {unit.province}"
+	return {
+		"message": response,
+		"embed_colour": response_colour,
+		"units": list(updated_units),
+	}
+
+
+def _parse_remove_order(
+	command: str, player_restriction: Player | None, board: Board
+) -> Player | Unit | str:
+	command = command.lower().strip()
+	components = command.split()
+
+	if components[0] in board.fetch_unit_types():
+		command = " ".join(components[1:])
+	province, _ = board.get_province_and_coast(command)
+
+	if board.turn.is_builds():
+		# remove build order
+		player = province.owner
+		if player is None or (
+			player_restriction is not None and player != player_restriction
+		):
+			raise PermissionError(
+				f"{player_restriction.name if player_restriction else 'Someone'} "
+				+ f"does not control the unit in {command} which belongs to {player.name if player else 'no one'}"
+			)
+
+		remove_player_order_for_province(player, province)
+
+		return province.get_name()
+
+	# remove unit's order
+	# assert that the command user is authorized to order this unit
+	unit = province.unit
+	if unit is not None and (
+		player_restriction is None or unit.player == player_restriction
+	):
+		unit.order = None
+		return unit
+	unit = province.dislodged_unit
+	if unit is not None and (
+		player_restriction is None or unit.player == player_restriction
+	):
+		unit.order = None
+		return unit
+	raise ValueError(
+		f"You control neither a unit nor a dislodged unit in {province.name}"
+	)
+
+
+def remove_player_order_for_province(player: Player, province: Province):
+	"""Removes a player order (build/disband/transform) for a province."""
+	if province is None:
+		return False
+	for player_order in player.build_orders:
+		if not isinstance(player_order, order.PlayerOrder):
+			continue
+		if player_order.province == province:
+			player.build_orders.remove(player_order)
+			return True
+	return False

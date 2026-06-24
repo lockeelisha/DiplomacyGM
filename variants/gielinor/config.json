@@ -1,0 +1,146 @@
+{
+  "name": "Gielinor Diplomacy",
+  "file": "gielinor_diplomacy.svg",
+  "svg config": {
+    "scoreboard": {
+      "sort": false,
+      "indexes": {
+        "2": "__vscc__",
+        "3": "__score__"
+      }
+    },
+
+    "detect_starting_units": false,
+    "unit_type_labeled": false,
+
+    "unit_labels": true,
+    "province_labels": true,
+    "center_labels": true,
+
+    "default_sea_color": "3266b2",
+    "border_margin_hint": 2,
+
+    "unit_radius": 6,
+    "order_stroke_width": 1.5,
+    "neutral": "e9ddaf",
+    "neutral_sc": "ffffff",
+    "impassable": "1a1a1a",
+    "loc_x_offset": 7.7655,
+    "loc_y_offset": 7.033,
+    "dpi": 120
+  },
+  "year": 169,
+  "season_format": "%S %Y",
+  "build_options": "cores",
+  "victory_conditions": "vscc",
+  "overrides": {
+    "provinces": {}
+  },
+  "players": {
+    "Al Kharid": {
+      "color": "ffcc00",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Arceuus": {
+      "color": "8e43e3",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Ardougne": {
+      "color": "de8787",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Asgarnia": {
+      "color": "aaccff",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Auburnvale": {
+      "color": "d45500",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Camelot": {
+      "color": "e98f6b",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Civitas illa Fortis": {
+      "color": "ffff00",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Fremennik": {
+      "color": "a59175",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Gnomish Kingdom": {
+      "color": "abc467",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Hosidius": {
+      "color": "2aff80",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Lovakengj": {
+      "color": "e87426",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Menaphos": {
+      "color": "d3bc5f",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Marim": {
+      "color": "a05a2c",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Morytania": {
+      "color": "85bf5f",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Port Piscarillius": {
+      "color": "5599ff",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Shayzien": {
+      "color": "ff2a2a",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Tal Teklan": {
+      "color": "037f03",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Tirannwn": {
+      "color": "2ca089",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Tortugans": {
+      "color": "6f917c",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Varrock": {
+      "color": "aa8800",
+      "iscc": 2,
+      "vscc": 12
+    },
+    "Followers of Zamorak": {
+      "color": "aa0000",
+      "iscc": 2,
+      "vscc": 12
+    }
+  }
+}
