@@ -310,7 +310,6 @@ class CommandCog(commands.Cog):
 				"You cannot use .province_info in a non-GM channel while orders are locked.",
 				non_gm_alt="Orders locked! If you think this is an error, contact a GM.",
 			)
-			return
 
 		province_name = remove_prefix(ctx)
 		if not province_name:
@@ -408,7 +407,6 @@ class CommandCog(commands.Cog):
 				"You cannot use .player_info in a non-GM channel while orders are locked.",
 				non_gm_alt="Orders locked! If you think this is an error, contact a GM.",
 			)
-			return
 
 		player_name = remove_prefix(ctx)
 		if not player_name:
