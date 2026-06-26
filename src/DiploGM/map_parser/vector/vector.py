@@ -417,7 +417,12 @@ class Parser:
                 logger.debug("Province %s in overrides not found in map, skipping...", name)
                 continue
             # Add/remove adjacencies and coasts
-            cheats_list = {(command, province) for command in data.keys() for province in data.get(command)}
+            cheats_list = {
+                (command, province)
+                for command in data.keys()
+                for province in data.get(command)
+                if isinstance(province, str)
+            }
             for command, province in cheats_list:
                 if (target := self.name_to_tile.get(province)) is None:
                     continue

@@ -289,7 +289,7 @@ class CommandCog(commands.Cog):
                 timezone = manager.ctx_parameters.get(member.id, {}).get(
                     "timezone", "UTC+?"
                 )
-                out += f"\- {member.mention} PN={pronouns} TZ={timezone}\n"
+                out += f"\\- {member.mention} PN={pronouns} TZ={timezone}\n"
 
         await send_message_and_file(
             channel=ctx.channel, title=f"{ctx.guild.name}\nPlayer List", message=out
