@@ -97,6 +97,7 @@ HUB_SERVER_BOT_BUG_REPORT_CHANNEL_MESSAGE: str = all_config["hub"]["bug_report_c
 GM_CATEGORY: str = all_config["server_channels"]["gm_category"]
 MAPS_CHANNEL: str = all_config["server_channels"]["maps_channel"]
 ORDERS_LOG_CHANNEL: str = all_config["server_channels"]["orders_log_channel"]
+RESTRICTED_ROLE_NAMES: str = all_config["server_channels"]["restricted_roles"]
 
 # PERMISSIONS
 SUPERUSERS = all_config["permissions"]["superusers"]

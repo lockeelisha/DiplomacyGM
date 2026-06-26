@@ -80,6 +80,19 @@ class GameManagementCog(commands.Cog):
         """
         await game_creation.delete_game(ctx)
 
+    @commands.command(brief="Assigns power roles to players")
+    @perms.gm_only("assign powers")
+    async def assign_powers(self, ctx: commands.Context) -> None:
+        """Assigns power roles to players.
+
+        Usage:
+            `.assign_powers @user @power` (one assignment per line)
+
+        Note:
+            This command expects mentions of users and roles.
+        """
+        await game_creation.assign_powers(ctx)
+
     @commands.command(brief="lists all variants currently supported")
     @perms.gm_only("lists variants")
     async def list_variants(self, ctx: commands.Context) -> None:

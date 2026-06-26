@@ -12,6 +12,7 @@ from DiploGM.config import (
     HUB_SERVER_VERIFIED_ROLE,
     PARTIAL_ERROR_COLOUR,
     PLAYER_CHANNEL_SUFFIX,
+    RESTRICTED_ROLE_NAMES,
 )
 from DiploGM.models.spec_request import SpectatorBan, SpectatorBanRepository
 from DiploGM.utils import send_message_and_file
@@ -417,22 +418,7 @@ class SpectatorCog(commands.Cog):
             return
 
         # prevent spectating non-power roles
-        if (
-            power_role.name
-            in [
-                "Admin",
-                "Moderators",
-                "GM",
-                "Heavenly Angel",
-                "GM Team",
-                "Player",
-                "Spectator",
-                "Country Spectator",
-                "Dead",
-                "DiploGM",
-            ]
-            or power_role.name.find("-orders") != -1
-        ):
+        if (power_role.name in RESTRICTED_ROLE_NAMES or power_role.name.find("-orders") != -1):
             await interaction.response.send_message(
                 "Can't spectate that role!", ephemeral=True
             )
