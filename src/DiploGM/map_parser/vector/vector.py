@@ -625,8 +625,10 @@ class Parser:
                 return data_to_unit[name.lower()]
             raise RuntimeError(f"Unit types are labeled, but {name} wasn't sail or shield")
 
-        unit_data = unit_data.findall(".//svg:path", namespaces=NAMESPACE)[-1]
-        num_sides = unit_data.get("{http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd}sides")
+        sides_attr = "{http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd}sides"
+        paths = unit_data.findall(".//svg:path", namespaces=NAMESPACE)
+        shape_paths = [path for path in paths if path.get(sides_attr) is not None]
+        num_sides = (shape_paths or paths)[-1].get(sides_attr) if paths else None
         if num_sides in data_to_unit:
             return data_to_unit[num_sides]
         return "A"

@@ -15,57 +15,57 @@ from DiploGM.models.turn import Turn
 from DiploGM.utils import log_command, send_message_and_file
 
 if TYPE_CHECKING:
-	from DiploGM.models.board import Board
+    from DiploGM.models.board import Board
 
 
 logger = logging.getLogger(__name__)
 
 
 async def upload_map_to_archive(
-	ctx: commands.Context,
-	server_id: int,
-	board: Board,
-	game_map: bytes,
-	turn: Turn | None = None,
-	draw_moves: bool = True,
+    ctx: commands.Context,
+    server_id: int,
+    board: Board,
+    game_map: bytes,
+    turn: Turn | None = None,
+    draw_moves: bool = True,
 ) -> None:
-	"""Uploads a map to the archive given a server ID and the map as a PNG."""
-	if not MAP_ARCHIVE_SAS_TOKEN:
-		return
-	turnstr = format(board.turn, "%y%s") if turn is None else format(turn, "%y%s")
-	url = None
-	with open("gamelist.tsv", "r", encoding="utf-8") as gamefile:
-		for server in gamefile:
-			server_info = server.strip().split("\t")
-			if str(server_id) == server_info[0]:
-				url = (
-					f"{MAP_ARCHIVE_UPLOAD_URL}/{server_info[1]}/{server_info[2]}/"
-					+ f"{turnstr}{'m' if draw_moves else 'r'}.png{MAP_ARCHIVE_SAS_TOKEN}"
-				)
-				break
-	if url is None:
-		return
-	png_map, _ = await svg_to_png(
-		game_map, url, dpi=board.data["svg config"].get("dpi", 200)
-	)
-	p = await asyncio.create_subprocess_shell(
-		f'azcopy copy "{url}" --from-to PipeBlob --content-type image/png',
-		stdout=PIPE,
-		stdin=PIPE,
-		stderr=PIPE,
-	)
-	_, error = await p.communicate(input=png_map)
-	error = error.decode()
-	await send_message_and_file(
-		channel=ctx.channel,
-		title="Uploaded map to archive",
-	)
-	log_command(
-		logger,
-		ctx,
-		message=(
-			f"Map uploading failed: {error}"
-			if len(error) > 0
-			else "Uploaded map to archive"
-		),
-	)
+    """Uploads a map to the archive given a server ID and the map as a PNG."""
+    if not MAP_ARCHIVE_SAS_TOKEN:
+        return
+    turnstr = format(board.turn, "%y%s") if turn is None else format(turn, "%y%s")
+    url = None
+    with open("gamelist.tsv", "r", encoding="utf-8") as gamefile:
+        for server in gamefile:
+            server_info = server.strip().split("\t")
+            if str(server_id) == server_info[0]:
+                url = (
+                    f"{MAP_ARCHIVE_UPLOAD_URL}/{server_info[1]}/{server_info[2]}/"
+                    + f"{turnstr}{'m' if draw_moves else 'r'}.png{MAP_ARCHIVE_SAS_TOKEN}"
+                )
+                break
+    if url is None:
+        return
+    png_map, _ = await svg_to_png(
+        game_map, url, dpi=board.data["svg config"].get("dpi", 200)
+    )
+    p = await asyncio.create_subprocess_shell(
+        f'azcopy copy "{url}" --from-to PipeBlob --content-type image/png',
+        stdout=PIPE,
+        stdin=PIPE,
+        stderr=PIPE,
+    )
+    _, error = await p.communicate(input=png_map)
+    error = error.decode()
+    await send_message_and_file(
+        channel=ctx.channel,
+        title="Uploaded map to archive",
+    )
+    log_command(
+        logger,
+        ctx,
+        message=(
+            f"Map uploading failed: {error}"
+            if len(error) > 0
+            else "Uploaded map to archive"
+        ),
+    )

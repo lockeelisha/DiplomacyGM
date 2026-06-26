@@ -13,10 +13,10 @@ from DiploGM import perms
 from DiploGM.config import MAP_ARCHIVE_SAS_TOKEN
 from DiploGM.errors import NoGameError
 from DiploGM.utils import (
-	log_command,
-	parse_season,
-	send_message_and_file,
-	upload_map_to_archive,
+    log_command,
+    parse_season,
+    send_message_and_file,
+    upload_map_to_archive,
 )
 from DiploGM.manager import Manager
 from DiploGM.utils.sanitise import remove_prefix
@@ -27,347 +27,347 @@ manager = Manager()
 
 
 class AdminCog(commands.Cog):
-	"""Bot administration commands, to be used by superusers only."""
+    """Bot administration commands, to be used by superusers only."""
 
-	def __init__(self, bot: commands.Bot):
-		self.bot = bot
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
 
-	@commands.command(hidden=True)
-	@perms.superuser_only("send a GM announcement")
-	async def announce(self, ctx: commands.Context) -> None:
-		"""Sends an announcement to all servers."""
-		bot: commands.Bot = ctx.bot
-		guilds_with_games = manager.list_servers()
-		content = remove_prefix(ctx)
-		content = re.sub(r"<@&[0-9]{16,20}>", r"{}", content)
-		roles = list(map(lambda role: role.name, ctx.message.role_mentions))
-		message = ""
-		for server in bot.guilds:
-			if server is None:
-				continue
-			admin_chat_channels: list[TextChannel] = [
-				channel
-				for channel in server.channels
-				if isinstance(channel, TextChannel) and config.is_gm_channel(channel)
-			]
+    @commands.command(hidden=True)
+    @perms.superuser_only("send a GM announcement")
+    async def announce(self, ctx: commands.Context) -> None:
+        """Sends an announcement to all servers."""
+        bot: commands.Bot = ctx.bot
+        guilds_with_games = manager.list_servers()
+        content = remove_prefix(ctx)
+        content = re.sub(r"<@&[0-9]{16,20}>", r"{}", content)
+        roles = list(map(lambda role: role.name, ctx.message.role_mentions))
+        message = ""
+        for server in bot.guilds:
+            if server is None:
+                continue
+            admin_chat_channels: list[TextChannel] = [
+                channel
+                for channel in server.channels
+                if isinstance(channel, TextChannel) and config.is_gm_channel(channel)
+            ]
 
-			if len(admin_chat_channels) == 0:
-				message += f"\n- ~~{server.name}~~ Couldn't find admin channel"
-				continue
+            if len(admin_chat_channels) == 0:
+                message += f"\n- ~~{server.name}~~ Couldn't find admin channel"
+                continue
 
-			admin_chat_channel = admin_chat_channels[0]
+            admin_chat_channel = admin_chat_channels[0]
 
-			message += f"\n- {server.name}"
-			if server.id in guilds_with_games:
-				board = manager.get_board(server.id)
-				message += f" - {board.turn}"
-			else:
-				message += " - no active game"
+            message += f"\n- {server.name}"
+            if server.id in guilds_with_games:
+                board = manager.get_board(server.id)
+                message += f" - {board.turn}"
+            else:
+                message += " - no active game"
 
-			server_roles = []
-			for role_name in roles:
-				for role in server.roles:
-					if role.name == role_name:
-						server_roles.append(role.mention)
-						break
-				else:
-					server_roles.append(role_name)
+            server_roles = []
+            for role_name in roles:
+                for role in server.roles:
+                    if role.name == role_name:
+                        server_roles.append(role.mention)
+                        break
+                else:
+                    server_roles.append(role_name)
 
-			if len(server_roles) > 0:
-				await admin_chat_channel.send(
-					("||" + "{}" * len(server_roles) + "||").format(*server_roles)
-				)
-			await send_message_and_file(
-				channel=admin_chat_channel,
-				title="DiploGM Announcement",
-				message=content.format(*server_roles),
-			)
-		log_command(logger, ctx, f"Sent Announcement into {len(bot.guilds)} servers")
-		await send_message_and_file(
-			channel=ctx.channel,
-			title=f"Announcement sent to {len(bot.guilds)} servers:",
-			message=message,
-		)
+            if len(server_roles) > 0:
+                await admin_chat_channel.send(
+                    ("||" + "{}" * len(server_roles) + "||").format(*server_roles)
+                )
+            await send_message_and_file(
+                channel=admin_chat_channel,
+                title="DiploGM Announcement",
+                message=content.format(*server_roles),
+            )
+        log_command(logger, ctx, f"Sent Announcement into {len(bot.guilds)} servers")
+        await send_message_and_file(
+            channel=ctx.channel,
+            title=f"Announcement sent to {len(bot.guilds)} servers:",
+            message=message,
+        )
 
-	@commands.command(hidden=True)
-	@perms.superuser_only("list servers")
-	async def servers(self, ctx: commands.Context) -> None:
-		"""Lists all servers the bot is in."""
-		servers_with_games = manager.list_servers()
-		message = ""
-		args = remove_prefix(ctx).split()
-		send_id = "id" in args
-		send_invite = "invite" in args
-		for server in ctx.bot.guilds:
-			if server is None:
-				continue
+    @commands.command(hidden=True)
+    @perms.superuser_only("list servers")
+    async def servers(self, ctx: commands.Context) -> None:
+        """Lists all servers the bot is in."""
+        servers_with_games = manager.list_servers()
+        message = ""
+        args = remove_prefix(ctx).split()
+        send_id = "id" in args
+        send_invite = "invite" in args
+        for server in ctx.bot.guilds:
+            if server is None:
+                continue
 
-			channels = server.channels
-			for channel in channels:
-				if isinstance(channel, TextChannel):
-					break
-			else:
-				message += f"\n- {server.name} - Could not find a channel for invite"
-				continue
+            channels = server.channels
+            for channel in channels:
+                if isinstance(channel, TextChannel):
+                    break
+            else:
+                message += f"\n- {server.name} - Could not find a channel for invite"
+                continue
 
-			if server.id in servers_with_games:
-				servers_with_games.remove(server.id)
-				try:
-					board = manager.get_board(server.id)
-					board_state = f" - {board.turn}"
-				except NoGameError:
-					board_state = " - board not loaded"
-			else:
-				board_state = " - no active game"
+            if server.id in servers_with_games:
+                servers_with_games.remove(server.id)
+                try:
+                    board = manager.get_board(server.id)
+                    board_state = f" - {board.turn}"
+                except NoGameError:
+                    board_state = " - board not loaded"
+            else:
+                board_state = " - no active game"
 
-			if send_invite:
-				try:
-					invite = await channel.create_invite(max_age=300)
-				except (HTTPException, NotFound):
-					message += f"\n- {server.name} - Could not create invite"
-				else:
-					message += f"\n- [{server.name}](<{invite.url}>)"
-			else:
-				message += f"\n- {server.name}"
+            if send_invite:
+                try:
+                    invite = await channel.create_invite(max_age=300)
+                except (HTTPException, NotFound):
+                    message += f"\n- {server.name} - Could not create invite"
+                else:
+                    message += f"\n- [{server.name}](<{invite.url}>)"
+            else:
+                message += f"\n- {server.name}"
 
-			message += board_state
-			if send_id:
-				message += f" - {server.id}"
+            message += board_state
+            if send_id:
+                message += f" - {server.id}"
 
-		# Servers with games the bot is not in
-		if servers_with_games:
-			message += f"\n There is a further {len(servers_with_games)} games in servers I am no longer in"
+        # Servers with games the bot is not in
+        if servers_with_games:
+            message += f"\n There is a further {len(servers_with_games)} games in servers I am no longer in"
 
-		log_command(logger, ctx, f"Found {len(ctx.bot.guilds)} servers")
-		await send_message_and_file(
-			channel=ctx.channel, title=f"{len(ctx.bot.guilds)} Servers", message=message
-		)
+        log_command(logger, ctx, f"Found {len(ctx.bot.guilds)} servers")
+        await send_message_and_file(
+            channel=ctx.channel, title=f"{len(ctx.bot.guilds)} Servers", message=message
+        )
 
-	@commands.command(hidden=True)
-	@perms.superuser_only("leave server")
-	async def leave_server(self, ctx: commands.Context) -> None:
-		"""Leaves a server with a given ID."""
-		leave_id = remove_prefix(ctx)
-		try:
-			leave_id = int(leave_id)
-		except ValueError:
-			await send_message_and_file(
-				channel=ctx.channel,
-				title="Failed to parse server ID",
-				embed_colour=config.ERROR_COLOUR,
-			)
-			return
+    @commands.command(hidden=True)
+    @perms.superuser_only("leave server")
+    async def leave_server(self, ctx: commands.Context) -> None:
+        """Leaves a server with a given ID."""
+        leave_id = remove_prefix(ctx)
+        try:
+            leave_id = int(leave_id)
+        except ValueError:
+            await send_message_and_file(
+                channel=ctx.channel,
+                title="Failed to parse server ID",
+                embed_colour=config.ERROR_COLOUR,
+            )
+            return
 
-		for server in ctx.bot.guilds:
-			if server.id == leave_id:
-				name = server.name
-				# icon = server.icon.url
-				try:
-					await server.leave()
-				except HTTPException:
-					await send_message_and_file(
-						channel=ctx.channel,
-						title=f"Failed to leave: {name}",
-						embed_colour=config.ERROR_COLOUR,
-					)
-				else:
-					await send_message_and_file(
-						channel=ctx.channel, title=f"Left Server {name}"
-					)
-				return
-		await send_message_and_file(
-			channel=ctx.channel,
-			title="Failed to find server",
-			embed_colour=config.ERROR_COLOUR,
-		)
+        for server in ctx.bot.guilds:
+            if server.id == leave_id:
+                name = server.name
+                # icon = server.icon.url
+                try:
+                    await server.leave()
+                except HTTPException:
+                    await send_message_and_file(
+                        channel=ctx.channel,
+                        title=f"Failed to leave: {name}",
+                        embed_colour=config.ERROR_COLOUR,
+                    )
+                else:
+                    await send_message_and_file(
+                        channel=ctx.channel, title=f"Left Server {name}"
+                    )
+                return
+        await send_message_and_file(
+            channel=ctx.channel,
+            title="Failed to find server",
+            embed_colour=config.ERROR_COLOUR,
+        )
 
-	@commands.command(hidden=True)
-	@perms.superuser_only("allocate roles to user(s)")
-	async def bulk_allocate_role(self, ctx: commands.Context) -> None:
-		"""Allocates roles to multiple users in bulk."""
-		guild = ctx.guild
-		if guild is None:
-			return
+    @commands.command(hidden=True)
+    @perms.superuser_only("allocate roles to user(s)")
+    async def bulk_allocate_role(self, ctx: commands.Context) -> None:
+        """Allocates roles to multiple users in bulk."""
+        guild = ctx.guild
+        if guild is None:
+            return
 
-		# extract roles to be allocated based off of mentions
-		# .bulk_allocate_role <@B1.4 Player> <@B1.4 GM Team> ...
-		roles = ctx.message.role_mentions
-		role_names = list(map(lambda r: r.name, roles))
+        # extract roles to be allocated based off of mentions
+        # .bulk_allocate_role <@B1.4 Player> <@B1.4 GM Team> ...
+        roles = ctx.message.role_mentions
+        role_names = list(map(lambda r: r.name, roles))
 
-		for role in roles.copy():
-			if config.is_gm_role(role) or config.is_mod_role(role):
-				await send_message_and_file(
-					channel=ctx.channel,
-					title="Error!",
-					embed_colour=config.ERROR_COLOUR,
-					message=f"Not allowed to allocate this role using DiploGM: {role.mention}",
-				)
-				roles.remove(role)
+        for role in roles.copy():
+            if config.is_gm_role(role) or config.is_mod_role(role):
+                await send_message_and_file(
+                    channel=ctx.channel,
+                    title="Error!",
+                    embed_colour=config.ERROR_COLOUR,
+                    message=f"Not allowed to allocate this role using DiploGM: {role.mention}",
+                )
+                roles.remove(role)
 
-		if len(roles) == 0:
-			await send_error(ctx.channel, ErrorMessage.NO_ROLES_SUPPLIED)
-			return
+        if len(roles) == 0:
+            await send_error(ctx.channel, ErrorMessage.NO_ROLES_SUPPLIED)
+            return
 
-		# parse usernames from trailing contents
-		# .bulk_allocate_role <@B1.4 Player> elisha thisisflare kingofprussia ...
-		content = remove_prefix(ctx)
+        # parse usernames from trailing contents
+        # .bulk_allocate_role <@B1.4 Player> elisha thisisflare kingofprussia ...
+        content = remove_prefix(ctx)
 
-		usernames = []
-		components = content.split()
-		for comp in components:
-			if comp == "":
-				continue
+        usernames = []
+        components = content.split()
+        for comp in components:
+            if comp == "":
+                continue
 
-			match = re.match(r"<@&\d+>", comp)
-			if match:
-				continue
+            match = re.match(r"<@&\d+>", comp)
+            if match:
+                continue
 
-			usernames.append(comp)
+            usernames.append(comp)
 
-		success_count = 0
-		failed = []
-		skipped = []
-		for user in usernames:
-			# FIND USER FROM USERNAME
-			member = discord_find(
-				lambda m: m.name == user,
-				guild.members,
-			)
+        success_count = 0
+        failed = []
+        skipped = []
+        for user in usernames:
+            # FIND USER FROM USERNAME
+            member = discord_find(
+                lambda m: m.name == user,
+                guild.members,
+            )
 
-			if not member or member is None:
-				failed.append((user, "Member not Found"))
-				continue
+            if not member or member is None:
+                failed.append((user, "Member not Found"))
+                continue
 
-			for role in roles:
-				if role in member.roles:
-					skipped.append((user, f"already had role @{role.name}"))
-					continue
+            for role in roles:
+                if role in member.roles:
+                    skipped.append((user, f"already had role @{role.name}"))
+                    continue
 
-				try:
-					await member.add_roles(role)
-					success_count += 1
-				except Exception as e:
-					failed.append((user, f"Error Adding Role- {e}"))
+                try:
+                    await member.add_roles(role)
+                    success_count += 1
+                except Exception as e:
+                    failed.append((user, f"Error Adding Role- {e}"))
 
-		failed_out = "\n".join([f"{u}: {m}" for u, m in failed])
-		skipped_out = "\n".join([f"{u}: {m}" for u, m in skipped])
-		out = (
-			f"Allocated Roles {', '.join(role_names)} to {len(usernames)} users.\n"
-			+ f"Succeeded in applying a role {success_count} times.\n"
-			+ f"Failed {len(failed)} times.\n"
-			+ f"Skipped {len(skipped)} times for already having the role.\n"
-			+ "----\n"
-		)
+        failed_out = "\n".join([f"{u}: {m}" for u, m in failed])
+        skipped_out = "\n".join([f"{u}: {m}" for u, m in skipped])
+        out = (
+            f"Allocated Roles {', '.join(role_names)} to {len(usernames)} users.\n"
+            + f"Succeeded in applying a role {success_count} times.\n"
+            + f"Failed {len(failed)} times.\n"
+            + f"Skipped {len(skipped)} times for already having the role.\n"
+            + "----\n"
+        )
 
-		if len(failed_out) > 0:
-			out += "----\n"
-			out += f"Failed Reasons:\n{failed_out}\n"
+        if len(failed_out) > 0:
+            out += "----\n"
+            out += f"Failed Reasons:\n{failed_out}\n"
 
-		if len(skipped_out) > 0:
-			out += "----\n"
-			out += f"Skipped Reasons\n{skipped_out}\n"
+        if len(skipped_out) > 0:
+            out += "----\n"
+            out += f"Skipped Reasons\n{skipped_out}\n"
 
-		await send_message_and_file(
-			channel=ctx.channel, title="Wave Allocation Info", message=out
-		)
+        await send_message_and_file(
+            channel=ctx.channel, title="Wave Allocation Info", message=out
+        )
 
-	@commands.command(hidden=True)
-	@perms.superuser_only("Uploads map to archive")
-	async def archive_upload(self, ctx: commands.Context) -> None:
-		"""Uploads a map from a server to the map archive."""
-		if not MAP_ARCHIVE_SAS_TOKEN:
-			await send_message_and_file(
-				channel=ctx.channel,
-				title="maps_sas_token is not defined in environment variables",
-				embed_colour=config.ERROR_COLOUR,
-			)
-			return
-		arguments = remove_prefix(ctx).lower().split()
-		server_id = int(arguments[0])
-		board = manager.get_board(server_id)
-		season = parse_season(arguments[1:], board.turn)
-		draw_moves = "results" not in arguments
-		file, _ = manager.draw_map(
-			server_id,
-			draw_moves=draw_moves,
-			turn=season,
-		)
-		await upload_map_to_archive(ctx, server_id, board, file, season, draw_moves)
+    @commands.command(hidden=True)
+    @perms.superuser_only("Uploads map to archive")
+    async def archive_upload(self, ctx: commands.Context) -> None:
+        """Uploads a map from a server to the map archive."""
+        if not MAP_ARCHIVE_SAS_TOKEN:
+            await send_message_and_file(
+                channel=ctx.channel,
+                title="maps_sas_token is not defined in environment variables",
+                embed_colour=config.ERROR_COLOUR,
+            )
+            return
+        arguments = remove_prefix(ctx).lower().split()
+        server_id = int(arguments[0])
+        board = manager.get_board(server_id)
+        season = parse_season(arguments[1:], board.turn)
+        draw_moves = "results" not in arguments
+        file, _ = manager.draw_map(
+            server_id,
+            draw_moves=draw_moves,
+            turn=season,
+        )
+        await upload_map_to_archive(ctx, server_id, board, file, season, draw_moves)
 
-	@commands.command(hidden=True)
-	@perms.superuser_only("Uploads all maps to archive")
-	async def archive_upload_all(self, ctx: commands.Context) -> None:
-		"""Uploads all maps from a server to the map archive."""
-		arguments = remove_prefix(ctx).lower().split()
-		server_id = int(arguments[0])
-		board = manager.get_board(server_id)
-		current_turn = board.turn
-		if "finished" in arguments:
-			file, _ = manager.draw_map(
-				server_id,
-				draw_moves=False,
-				turn=current_turn,
-			)
-			await upload_map_to_archive(ctx, server_id, board, file, current_turn, False)
+    @commands.command(hidden=True)
+    @perms.superuser_only("Uploads all maps to archive")
+    async def archive_upload_all(self, ctx: commands.Context) -> None:
+        """Uploads all maps from a server to the map archive."""
+        arguments = remove_prefix(ctx).lower().split()
+        server_id = int(arguments[0])
+        board = manager.get_board(server_id)
+        current_turn = board.turn
+        if "finished" in arguments:
+            file, _ = manager.draw_map(
+                server_id,
+                draw_moves=False,
+                turn=current_turn,
+            )
+            await upload_map_to_archive(ctx, server_id, board, file, current_turn, False)
 
-		while True:
-			await sleep(0)
-			current_turn = current_turn.get_previous_turn()
-			try:
-				file, _ = manager.draw_map(
-					server_id,
-					draw_moves=True,
-					turn=current_turn,
-				)
-			except NoGameError:
-				break
-			await upload_map_to_archive(ctx, server_id, board, file, current_turn, True)
+        while True:
+            await sleep(0)
+            current_turn = current_turn.get_previous_turn()
+            try:
+                file, _ = manager.draw_map(
+                    server_id,
+                    draw_moves=True,
+                    turn=current_turn,
+                )
+            except NoGameError:
+                break
+            await upload_map_to_archive(ctx, server_id, board, file, current_turn, True)
 
-	@commands.command(brief="Execute Arbitrary Python")
-	@perms.superuser_only("Execute arbitrary python code")
-	async def exec_py(self, ctx: commands.Context) -> None:
-		"""Executes arbitrary python code."""
-		assert ctx.guild is not None
+    @commands.command(brief="Execute Arbitrary Python")
+    @perms.superuser_only("Execute arbitrary python code")
+    async def exec_py(self, ctx: commands.Context) -> None:
+        """Executes arbitrary python code."""
+        assert ctx.guild is not None
 
-		class ContainedPrinter:
-			def __init__(self):
-				self.text = ""
+        class ContainedPrinter:
+            def __init__(self):
+                self.text = ""
 
-			def __call__(self, *args):
-				self.text += " ".join(map(str, args)) + "\n"
+            def __call__(self, *args):
+                self.text += " ".join(map(str, args)) + "\n"
 
-		board = manager.get_board(ctx.guild.id)
-		code = remove_prefix(ctx).strip("`")
+        board = manager.get_board(ctx.guild.id)
+        code = remove_prefix(ctx).strip("`")
 
-		embed_print = ContainedPrinter()
+        embed_print = ContainedPrinter()
 
-		try:
-			exec(code, {"print": embed_print, "board": board})
-		except Exception as e:
-			embed_print("\n" + repr(e))
+        try:
+            exec(code, {"print": embed_print, "board": board})
+        except Exception as e:
+            embed_print("\n" + repr(e))
 
-		if embed_print.text:
-			await send_message_and_file(channel=ctx.channel, message=embed_print.text)
-		manager._database.delete_board(board)
+        if embed_print.text:
+            await send_message_and_file(channel=ctx.channel, message=embed_print.text)
+        manager._database.delete_board(board)
 
-		manager._database.save_board(ctx.guild.id, board)
+        manager._database.save_board(ctx.guild.id, board)
 
-	# @commands.command(
-	#     brief="Execute Arbitrary SQL",
-	#     description="Perform an SQL query on the production database.\n\n
-	#                  ONLY TO BE USED IN THE MOST EXTREME CASES\n
-	#  ONLY USE IF YOU ARE ABSOLUTELY SURE OF WHAT YOU ARE DOING.",
-	#     help="""Example:
-	# `.exec_sql "DELETE FROM units WHERE board_id=? AND phase=? AND owner=?" <server_id> "0 Fall Moves" England`
-	# `.exec_sql "UPDATE provinces SET owner=? WHERE board_id=? AND phase=?" Aymara <server_id> "2 Spring Moves"`
-	# """,
-	# )
-	# @perms.superuser_only("Execute arbitrary SQL code")
-	# async def exec_sql(self, ctx: commands.Context, query: str, *args) -> None:
-	#     conn = get_connection()
-	#     conn.execute_arbitrary_sql(query, args)
+    # @commands.command(
+    #     brief="Execute Arbitrary SQL",
+    #     description="Perform an SQL query on the production database.\n\n
+    #                  ONLY TO BE USED IN THE MOST EXTREME CASES\n
+    #  ONLY USE IF YOU ARE ABSOLUTELY SURE OF WHAT YOU ARE DOING.",
+    #     help="""Example:
+    # `.exec_sql "DELETE FROM units WHERE board_id=? AND phase=? AND owner=?" <server_id> "0 Fall Moves" England`
+    # `.exec_sql "UPDATE provinces SET owner=? WHERE board_id=? AND phase=?" Aymara <server_id> "2 Spring Moves"`
+    # """,
+    # )
+    # @perms.superuser_only("Execute arbitrary SQL code")
+    # async def exec_sql(self, ctx: commands.Context, query: str, *args) -> None:
+    #     conn = get_connection()
+    #     conn.execute_arbitrary_sql(query, args)
 
 
 async def setup(bot):
-	cog = AdminCog(bot)
-	await bot.add_cog(cog)
+    cog = AdminCog(bot)
+    await bot.add_cog(cog)

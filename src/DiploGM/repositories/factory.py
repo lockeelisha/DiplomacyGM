@@ -1,13 +1,13 @@
-from DiploGM.repositories.extension_repo import ExtensionEventRepository
+from DiploGM.repositories.extension import ExtensionEventRepository
 
 
 class RepositoryFactory:
-	REGISTRY = {"extension": ExtensionEventRepository}
+    REGISTRY = {"extension": ExtensionEventRepository}
 
-	@classmethod
-	def create(cls, type=""):
-		_cls = cls.REGISTRY.get(type, None)
-		if _cls is None:
-			raise
+    @classmethod
+    def create(cls, type=""):
+        _cls = cls.REGISTRY.get(type, None)
+        if _cls is None:
+            raise
 
-		return _cls()
+        return _cls()

@@ -7,27 +7,27 @@ Predicate = Callable[[T], bool]
 
 
 class Repository(ABC, Generic[T]):
-	@abstractmethod
-	def save(self, entity: T) -> T: ...
+    @abstractmethod
+    def save(self, entity: T) -> T: ...
 
-	@abstractmethod
-	def load(self, object_id: int) -> Optional[T]: ...
+    @abstractmethod
+    def load(self, object_id: int) -> Optional[T]: ...
 
-	@abstractmethod
-	def delete(self, object_id: int) -> None: ...
+    @abstractmethod
+    def delete(self, object_id: int) -> None: ...
 
-	@abstractmethod
-	def clear(self) -> None: ...
+    @abstractmethod
+    def clear(self) -> None: ...
 
-	@abstractmethod
-	def all(self) -> Iterable[T]: ...
+    @abstractmethod
+    def all(self) -> Iterable[T]: ...
 
-	def find_by(self, predicate: Predicate) -> Iterable[T]:
-		return [e for e in self.all() if predicate(e)]
+    def find_by(self, predicate: Predicate) -> Iterable[T]:
+        return [e for e in self.all() if predicate(e)]
 
-	def find_one_by(self, predicate: Predicate) -> Optional[T]:
-		for e in self.all():
-			if predicate(e):
-				return e
+    def find_one_by(self, predicate: Predicate) -> Optional[T]:
+        for e in self.all():
+            if predicate(e):
+                return e
 
-		return None
+        return None

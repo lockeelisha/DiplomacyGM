@@ -10,12 +10,12 @@ order: (move_order
 
 retreat: (retreat_order
        | disband_order
-	| non_retreat_order) _WS
+       | non_retreat_order) _WS
 
 build: ( build_unit
        | disband_unit
        | transform_unit
-	| waive_order
+       | waive_order
        | non_build_order) _WS
 
 move_order: unit _WS MOVE _WS province

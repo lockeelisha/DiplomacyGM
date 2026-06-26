@@ -28,47 +28,47 @@
     },
     "year": 1994,
     "build_options": "classic",
-	"victory_conditions": "classic",
+    "victory_conditions": "classic",
     "players": {
         "Britain": {
             "color": "79afc6",
-			"iscc": 4
+            "iscc": 4
         },
         "Egypt": {
             "color": "729267",
-			"iscc": 3
+            "iscc": 3
         },
         "France": {
             "color": "79afc6",
-			"iscc": 4
+            "iscc": 4
         },
         "Germany": {
             "color": "a08a75",
-			"iscc": 4
+            "iscc": 4
         },
         "Italy": {
             "color": "a4c499",
-			"iscc": 4
+            "iscc": 4
         },
         "Poland": {
             "color": "c48f85",
-			"iscc": 3
+            "iscc": 3
         },
         "Russia": {
             "color": "a87e9f",
-			"iscc": 5
+            "iscc": 5
         },
         "Spain": {
             "color": "ce9967",
-			"iscc": 3
+            "iscc": 3
         },
         "Turkey": {
             "color": "eaeaaf",
-			"iscc": 4
+            "iscc": 4
         },
         "Ukraine": {
             "color": "787878",
-			"iscc": 3
+            "iscc": 3
         }
     }
 }

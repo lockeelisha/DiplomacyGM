@@ -9,20 +9,20 @@ from DiploGM.utils.repository import Repository
 
 @dataclass
 class Community:
-	id: int
-	name: str
-	description: Optional[str] = None
-	created_at: datetime.datetime = field(default_factory=datetime.datetime.now)
+    id: int
+    name: str
+    description: Optional[str] = None
+    created_at: datetime.datetime = field(default_factory=datetime.datetime.now)
 
 
 class SQLiteCommunityRepository(Repository):
-	def __init__(self) -> None:
-		self.conn = get_connection()._connection
-		self._initialise_schema()
+    def __init__(self) -> None:
+        self.conn = get_connection()._connection
+        self._initialise_schema()
 
-	def _initialise_schema(self):
-		cursor = self.conn.cursor()
-		cursor.execute("""
+    def _initialise_schema(self):
+        cursor = self.conn.cursor()
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS communities (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -30,48 +30,48 @@ class SQLiteCommunityRepository(Repository):
                 created_at TEXT NOT NULL
             );
         """)
-		self.conn.commit()
+        self.conn.commit()
 
-	def save(self, entity: Community) -> Community:
-		cur = self.conn.cursor()
-		cur.execute(
-			"""
+    def save(self, entity: Community) -> Community:
+        cur = self.conn.cursor()
+        cur.execute(
+            """
             INSERT INTO communities (id, name, description, created_at)
             VALUES (?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name,
                 description = excluded.description
             """,
-			(entity.id, entity.name, entity.description, entity.created_at.isoformat()),
-		)
-		self.conn.commit()
-		return entity
+            (entity.id, entity.name, entity.description, entity.created_at.isoformat()),
+        )
+        self.conn.commit()
+        return entity
 
-	def load(self, object_id: int) -> Optional[Community]:
-		cur = self.conn.cursor()
-		cur.execute("SELECT * FROM communities WHERE id = ?", (object_id,))
-		row = cur.fetchone()
-		return self._row_to_model(row) if row else None
+    def load(self, object_id: int) -> Optional[Community]:
+        cur = self.conn.cursor()
+        cur.execute("SELECT * FROM communities WHERE id = ?", (object_id,))
+        row = cur.fetchone()
+        return self._row_to_model(row) if row else None
 
-	def delete(self, object_id: int) -> None:
-		cur = self.conn.cursor()
-		cur.execute("DELETE FROM communities WHERE id = ?", (object_id,))
-		self.conn.commit()
+    def delete(self, object_id: int) -> None:
+        cur = self.conn.cursor()
+        cur.execute("DELETE FROM communities WHERE id = ?", (object_id,))
+        self.conn.commit()
 
-	def clear(self) -> None:
-		self.conn.execute("DELETE FROM communities")
-		self.conn.commit()
+    def clear(self) -> None:
+        self.conn.execute("DELETE FROM communities")
+        self.conn.commit()
 
-	def all(self) -> Iterable[Community]:
-		cur = self.conn.cursor()
-		cur.execute("SELECT * FROM communities")
-		rows = cur.fetchall()
-		return [self._row_to_model(r) for r in rows]
+    def all(self) -> Iterable[Community]:
+        cur = self.conn.cursor()
+        cur.execute("SELECT * FROM communities")
+        rows = cur.fetchall()
+        return [self._row_to_model(r) for r in rows]
 
-	def _row_to_model(self, row) -> Community:
-		return Community(
-			id=int(row[0]),
-			name=row[1],
-			description=row[2],
-			created_at=datetime.datetime.fromisoformat(row[3]),
-		)
+    def _row_to_model(self, row) -> Community:
+        return Community(
+            id=int(row[0]),
+            name=row[1],
+            description=row[2],
+            created_at=datetime.datetime.fromisoformat(row[3]),
+        )

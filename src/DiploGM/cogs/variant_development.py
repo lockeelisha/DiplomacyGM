@@ -19,95 +19,95 @@ manager = Manager()
 
 
 class VariantDevelopmentCog(commands.Cog):
-	"""Bot administration commands, to be used by superusers only."""
+    """Bot administration commands, to be used by superusers only."""
 
-	def __init__(self, bot: commands.Bot):
-		self.bot = bot
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
 
-	@commands.command(
-		brief="Checks the adjacencies of a variant to find potential issues"
-	)
-	@perms.superuser_only(
-		"Checks the adjacencies of a variant to find potential issues"
-	)
-	async def verify_adjacencies(self, ctx: commands.Context, arg) -> None:
-		"""Checks the adjacencies of a variant to find potential issues."""
-		assert ctx.guild is not None
-		gametype = arg if arg else "classic"
+    @commands.command(
+        brief="Checks the adjacencies of a variant to find potential issues"
+    )
+    @perms.superuser_only(
+        "Checks the adjacencies of a variant to find potential issues"
+    )
+    async def verify_adjacencies(self, ctx: commands.Context, arg) -> None:
+        """Checks the adjacencies of a variant to find potential issues."""
+        assert ctx.guild is not None
+        gametype = arg if arg else "classic"
 
-		message = verify_adjacencies(gametype)
-		log_command(logger, ctx, message=message)
-		await send_message_and_file(channel=ctx.channel, message=message)
+        message = verify_adjacencies(gametype)
+        log_command(logger, ctx, message=message)
+        await send_message_and_file(channel=ctx.channel, message=message)
 
-	@commands.command(
-		brief="Reloads the map parser for a given variant. Useful if a map has been updated."
-	)
-	@perms.superuser_only(
-		"Reloads the map parser for a given variant. Useful if a map has been updated."
-	)
-	async def reload_variant(self, ctx: commands.Context, arg) -> None:
-		"""Reloads the map parser for a given variant. Useful if a map has been updated."""
-		assert ctx.guild is not None
-		try:
-			variant_path = parse_variant_path(arg)
-			if not os.path.isdir(variant_path):
-				message = f"Variant {arg} does not exist."
-			# Remove adjacency cache to force a reload
-			if os.path.isfile(f"assets/{arg}_adjacencies.txt"):
-				os.remove(f"assets/{arg}_adjacencies.txt")
+    @commands.command(
+        brief="Reloads the map parser for a given variant. Useful if a map has been updated."
+    )
+    @perms.superuser_only(
+        "Reloads the map parser for a given variant. Useful if a map has been updated."
+    )
+    async def reload_variant(self, ctx: commands.Context, arg) -> None:
+        """Reloads the map parser for a given variant. Useful if a map has been updated."""
+        assert ctx.guild is not None
+        try:
+            variant_path = parse_variant_path(arg)
+            if not os.path.isdir(variant_path):
+                message = f"Variant {arg} does not exist."
+            # Remove adjacency cache to force a reload
+            if os.path.isfile(f"assets/{arg}_adjacencies.txt"):
+                os.remove(f"assets/{arg}_adjacencies.txt")
 
-			parser_result = get_parser(arg, force_refresh=True)
-			if isinstance(parser_result, str):
-				message = parser_result
-			else:
-				parser_result.parse()
-				message = manager.reload_variant(arg)
-		except ValueError as e:
-			message = str(e)
+            parser_result = get_parser(arg, force_refresh=True)
+            if isinstance(parser_result, str):
+                message = parser_result
+            else:
+                parser_result.parse()
+                message = manager.reload_variant(arg)
+        except ValueError as e:
+            message = str(e)
 
-		log_command(logger, ctx, message=message)
-		await send_message_and_file(channel=ctx.channel, message=message)
+        log_command(logger, ctx, message=message)
+        await send_message_and_file(channel=ctx.channel, message=message)
 
-	@commands.command(brief="Pulls changes from the Git repository.")
-	@perms.superuser_only("Pulls changes from the Git repository.")
-	async def update_variant(
-		self, ctx: commands.Context, variant: str, branch: str = "main"
-	) -> None:
-		"""Pulls changes from the Git repository."""
-		assert ctx.guild is not None
+    @commands.command(brief="Pulls changes from the Git repository.")
+    @perms.superuser_only("Pulls changes from the Git repository.")
+    async def update_variant(
+        self, ctx: commands.Context, variant: str, branch: str = "main"
+    ) -> None:
+        """Pulls changes from the Git repository."""
+        assert ctx.guild is not None
 
-		try:
-			variant_dir = parse_variant_path(variant, return_parent=True)
-		except ValueError as e:
-			message = str(e)
-			log_command(logger, ctx, message=message)
-			await send_message_and_file(channel=ctx.channel, message=message)
-			return
+        try:
+            variant_dir = parse_variant_path(variant, return_parent=True)
+        except ValueError as e:
+            message = str(e)
+            log_command(logger, ctx, message=message)
+            await send_message_and_file(channel=ctx.channel, message=message)
+            return
 
-		async def run_command(*args) -> bool:
-			process = await asyncio.create_subprocess_exec(
-				"git", *args, stdout=PIPE, stderr=PIPE, cwd=variant_dir
-			)
-			_, err = await process.communicate()
-			if process.returncode == 0:
-				return True
-			message = f"git {' '.join(args)} failed: {err.decode().strip()}"
-			log_command(logger, ctx, message=message)
-			await send_message_and_file(channel=ctx.channel, message=message)
-			return False
+        async def run_command(*args) -> bool:
+            process = await asyncio.create_subprocess_exec(
+                "git", *args, stdout=PIPE, stderr=PIPE, cwd=variant_dir
+            )
+            _, err = await process.communicate()
+            if process.returncode == 0:
+                return True
+            message = f"git {' '.join(args)} failed: {err.decode().strip()}"
+            log_command(logger, ctx, message=message)
+            await send_message_and_file(channel=ctx.channel, message=message)
+            return False
 
-		if not await run_command("fetch"):
-			return
-		if not await run_command("checkout", branch):
-			return
-		if not await run_command("pull"):
-			return
+        if not await run_command("fetch"):
+            return
+        if not await run_command("checkout", branch):
+            return
+        if not await run_command("pull"):
+            return
 
-		message = f"Updated `{variant}` on branch `{branch}`"
-		log_command(logger, ctx, message=message)
-		await send_message_and_file(channel=ctx.channel, message=message)
+        message = f"Updated `{variant}` on branch `{branch}`"
+        log_command(logger, ctx, message=message)
+        await send_message_and_file(channel=ctx.channel, message=message)
 
 
 async def setup(bot):
-	cog = VariantDevelopmentCog(bot)
-	await bot.add_cog(cog)
+    cog = VariantDevelopmentCog(bot)
+    await bot.add_cog(cog)

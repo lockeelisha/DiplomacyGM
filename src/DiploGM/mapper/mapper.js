@@ -188,7 +188,7 @@ function draw_hold(order) {
             fill: "none",
             stroke: order_colour,
             "stroke-dasharray": `${dasharray_size} ${dasharray_size}`,
-	    "stroke-opacity": stroke_opacity,
+        "stroke-opacity": stroke_opacity,
             "stroke-width": svg_config["order_stroke_width"],
             "shape-rendering": "geometricPrecision"
         }
@@ -213,7 +213,7 @@ function draw_core(order) {
             fill: "none",
             stroke: order_colour,
             "stroke-dasharray": `${dasharray_size} ${dasharray_size}`,
-	    "stroke-opacity": stroke_opacity,
+        "stroke-opacity": stroke_opacity,
             "stroke-width": svg_config["order_stroke_width"],
             transform: `rotate(45 ${coord[0]} ${coord[1]})`,
             "shape-rendering": "geometricPrecision"
@@ -235,7 +235,7 @@ function draw_move(order) {
             stroke: order_colour,
             "stroke-width": svg_config["order_stroke_width"],
             "stroke-dasharray": `${dasharray_size} ${dasharray_size}`,
-	    "stroke-opacity": stroke_opacity,
+        "stroke-opacity": stroke_opacity,
             "stroke-linecap": "round",
             "marker-end": `url(#arrow)`,
             "shape-rendering": "geometricPrecision"
@@ -253,7 +253,7 @@ function draw_convoy(order) {
             fill: "none",
             stroke: order_colour,
             "stroke-dasharray": `${dasharray_size} ${dasharray_size}`,
-	    "stroke-opacity": stroke_opacity,
+        "stroke-opacity": stroke_opacity,
             "stroke-width": svg_config["order_stroke_width"] * 2 / 3,
             "shape-rendering": "geometricPrecision"
         }
@@ -302,7 +302,7 @@ function draw_support(order) {
             "fill": "none",
             "stroke": order_colour,
             "stroke-dasharray": `${dasharray_size} ${dasharray_size}`,
-	    "stroke-opacity": stroke_opacity,
+            "stroke-opacity": stroke_opacity,
             "stroke-width": svg_config["order_stroke_width"],
             "stroke-linecap": "round",
             "marker-start": `url(#${marker_start})`,
@@ -331,7 +331,7 @@ function draw_support(order) {
 }
 
 function leftclick(porigin) {
-	draw_selected(porigin)
+    draw_selected(porigin)
     // Move
     left_callback_type = "province";
     // Support

@@ -7,312 +7,312 @@ from typing import TYPE_CHECKING
 from DiploGM.models.province import Province
 
 if TYPE_CHECKING:
-	from DiploGM.models.unit import UnitType
-	from DiploGM.models.player import Player
+    from DiploGM.models.unit import UnitType
+    from DiploGM.models.player import Player
 
 
 class Order:
-	"""Order is a player's game state API."""
+    """Order is a player's game state API."""
 
-	def __init__(self):
-		self.has_failed = False
+    def __init__(self):
+        self.has_failed = False
 
 
 # moves, holds, etc.
 class UnitOrder(Order):
-	"""Unit orders are orders that units execute themselves.
-	We include source and destination here to make it easier to create orders,
-	though a lot of the time it'll be unused."""
+    """Unit orders are orders that units execute themselves.
+    We include source and destination here to make it easier to create orders,
+    though a lot of the time it'll be unused."""
 
-	display_priority: int = 0
+    display_priority: int = 0
 
-	def __init__(
-		self,
-		source: Province | None = None,
-		destination: Province | None = None,
-		destination_coast: str | None = None,
-	):
-		super().__init__()
-		self.destination = destination
-		self.destination_coast = destination_coast
-		self.source = source
-		self.is_support_holdable = True
+    def __init__(
+        self,
+        source: Province | None = None,
+        destination: Province | None = None,
+        destination_coast: str | None = None,
+    ):
+        super().__init__()
+        self.destination = destination
+        self.destination_coast = destination_coast
+        self.source = source
+        self.is_support_holdable = True
 
-	# Used for DB storage
-	def get_source_str(self) -> str | None:
-		"""For Supports and Convoys, the location that they're supporting/convoying from."""
-		return str(self.source) if self.source else None
+    # Used for DB storage
+    def get_source_str(self) -> str | None:
+        """For Supports and Convoys, the location that they're supporting/convoying from."""
+        return str(self.source) if self.source else None
 
-	# Used for DB storage
-	def get_destination_str(self) -> str | None:
-		"""The destination location or that of the unit being supported/convoyed."""
-		return str(self.destination) if self.destination else None
+    # Used for DB storage
+    def get_destination_str(self) -> str | None:
+        """The destination location or that of the unit being supported/convoyed."""
+        return str(self.destination) if self.destination else None
 
 
 class NMR(UnitOrder):
-	"""No Move Recorded. Identical in function to Hold but done when an order is not given."""
+    """No Move Recorded. Identical in function to Hold but done when an order is not given."""
 
-	display_priority: int = 20
+    display_priority: int = 20
 
-	def __str__(self):
-		return "NMRs"
+    def __str__(self):
+        return "NMRs"
 
 
 class Hold(UnitOrder):
-	"""Unit holds in place."""
+    """Unit holds in place."""
 
-	display_priority: int = 20
+    display_priority: int = 20
 
-	def __str__(self):
-		return "Holds"
+    def __str__(self):
+        return "Holds"
 
 
 class Core(UnitOrder):
-	"""Unit cores and over two turns can turn a SC into a home SC. May be supportable depending on game rules."""
+    """Unit cores and over two turns can turn a SC into a home SC. May be supportable depending on game rules."""
 
-	display_priority: int = 20
+    display_priority: int = 20
 
-	def __init__(
-		self,
-		source: Province | None = None,
-		destination: Province | None = None,
-		destination_coast: str | None = None,
-	):
-		super().__init__(
-			source=source, destination=destination, destination_coast=destination_coast
-		)
-		self.is_support_holdable = False
+    def __init__(
+        self,
+        source: Province | None = None,
+        destination: Province | None = None,
+        destination_coast: str | None = None,
+    ):
+        super().__init__(
+            source=source, destination=destination, destination_coast=destination_coast
+        )
+        self.is_support_holdable = False
 
-	def __str__(self):
-		return "Cores"
+    def __str__(self):
+        return "Cores"
 
 
 class Transform(UnitOrder):
-	"""Unit transforms from Army to Fleet or vice versa. This is the Order used in movement phases."""
+    """Unit transforms from Army to Fleet or vice versa. This is the Order used in movement phases."""
 
-	display_priority: int = 20
+    display_priority: int = 20
 
-	def __init__(
-		self,
-		source: Province | None = None,
-		destination: Province | None = None,
-		destination_coast: str | None = None,
-	):
-		super().__init__(
-			source=source, destination=destination, destination_coast=destination_coast
-		)
-		self.is_support_holdable = False
+    def __init__(
+        self,
+        source: Province | None = None,
+        destination: Province | None = None,
+        destination_coast: str | None = None,
+    ):
+        super().__init__(
+            source=source, destination=destination, destination_coast=destination_coast
+        )
+        self.is_support_holdable = False
 
-	def __str__(self):
-		return "Transforms" + (
-			f" to {self.destination_coast}" if self.destination_coast else ""
-		)
+    def __str__(self):
+        return "Transforms" + (
+            f" to {self.destination_coast}" if self.destination_coast else ""
+        )
 
-	def get_destination_str(self) -> str:
-		return self.destination_coast if self.destination_coast else ""
+    def get_destination_str(self) -> str:
+        return self.destination_coast if self.destination_coast else ""
 
 
 class Move(UnitOrder):
-	"""Moves a unit from one location to another. Does include moves via convoy."""
+    """Moves a unit from one location to another. Does include moves via convoy."""
 
-	display_priority: int = 30
+    display_priority: int = 30
 
-	def __init__(
-		self,
-		source: Province | None = None,
-		destination: Province | None = None,
-		destination_coast: str | None = None,
-	):
-		if destination is None:
-			raise TypeError("Move requires 'destination'")
-		super().__init__(
-			source=source, destination=destination, destination_coast=destination_coast
-		)
-		self.destination: Province = destination
-		self.is_support_holdable = False
-		self.is_sortie = False  # Should Sortie be its own Order? Seems excessive.
+    def __init__(
+        self,
+        source: Province | None = None,
+        destination: Province | None = None,
+        destination_coast: str | None = None,
+    ):
+        if destination is None:
+            raise TypeError("Move requires 'destination'")
+        super().__init__(
+            source=source, destination=destination, destination_coast=destination_coast
+        )
+        self.destination: Province = destination
+        self.is_support_holdable = False
+        self.is_sortie = False  # Should Sortie be its own Order? Seems excessive.
 
-	def __str__(self):
-		return f"- {self.get_destination_str()}"
+    def __str__(self):
+        return f"- {self.get_destination_str()}"
 
-	def get_destination_and_coast(self) -> tuple[Province, str | None]:
-		"""Move orders can care about the coast of the destination province."""
-		return (self.destination, self.destination_coast)
+    def get_destination_and_coast(self) -> tuple[Province, str | None]:
+        """Move orders can care about the coast of the destination province."""
+        return (self.destination, self.destination_coast)
 
-	def get_destination_str(self) -> str:
-		return f"{self.destination}" + (
-			f" {self.destination_coast}" if self.destination_coast else ""
-		)
+    def get_destination_str(self) -> str:
+        return f"{self.destination}" + (
+            f" {self.destination_coast}" if self.destination_coast else ""
+        )
 
 
 class ConvoyTransport(UnitOrder):
-	"""Convoys an Army from one Province to another."""
+    """Convoys an Army from one Province to another."""
 
-	def __init__(
-		self,
-		source: Province | None = None,
-		destination: Province | None = None,
-		destination_coast: str | None = None,
-	):
-		if source is None or destination is None:
-			raise TypeError("ConvoyTransport requires 'source' and 'destination'")
-		super().__init__(
-			source=source, destination=destination, destination_coast=destination_coast
-		)
-		self.source: Province = source
-		self.destination: Province = destination
+    def __init__(
+        self,
+        source: Province | None = None,
+        destination: Province | None = None,
+        destination_coast: str | None = None,
+    ):
+        if source is None or destination is None:
+            raise TypeError("ConvoyTransport requires 'source' and 'destination'")
+        super().__init__(
+            source=source, destination=destination, destination_coast=destination_coast
+        )
+        self.source: Province = source
+        self.destination: Province = destination
 
-	def __str__(self):
-		return f"Convoys {self.source} - {self.destination}"
+    def __str__(self):
+        return f"Convoys {self.source} - {self.destination}"
 
-	def get_source_str(self) -> str:
-		return f"{self.source}"
+    def get_source_str(self) -> str:
+        return f"{self.source}"
 
-	def get_destination_str(self) -> str:
-		return f"{self.destination}"
+    def get_destination_str(self) -> str:
+        return f"{self.destination}"
 
 
 class Support(UnitOrder):
-	"""If source and destination are different, this is a support move. If they're the same, it's a support hold."""
+    """If source and destination are different, this is a support move. If they're the same, it's a support hold."""
 
-	display_priority: int = 10
+    display_priority: int = 10
 
-	def __init__(
-		self,
-		source: Province | None = None,
-		destination: Province | None = None,
-		destination_coast: str | None = None,
-	):
-		if destination is None:
-			raise TypeError("Support requires 'destination'")
-		super().__init__(
-			source=source, destination=destination, destination_coast=destination_coast
-		)
-		self.destination: Province = destination
-		if self.source is None:
-			self.source = destination
+    def __init__(
+        self,
+        source: Province | None = None,
+        destination: Province | None = None,
+        destination_coast: str | None = None,
+    ):
+        if destination is None:
+            raise TypeError("Support requires 'destination'")
+        super().__init__(
+            source=source, destination=destination, destination_coast=destination_coast
+        )
+        self.destination: Province = destination
+        if self.source is None:
+            self.source = destination
 
-	def __str__(self):
-		suffix = "Hold"
+    def __str__(self):
+        suffix = "Hold"
 
-		if self.source != self.destination:
-			suffix = f"- {self.destination}"
-			if self.destination_coast:
-				suffix += f" {self.destination_coast}"
-		return f"Supports {self.source} {suffix}"
+        if self.source != self.destination:
+            suffix = f"- {self.destination}"
+            if self.destination_coast:
+                suffix += f" {self.destination_coast}"
+        return f"Supports {self.source} {suffix}"
 
-	def get_destination_and_coast(self) -> tuple[Province, str | None]:
-		"""For the rare cases where the move is to one coast but the support is to the other."""
-		return (self.destination, self.destination_coast)
+    def get_destination_and_coast(self) -> tuple[Province, str | None]:
+        """For the rare cases where the move is to one coast but the support is to the other."""
+        return (self.destination, self.destination_coast)
 
-	def get_source_str(self) -> str:
-		return f"{self.source}"
+    def get_source_str(self) -> str:
+        return f"{self.source}"
 
-	def get_destination_str(self) -> str:
-		return f"{self.destination}" + (
-			f" {self.destination_coast}" if self.destination_coast else ""
-		)
+    def get_destination_str(self) -> str:
+        return f"{self.destination}" + (
+            f" {self.destination_coast}" if self.destination_coast else ""
+        )
 
-	def is_support_hold(self) -> bool:
-		"""Whether this support is a support hold."""
-		return self.source == self.destination
+    def is_support_hold(self) -> bool:
+        """Whether this support is a support hold."""
+        return self.source == self.destination
 
 
 class RetreatMove(UnitOrder):
-	"""For unit retreats."""
+    """For unit retreats."""
 
-	def __init__(
-		self,
-		source: Province | None = None,
-		destination: Province | None = None,
-		destination_coast: str | None = None,
-	):
-		if destination is None:
-			raise TypeError("RetreatMove requires 'destination'")
-		super().__init__(
-			source=source, destination=destination, destination_coast=destination_coast
-		)
-		self.destination: Province = destination
+    def __init__(
+        self,
+        source: Province | None = None,
+        destination: Province | None = None,
+        destination_coast: str | None = None,
+    ):
+        if destination is None:
+            raise TypeError("RetreatMove requires 'destination'")
+        super().__init__(
+            source=source, destination=destination, destination_coast=destination_coast
+        )
+        self.destination: Province = destination
 
-	def __str__(self):
-		return f"- {self.destination}" + (
-			f" {self.destination_coast}" if self.destination_coast else ""
-		)
+    def __str__(self):
+        return f"- {self.destination}" + (
+            f" {self.destination_coast}" if self.destination_coast else ""
+        )
 
-	def get_destination_and_coast(self) -> tuple[Province, str | None]:
-		"""This should probably be part of UnitOrder."""
-		return (self.destination, self.destination_coast)
+    def get_destination_and_coast(self) -> tuple[Province, str | None]:
+        """This should probably be part of UnitOrder."""
+        return (self.destination, self.destination_coast)
 
-	def get_destination_str(self) -> str:
-		return f"{self.destination}" + (
-			f" {self.destination_coast}" if self.destination_coast else ""
-		)
+    def get_destination_str(self) -> str:
+        return f"{self.destination}" + (
+            f" {self.destination_coast}" if self.destination_coast else ""
+        )
 
 
 class RetreatDisband(UnitOrder):
-	"""For disbands during retreats."""
+    """For disbands during retreats."""
 
-	def __str__(self):
-		return "Disbands"
+    def __str__(self):
+        return "Disbands"
 
 
 class PlayerOrder(Order):
-	"""Player orders are orders that belong to a player rather than a unit e.g. builds."""
+    """Player orders are orders that belong to a player rather than a unit e.g. builds."""
 
-	def __init__(self, province: Province):
-		super().__init__()
-		self.province: Province = province
-		self.coast = None
+    def __init__(self, province: Province):
+        super().__init__()
+        self.province: Province = province
+        self.coast = None
 
-	def __hash__(self):
-		return hash(self.province.name)
+    def __hash__(self):
+        return hash(self.province.name)
 
-	def __eq__(self, other):
-		return (
-			isinstance(other, type(self)) and self.province.name == other.province.name
-		)
+    def __eq__(self, other):
+        return (
+            isinstance(other, type(self)) and self.province.name == other.province.name
+        )
 
 
 class Build(PlayerOrder):
-	"""Builds are player orders because the unit does not yet exist."""
+    """Builds are player orders because the unit does not yet exist."""
 
-	def __init__(
-		self, province: Province, unit_type: UnitType, coast: str | None = None
-	):
-		super().__init__(province)
-		self.unit_type: UnitType = unit_type
-		self.coast: str | None = coast
+    def __init__(
+        self, province: Province, unit_type: UnitType, coast: str | None = None
+    ):
+        super().__init__(province)
+        self.unit_type: UnitType = unit_type
+        self.coast: str | None = coast
 
-	def __str__(self):
-		return f"Build {self.unit_type.code} {self.province}" + (
-			f" {self.coast}" if self.coast else ""
-		)
+    def __str__(self):
+        return f"Build {self.unit_type.code} {self.province}" + (
+            f" {self.coast}" if self.coast else ""
+        )
 
 
 class Disband(PlayerOrder):
-	"""Disbands are player order because builds are."""
+    """Disbands are player order because builds are."""
 
-	def __str__(self):
-		return f"Disband {self.province}"
+    def __str__(self):
+        return f"Disband {self.province}"
 
 
 class TransformBuild(PlayerOrder):
-	"""This is for Transforming units during adjustment phases."""
+    """This is for Transforming units during adjustment phases."""
 
-	def __init__(self, province: Province, destination_coast: str | None = None):
-		super().__init__(province)
-		self.coast = destination_coast
+    def __init__(self, province: Province, destination_coast: str | None = None):
+        super().__init__(province)
+        self.coast = destination_coast
 
-	def __str__(self):
-		return f"Transform {self.province}" + (f" {self.coast}" if self.coast else "")
+    def __str__(self):
+        return f"Transform {self.province}" + (f" {self.coast}" if self.coast else "")
 
 
 class Waive(Order):
-	"""Waives some number of builds. Doesn't do anything on adjudication."""
+    """Waives some number of builds. Doesn't do anything on adjudication."""
 
-	def __init__(self, quantity: int):
-		super().__init__()
-		self.quantity: int = quantity
+    def __init__(self, quantity: int):
+        super().__init__()
+        self.quantity: int = quantity
 
-	def __str__(self):
-		return f"Waive {self.quantity}"
+    def __str__(self):
+        return f"Waive {self.quantity}"
