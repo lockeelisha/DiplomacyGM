@@ -32,6 +32,8 @@ async def upload_map_to_archive(
     """Uploads a map to the archive given a server ID and the map as a PNG."""
     if not MAP_ARCHIVE_SAS_TOKEN:
         return
+    if not draw_moves:
+        turn = turn.get_previous_turn() if turn is not None else board.turn.get_previous_turn()
     turnstr = format(board.turn, "%y%s") if turn is None else format(turn, "%y%s")
     url = None
     with open("gamelist.tsv", "r", encoding="utf-8") as gamefile:
@@ -58,7 +60,7 @@ async def upload_map_to_archive(
     error = error.decode()
     await send_message_and_file(
         channel=ctx.channel,
-        title="Uploaded map to archive",
+        title=f"Uploaded {turn} {'moves' if draw_moves else 'results'} map to archive",
     )
     log_command(
         logger,

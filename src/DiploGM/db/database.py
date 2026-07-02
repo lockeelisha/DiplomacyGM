@@ -207,7 +207,8 @@ class _DatabaseConnection:
     def _load_unit(self, board: Board, board_id: int, unit_info: tuple, cursor):
         (location, is_dislodged, owner, unit_type, order_type, destination, source, has_failed) = unit_info
         province, coast = board.get_province_and_coast(location)
-        if owner is not None and board.get_player(owner) is None:
+        owner_player = None
+        if owner is not None and (owner_player := board.get_player(owner)) is None:
             logger.warning("Couldn't find corresponding player for %s in DB", owner)
             return
         owner_player = board.get_player(owner) if owner is not None else None

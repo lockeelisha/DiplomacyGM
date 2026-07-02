@@ -80,7 +80,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.pylint.master]
-init-hook = "import sys; sys.path.insert(0, '.')"
+init-hook = "import sys; sys.path.insert(0, 'src'); sys.path.insert(0, '.')"
 max-line-length = 120
 extension-pkg-allow-list = ["lxml"]
 
