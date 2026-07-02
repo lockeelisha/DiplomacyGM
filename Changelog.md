@@ -1,3 +1,12 @@
+1.12.2
+======
+
+Contributors:
+- ianic
+
+# Developer Changes
+- Configs can now be saved as Toml files as well as Json files
+
 1.12.1
 ======
 

@@ -33,3 +33,4 @@ venv
 
 logs/*
 config.toml
+!variants/**/config.toml
