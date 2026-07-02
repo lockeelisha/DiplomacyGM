@@ -1,3 +1,23 @@
+1.12.2
+======
+
+Contributors:
+- Golden Kumquat
+- ianic
+- notnot
+
+# New Features
+- Added `tally_reacts` to simplify tallying which powers have reacted on a vote to end the game.
+- Added support for chaos modes in `.server_setup`
+- Added `.assign_chaos_powers` to give players order access in Chaos games
+
+# Developer Changes
+- Configs can now be saved as Toml files as well as Json files
+
+# Bugfixes
+- Added missing help text for `.edit_prefs pronouns` and `.edit_prefs timezone`
+- Chaos games properly default to build anywhere mode
+
 1.12.1
 ======
 

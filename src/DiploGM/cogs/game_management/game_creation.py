@@ -125,6 +125,64 @@ async def assign_powers(ctx: commands.Context) -> None:
         embed_colour=colour,
     )
 
+async def assign_chaos_powers(ctx: commands.Context) -> None:
+    """Assigns power roles to players in Chaos games, where players don't have roles."""
+    assert ctx.guild is not None
+    guild = ctx.guild
+
+    assigned: list[str] = []
+    warnings: list[str] = []
+    player_role = discord.utils.get(guild.roles, name="Player")
+    if player_role is None:
+        logger.error("Could not find the Player role.")
+        await send_error(ctx.channel, ErrorMessage.NO_PLAYER_ROLE)
+        return
+
+    for line in remove_prefix(ctx).split("\n"):
+        if not line.strip():
+            continue
+
+        linedata = line.strip().split(maxsplit=1)
+        if len(linedata) < 2:
+            warnings.append(f"Expected a user and a role: `{line.strip()}`")
+            continue
+        memberid = re.search(r"<@!?(\d+)>", linedata[0])
+        if memberid is None or (member := guild.get_member(int(memberid.group(1)))) is None:
+            warnings.append(f"Could not find a member in: `{line.strip()}`")
+            continue
+        power = linedata[1].strip()
+        power_channel = discord.utils.get(guild.text_channels, name=f"{power.lower()}-orders")
+        if power_channel is None:
+            warnings.append(f"Could not find a channel for power {power} in: `{line.strip()}`")
+            continue
+        try:
+            await member.add_roles(player_role)
+            await power_channel.set_permissions(member, read_messages=True, send_messages=True)
+        except discord.DiscordException as e:
+            warnings.append(f"Failed to give {member.mention} access to {power_channel.mention}: {e}")
+            continue
+
+        assigned.append(f"Assigned {member.mention} to {power_channel.mention}")
+
+    message_parts: list[str] = []
+    colour = config.EMBED_STANDARD_COLOUR
+    if assigned:
+        message_parts.append("**Assigned:**\n" + "\n".join(assigned))
+    if warnings:
+        message_parts.append("**Warnings:**\n" + "\n".join(warnings))
+        colour = config.PARTIAL_ERROR_COLOUR if assigned else config.ERROR_COLOUR
+    if not assigned and not warnings:
+        message_parts.append("Please provide a list of users and power roles.")
+        colour = config.ERROR_COLOUR
+
+    log_command(logger, ctx, message=f"Assigned {len(assigned)} power role(s)")
+    await send_message_and_file(
+        channel=ctx.channel,
+        title="Assign Powers",
+        message="\n\n".join(message_parts),
+        embed_colour=colour,
+    )
+
 async def export_game(ctx: commands.Context) -> None:
     """Exports the current game state (players, provinces, parameters) as a JSON file."""
     assert ctx.guild is not None

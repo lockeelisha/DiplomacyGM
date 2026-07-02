@@ -13,6 +13,7 @@ from DiploGM.cogs.game_management import (
     game_creation,
     game_editing,
     grace,
+    votes,
 )
 from DiploGM import perms
 from DiploGM.utils import send_message_and_file
@@ -93,6 +94,19 @@ class GameManagementCog(commands.Cog):
         """
         await game_creation.assign_powers(ctx)
 
+    @commands.command(brief="Assigns power roles to players (Chaos games)")
+    @perms.gm_only("assign powers")
+    async def assign_chaos_powers(self, ctx: commands.Context) -> None:
+        """Assigns power roles to players in Chaos games, where players don't have roles.
+
+        Usage:
+            `.assign_chaos_powers @user power` (one assignment per line)
+
+        Note:
+            This command expects mentions of users and the names of powers.
+        """
+        await game_creation.assign_chaos_powers(ctx)
+
     @commands.command(brief="lists all variants currently supported")
     @perms.gm_only("lists variants")
     async def list_variants(self, ctx: commands.Context) -> None:
@@ -105,7 +119,7 @@ class GameManagementCog(commands.Cog):
 
     @commands.command(brief="Creates channels and roles for a variant")
     @perms.gm_only("create channels and roles")
-    async def setup_server(self, ctx: commands.Context) -> None:
+    async def setup_server(self, ctx: commands.Context, *args) -> None:
         """Creates channels and roles for a variant.
 
         Usage:
@@ -114,7 +128,7 @@ class GameManagementCog(commands.Cog):
         Note:
             Only one set of channels and roles per variant can be created.
         """
-        await channel_management.setup_server(ctx)
+        await channel_management.setup_server(ctx, *args)
 
     @commands.command(hidden=True)
     @perms.superuser_only("delete channels and roles")
@@ -447,6 +461,17 @@ class GameManagementCog(commands.Cog):
             `.edit_game <commands>`
         """
         await game_editing.edit_game(ctx)
+
+    @commands.command(brief="Tallies reactions on a message")
+    @perms.gm_only("tally reactions")
+    async def tally_reacts(self, ctx: commands.Context, message_id: Optional[int], message_link: Optional[str]) -> None:
+        """Tallies reactions on a message, for use in votes to end the game.
+
+        Usage:
+            `.tally_reacts [message_id] [message_link]`
+        """
+
+        await votes.tally_reacts(ctx, message_id, message_link)
 
     @commands.command(brief="Edits server settings")
     @perms.gm_only("edit server")

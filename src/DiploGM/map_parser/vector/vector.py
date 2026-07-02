@@ -73,15 +73,23 @@ class Parser:
             ["override"],
             ["override"]
         )
-        with open(f"{parse_variant_path(variant_name)}/config.json", "r", encoding="utf-8") as f:
-            variant_data = json.load(f)
+
+        def fetch_config_data(variant_name: str, parent: bool = False) -> dict:
+            variant_path = f"{parse_variant_path(variant_name, return_parent=parent)}/config.toml"
+            use_toml = os.path.isfile(variant_path)
+            if not use_toml:
+                variant_path = variant_path[:-4] + "json"
+
+            with open(variant_path, 'rb') as f:
+                return tomllib.load(f) if use_toml else json.load(f)
+
+        variant_data = fetch_config_data(variant_name)
         try:
-            with open(f"{parse_variant_path(variant_name, return_parent=True)}/config.json",
-                      "r", encoding="utf-8") as f:
-                data = json.load(f)
-                data = config_merger.merge(data, variant_data)
+            data = fetch_config_data(variant_name, parent=True)
+            data = config_merger.merge(data, variant_data)
         except FileNotFoundError:
             data = variant_data
+
         # If a config override removes a player, delete it
         if isinstance(data["players"], dict):
             keys_to_delete = [p[0] for p in data["players"].items()
@@ -251,6 +259,7 @@ class Parser:
         game_data = copy.deepcopy(self.data)
         if self.is_chaos:
             game_data["players"] = {}
+            game_data["build_options"] = "anywhere"
         for player in self.players:
             if self.is_chaos or player.name not in game_data["players"]:
                 game_data["players"][player.name] = {}
