@@ -15,92 +15,87 @@ from DiploGM.utils.sanitise import remove_prefix
 
 logger = logging.getLogger(__name__)
 manager = Manager()
+MAX_CHANNELS_PER_CATEGORY = 50
 
+async def _create_role(guild: discord.Guild, name: str, **kwargs) -> Role:
+    if (role := discord.utils.get(guild.roles, name=name)) is None:
+        role = await guild.create_role(name=name, **kwargs)
+    return role
 
-async def setup_server(ctx: commands.Context) -> None:
-    """Sets up the server for a game, creating categories, channels, and roles as needed."""
+async def _create_category(guild: discord.Guild, name: str, **kwargs) -> CategoryChannel:
+    if (category := discord.utils.get(guild.categories, name=name)) is None:
+        category = await guild.create_category(name=name, **kwargs)
+    return category
 
-    async def _create_role(name: str, **kwargs) -> Role:
-        assert ctx.guild is not None
-        if (role := discord.utils.get(ctx.guild.roles, name=name)) is None:
-            role = await ctx.guild.create_role(name=name, **kwargs)
-        return role
+async def _create_channel(name: str, category: CategoryChannel, **kwargs):
+    if discord.utils.get(category.channels, name=name) is None:
+        await category.create_text_channel(name=name, **kwargs)
 
-    async def _create_category(name: str, **kwargs) -> CategoryChannel:
-        assert ctx.guild is not None
-        if (category := discord.utils.get(ctx.guild.categories, name=name)) is None:
-            category = await ctx.guild.create_category(name=name, **kwargs)
-        return category
-
-    async def _create_channel(name: str, category: CategoryChannel, **kwargs):
-        if discord.utils.get(category.channels, name=name) is None:
-            await category.create_text_channel(name=name, **kwargs)
-
+async def _create_nonchaos_roles(ctx: commands.Context, players: list[Player]) -> dict[str, Role]:
     assert ctx.guild is not None
-    gametype = remove_prefix(ctx) or "classic"
-    try:
-        parser_result = get_parser(gametype)
-        if isinstance(parser_result, str):
-            message = parser_result
-            log_command(logger, ctx, message=message)
-            await send_message_and_file(channel=ctx.channel, message=message)
-            return
-        board = parser_result.parse()
-    except ValueError as e:
-        message = str(e)
-        log_command(logger, ctx, message=message)
-        await send_message_and_file(channel=ctx.channel, message=message)
-        return
-
-    players = sorted(list(board.players), key=lambda p: p.get_name())
     roles = {}
-
-    roles["cspec"] = await _create_role(
+    roles["cspec"] = await _create_role(ctx.guild,
         name="Country Spectator", color=discord.Color.from_str("#96dfff")
     )
     for player in players:
         roles[player.name] = await _create_role(
+            ctx.guild,
             name=player.get_name(),
             color=discord.Color.from_str(f"#{player.default_color}"),
             mentionable=True,
             hoist=True,
         )
-    await _create_role(name="Dead", color=discord.Color.from_str("#0b2f68"), hoist=True)
+    await _create_role(ctx.guild, name="Dead", color=discord.Color.from_str("#0b2f68"), hoist=True)
     roles["Player"] = await _create_role(
+        ctx.guild,
         name="Player",
         permissions=discord.Permissions(send_messages=True, add_reactions=True),
     )
     for player in players:
         roles[f"orders-{player.name.lower()}"] = await _create_role(
+            ctx.guild,
             name=f"orders-{player.name.lower()}"
         )
     roles["Spectator"] = await _create_role(
+        ctx.guild,
         name="Spectator", color=discord.Color.from_str("#2ecc71"), hoist=True
     )
     log_command(logger, ctx, message="Created roles for all players and spectators")
     await send_message_and_file(
         channel=ctx.channel, message="Roles created for all players and spectators"
     )
+    return roles
 
-    gm_channel_category = await _create_category(
-        name="GM Channels",
-        overwrites={ctx.guild.default_role: PermissionOverwrite(send_messages=False)},
+async def _create_chaos_roles(ctx: commands.Context):
+    assert ctx.guild is not None
+    roles = {}
+    roles["cspec"] = await _create_role(ctx.guild,
+        name="Country Spectator", color=discord.Color.from_str("#96dfff")
     )
+    await _create_role(ctx.guild, name="Dead", color=discord.Color.from_str("#0b2f68"), hoist=True)
+    roles["Player"] = await _create_role(
+        ctx.guild,
+        name="Player",
+        permissions=discord.Permissions(send_messages=True, add_reactions=True),
+    )
+    roles["Spectator"] = await _create_role(
+        ctx.guild,
+        name="Spectator", color=discord.Color.from_str("#2ecc71"), hoist=True
+    )
+    log_command(logger, ctx, message="Created roles for all players and spectators")
+    await send_message_and_file(
+        channel=ctx.channel, message="Roles created for all players and spectators"
+    )
+    return roles
 
-    for channel_name in "announcements", "orders-log", "maps":
-        await _create_channel(
-            name=channel_name,
-            category=gm_channel_category,
-            overwrites={
-                ctx.guild.default_role: PermissionOverwrite(send_messages=False)
-            },
-        )
-
+async def _create_nonchaos_channels(ctx: commands.Context, players: list[Player], roles: dict[str, Role]):
+    assert ctx.guild is not None
     orders_category = await _create_category(
+        guild=ctx.guild,
         name="Orders",
         overwrites={ctx.guild.default_role: PermissionOverwrite(view_channel=False)},
     )
-    voids_category = await _create_category(name="Voids")
+    voids_category = await _create_category(guild=ctx.guild, name="Voids")
     for player in players:
         await _create_channel(
             name=f"{player.get_name().lower()}-orders",
@@ -129,8 +124,9 @@ async def setup_server(ctx: commands.Context) -> None:
             },
         )
 
-    for i in range(1, ceil(1.5 * len(players) * (len(players) - 1) / 100) + 1):
+    for i in range(1, ceil(1.5 * len(players) * (len(players) - 1) / (2 * MAX_CHANNELS_PER_CATEGORY)) + 1):
         comms_category = await _create_category(
+            guild=ctx.guild,
             name=f"Comms {i}",
             overwrites={roles["Player"]: PermissionOverwrite(manage_channels=True)},
         )
@@ -140,6 +136,76 @@ async def setup_server(ctx: commands.Context) -> None:
     await send_message_and_file(
         channel=ctx.channel, message="Categories and channels created"
     )
+
+async def _create_chaos_channels(ctx: commands.Context, players: list[Player]):
+    assert ctx.guild is not None
+    for i in range(ceil(len(players) / MAX_CHANNELS_PER_CATEGORY)):
+        orders_category = await _create_category(
+            guild=ctx.guild,
+            name="Orders" + (f" {i + 1}" if len(players) > MAX_CHANNELS_PER_CATEGORY else ""),
+            overwrites={ctx.guild.default_role: PermissionOverwrite(view_channel=False)},
+        )
+        for player in players[i * MAX_CHANNELS_PER_CATEGORY : (i + 1) * MAX_CHANNELS_PER_CATEGORY]:
+            await _create_channel(
+                name=f"{player.get_name().lower()}-orders",
+                category=orders_category,
+                overwrites={
+                    ctx.guild.default_role: PermissionOverwrite(view_channel=False)
+                },
+            )
+
+    log_command(logger, ctx, message="Categories and channels created")
+    await send_message_and_file(
+        channel=ctx.channel, message="Categories and channels created"
+    )
+
+async def setup_server(ctx: commands.Context, *args) -> None:
+    """Sets up the server for a game, creating categories, channels, and roles as needed."""
+
+    assert ctx.guild is not None
+    args = [arg.lower() for arg in args]
+    if len(args) == 0 or args[0] in {"fow", "chaos"}:
+        gametype = "classic"
+    else:
+        gametype = args[0]
+    chaos = "chaos" in args
+    try:
+        parser_result = get_parser(gametype)
+        if isinstance(parser_result, str):
+            message = parser_result
+            log_command(logger, ctx, message=message)
+            await send_message_and_file(channel=ctx.channel, message=message)
+            return
+        board = parser_result.parse(chaos=chaos)
+    except ValueError as e:
+        message = str(e)
+        log_command(logger, ctx, message=message)
+        await send_message_and_file(channel=ctx.channel, message=message)
+        return
+
+    players = sorted(list(board.players), key=lambda p: p.get_name())
+    roles = await (_create_chaos_roles(ctx) if chaos else _create_nonchaos_roles(ctx, players))
+
+    gm_channel_category = await _create_category(
+        guild=ctx.guild,
+        name="GM Channels",
+        overwrites={ctx.guild.default_role: PermissionOverwrite(send_messages=False)},
+    )
+
+    for channel_name in "announcements", "orders-log", "maps":
+        await _create_channel(
+            name=channel_name,
+            category=gm_channel_category,
+            overwrites={
+                ctx.guild.default_role: PermissionOverwrite(send_messages=False)
+            },
+        )
+
+    if chaos:
+        await _create_chaos_channels(ctx, players)
+    else:
+        await _create_nonchaos_channels(ctx, players, roles)
+
     await send_message_and_file(channel=ctx.channel, message="Server setup complete")
 
 
@@ -153,13 +219,13 @@ async def reset_server(ctx: commands.Context) -> None:
         c.name[:-7] for c in ctx.guild.channels if c.name.endswith("-orders")
     }
     for category in ctx.guild.categories:
-        if category.name.lower().startswith("comms ") or category.name.lower() in (
-            "orders",
-            "voids",
-        ):
+        if category.name.lower().startswith(("comms ", "orders")) or category.name.lower() == "voids":
             for channel in category.channels:
                 await channel.delete()
             await category.delete()
+    for channel in ctx.guild.channels:
+        if channel.name.lower().endswith(("-orders", "-void")):
+            await channel.delete()
 
     for role in ctx.guild.roles:
         if role.name.lower().replace("orders-", "") in player_names:

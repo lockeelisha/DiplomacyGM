@@ -259,6 +259,7 @@ class Parser:
         game_data = copy.deepcopy(self.data)
         if self.is_chaos:
             game_data["players"] = {}
+            game_data["build_options"] = "anywhere"
         for player in self.players:
             if self.is_chaos or player.name not in game_data["players"]:
                 game_data["players"][player.name] = {}
