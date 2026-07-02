@@ -90,7 +90,9 @@ Edits your user preferences. One parameter per line.
 Edits here will persist through game servers.
 Use '.edit_prefs' followed by one or more lines, each setting a parameter.
 """
-"color_mode" = "<color mode> - for all games of the currently loaded variant, will default to outputting maps in that color mode when you run '.view_map' or '.view_current'. Must be set for each variant, and requires a loaded game."
+color_mode = "<color mode> - for all games of the currently loaded variant, will default to outputting maps in that color mode when you run '.view_map' or '.view_current'. Must be set for each variant, and requires a loaded game."
+pronouns = "<pronouns> - stores your preferred pronouns"
+timezone = "<timezone> - stores your timezone"
 
 
 # Player Cog
@@ -368,6 +370,16 @@ description = "Renames a player and updates their role and channel names."
 usage = "<old_name> <new_name>"
 old_name = "The current player name."
 new_name = "The new player name."
+
+[tally_reacts]
+description = """
+Tallies the reactions on a message, showing which powers have reacted with each emoji.
+Useful for counting votes to end or draw a game.
+Provide either a message ID (looked up in the draw votes channel) or a full message link.
+"""
+usage = "<message_id|message_link>"
+message_id = "The ID of a message in the draw votes channel to tally reactions on."
+message_link = "A full Discord message link (from any channel) to tally reactions on."
 
 [rollback]
 description = "Rolls the game back to the previous phase. Clears any orders in the current phase."

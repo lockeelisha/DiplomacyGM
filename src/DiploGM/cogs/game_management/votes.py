@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class ReactGroup:
     players: set[Player]
     nonplayers: set[User | Member]
-    
+
     def __init__(self):
         self.players, self.nonplayers = set(), set()
 
@@ -36,7 +36,7 @@ async def tally_reacts(ctx: commands.Context, message_id: Optional[int], message
     if message_link is not None:
         pattern = r"https://(?:canary\.|ptb\.)?discord\.com/channels/(\d+)/(\d+)/(\d+)"
         match = re.match(pattern, message_link)
-        
+
         if not match:
             raise ValueError(f"Invalid link: {message_link}")
 

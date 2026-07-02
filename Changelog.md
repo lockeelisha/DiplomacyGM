@@ -11,6 +11,9 @@ Contributors:
 # Developer Changes
 - Configs can now be saved as Toml files as well as Json files
 
+# Bugfixes
+- Added missing help text for `.edit_prefs pronouns` and `.edit_prefs timezone`
+
 1.12.1
 ======
 
