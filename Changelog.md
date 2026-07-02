@@ -3,6 +3,10 @@
 
 Contributors:
 - ianic
+- notnot
+
+# New Features
+- Added `tally_reacts` to simplify tallying which powers have reacted on a vote to end the game.
 
 # Developer Changes
 - Configs can now be saved as Toml files as well as Json files

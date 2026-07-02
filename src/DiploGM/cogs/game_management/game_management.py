@@ -13,6 +13,7 @@ from DiploGM.cogs.game_management import (
     game_creation,
     game_editing,
     grace,
+    votes,
 )
 from DiploGM import perms
 from DiploGM.utils import send_message_and_file
@@ -447,6 +448,17 @@ class GameManagementCog(commands.Cog):
             `.edit_game <commands>`
         """
         await game_editing.edit_game(ctx)
+
+    @commands.command(brief="Tallies reactions on a message")
+    @perms.gm_only("tally reactions")
+    async def tally_reacts(self, ctx: commands.Context, message_id: Optional[int], message_link: Optional[str]) -> None:
+        """Tallies reactions on a message, for use in votes to end the game.
+
+        Usage:
+            `.tally_reacts [message_id] [message_link]`
+        """
+
+        await votes.tally_reacts(ctx, message_id, message_link)
 
     @commands.command(brief="Edits server settings")
     @perms.gm_only("edit server")
