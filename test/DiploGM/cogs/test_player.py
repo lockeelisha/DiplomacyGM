@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 from discord.ext import commands
 
 from DiploGM.models.turn import Turn, PhaseName
-from test.DiploGM.cogs.utils import (
+from test.DiploGM.utils.mocks import (
     CogTestCase,
     create_mock_context,
     create_mock_channel,

@@ -1,31 +1,31 @@
 [submodule "variants/impdip"]
-	path = variants/impdip
-	url = https://github.com/Imperial-Diplomacy/ImpDip-variants.git
-	branch = main
+    path = variants/impdip
+    url = https://github.com/Imperial-Diplomacy/ImpDip-variants.git
+    branch = main
 [submodule "variants/southernimpdip"]
-	path = variants/southernimpdip
-	url = https://github.com/Imperial-Diplomacy/SouthernImpDip-variants.git
-	branch = main
+    path = variants/southernimpdip
+    url = https://github.com/Imperial-Diplomacy/SouthernImpDip-variants.git
+    branch = main
 [submodule "variants/maddip"]
-	path = variants/maddip
-	url = https://github.com/Imperial-Diplomacy/MadDip-variants.git
-	branch = main
+    path = variants/maddip
+    url = https://github.com/Imperial-Diplomacy/MadDip-variants.git
+    branch = main
 [submodule "variants/pelopondip"]
-	path = variants/pelopondip
-	url = https://github.com/Imperial-Diplomacy/PeloponDip-variants.git
-	branch = main
+    path = variants/pelopondip
+    url = https://github.com/Imperial-Diplomacy/PeloponDip-variants.git
+    branch = main
 [submodule "variants/helladip"]
-	path = variants/helladip
-	url = https://github.com/Imperial-Diplomacy/HellaDip-variants.git
-	branch = main
+    path = variants/helladip
+    url = https://github.com/Imperial-Diplomacy/HellaDip-variants.git
+    branch = main
 [submodule "variants/seismicimpdip"]
-	path = variants/seismicimpdip
-	url = https://github.com/Imperial-Diplomacy/SeismicImpDip.git
-	branch = main
+    path = variants/seismicimpdip
+    url = https://github.com/Imperial-Diplomacy/SeismicImpDip.git
+    branch = main
 [submodule "variants/faerundip"]
-	path = variants/faerundip
-	url = https://github.com/Imperial-Diplomacy/FaerunDip-Variants.git
-	branch = main
+    path = variants/faerundip
+    url = https://github.com/Imperial-Diplomacy/FaerunDip-Variants.git
+    branch = main
 [submodule "variants/blackdragon"]
-	path = variants/blackdragon
-	url = https://github.com/Imperial-Diplomacy/BlackDragonDip-variants.git
+    path = variants/blackdragon
+    url = https://github.com/Imperial-Diplomacy/BlackDragonDip-variants.git

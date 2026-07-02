@@ -1,3 +1,28 @@
+1.12.0
+======
+
+Contributors:
+- aahoughton
+- Golden Kumquat
+
+# New Features
+- Added `.view_players` (alias `.vp`) to show who is playing which power
+- Implemented `.edit_prefs set_pronouns` and `.edit_prefs set_timezone` to store pronouns and timezones
+- Added the reputation extension, which can be accessed via the `.rep` command
+- The bot will now remember the name of the server upon joining
+- `.archive_upload` now has an optional `results` parameter
+- Added `.archive_upload_all` which uploads all maps of a game to the archive
+- Added `.assign_powers`, which gives player roles to users at the start of the game
+
+# Developer Changes
+- Moved source code into `/src` folder
+- Moved grace into an extension
+- Split Tiles, which contain geographic data, from Provinces. Tile data is now shared between Boards, reducing redundant memory load
+
+# Bugfixes
+- Fixed typo in `#orders-log` channel name
+- GMs can now do `.province_info` and `.player_info` when orders are locked
+
 1.11.1
 ======
 

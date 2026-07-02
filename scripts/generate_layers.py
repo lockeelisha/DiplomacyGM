@@ -30,7 +30,7 @@ from DiploGM.map_parser.vector.transform import TransGL3
 from DiploGM.map_parser.vector.utils import (
     find_svg_element, get_coordinates, get_element_unit_coordinates, NAMESPACE, SVG_CONFIG_KEY
 )
-from DiploGM.models.province import Province, ProvinceType
+from DiploGM.models.tile import Tile, ProvinceType
 
 INKSCAPE_LABEL = f"{NAMESPACE.get('inkscape')}label"
 
@@ -80,7 +80,7 @@ def generate_layers(parser: Parser, unit_types: list[str]) -> bytes:
                 existing_objects[layer_name].add(label)
 
     # For each province, add an element to each layer at its centroid
-    for province in parser.name_to_province.values():
+    for province in parser.name_to_tile.values():
         for layer_name, layer_info in layers.items():
             _add_element(province, layer_name, layer_info, existing_objects, unit_radius)
 
@@ -103,7 +103,7 @@ def _create_retreat_layer(
     svg_root.getroot().append(retreat_layer)
     return retreat_layer
 
-def _add_element(province: Province, layer_name: str, layer_info: dict,
+def _add_element(province: Tile, layer_name: str, layer_info: dict,
                  existing_objects: dict[str, set[str]], unit_radius: int) -> None:
     if province.name in existing_objects.get(layer_name, set()):
         return
@@ -148,11 +148,7 @@ def main():
 
     logger.info("Parsing variant '%s'", variant_name)
     parser = Parser(variant_name)
-    _, adjacencies = parser._read_map()
-
-    for name1, name2 in adjacencies:
-        parser.name_to_province[name1].adjacencies.add(parser.name_to_province[name2])
-        parser.name_to_province[name2].adjacencies.add(parser.name_to_province[name1])
+    parser._build_tiles()
 
     logger.info("Generating layers: %s", unit_types)
     result = generate_layers(parser, unit_types)

@@ -1,0 +1,252 @@
+"""Utility functions for parsing SVGs."""
+import colorsys
+import logging
+import random
+import re
+from typing import Callable
+from xml.etree.ElementTree import Element, ElementTree
+from shapely.geometry import Point
+
+from DiploGM.map_parser.vector.transform import TransGL3
+from DiploGM.models.tile import Tile
+
+# TODO: Better way of doing custom units
+LAYER_DICTIONARY = {
+    "land_layer": {"Region Colors", "Region Fills", "Provinces"},
+    "island_borders": {"Island Adjacencies", "Hybrid Adjacencies"},
+    "island_fill_layer": {"Island Fills", "Hybrid Fills"},
+    "island_ring_layer": {"Island Rings"},
+    "sea_borders": {"Sea Adjacencies", "Sea Provinces"},
+    "province_names": {"Titles", "Region Names"},
+    "supply_center_icons": {"Supply Centers", "SC Markers", "SC markers"},
+    "titles": {"Titles", "Labels", "Region Names", "Province Names"},
+    "symbol_templates": {"Symbol Templates"},
+    "army": {"Army Locations"},
+    "retreat_army": {"Army Retreat Locations", "Army Locations (Retreats)"},
+    "fleet": {"Fleet Locations"},
+    "retreat_fleet": {"Fleet Retreat Locations", "Fleet Locations (Retreats)"},
+    "starting_units": {"Units"},
+    "unit_output": {"Unit Output Layer"},
+    "arrow_output": {"Orders Output Layer"},
+    "background": {"Background"},
+    "other_fills": {"Other Fills", "OTHER FILLS (High Seas)", "OTHER FILLS (Impassables and High Seas)"},
+    "season": {"Season Title"},
+    "year": {"Year Title"},
+    "power_banners": {"Power Banners"},
+    "sidebar": {"Sidebar"}
+}
+LAYER_NAMES = set(LAYER_DICTIONARY.keys())
+NAMESPACE: dict[str, str] = {
+    "inkscape": "{http://www.inkscape.org/namespaces/inkscape}",
+    "sodipodi": "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd",
+    "svg": "http://www.w3.org/2000/svg",
+}
+SVG_CONFIG_KEY: str = "svg config"
+
+logger = logging.getLogger(__name__)
+
+def get_coordinates(element: Element) -> complex:
+    """Fetches coordinates of an SVG element as a complex number."""
+    x = element.get("x", 0)
+    y = element.get("y", 0)
+    return complex(float(x), float(y))
+
+
+def find_svg_element(svg_root: Element | ElementTree, layer_name: str, config_data: dict) -> Element | None:
+    """Given a set of element ids and labels, tries to find a matching element in the SVG or None if none found."""
+    layer_id = config_data.get(layer_name)
+    if layer_id is not None and isinstance(layer_id, str):
+        if (element := svg_root.find(f'*[@id="{layer_id}"]')) is not None:
+            return element
+    for element_label in LAYER_DICTIONARY.get(layer_name, set()) | {layer_name}:
+        if (element := svg_root.find(f'*[@inkscape:label="{element_label}"]',
+            namespaces={"inkscape": "http://www.inkscape.org/namespaces/inkscape"})) is not None:
+            return element
+    return None
+
+def clear_svg_element(svg_root: Element | ElementTree, layer_name: str, config_data: dict) -> None:
+    """Clears an element from the SVG. Tends to run much quicker than deleting it entirely."""
+    element = find_svg_element(svg_root, layer_name, config_data)
+    if element is not None:
+        element.clear()
+
+def get_element_color(element: Element, prefix="fill:") -> str | None:
+    """Gets the color of an element, or None if it has none."""
+    style_string = element.get("style")
+    if style_string is None:
+        return None
+    style = style_string.split(";")
+    for value in style:
+        if value.startswith(prefix):
+            if value == "none" and prefix == "fill:":
+                return get_element_color(element, "stroke:")
+            value = value[len(prefix):]
+            if value.startswith("#"):
+                value = value[1:]
+            return value.lower()
+    return None
+
+def get_element_unit_coordinates(unit_data: Element) -> complex:
+    """Gets the x, y coordinates of a unit."""
+    # Check for an image element first - if present, use its center
+    image = unit_data.find("{http://www.w3.org/2000/svg}image")
+    if image is not None:
+        x = float(image.get("x", 0))
+        y = float(image.get("y", 0))
+        w = float(image.get("width", 0))
+        h = float(image.get("height", 0))
+        center = complex(x + w / 2, y + h / 2)
+        return TransGL3(image).transform(center)
+
+    subpath = unit_data.find("{http://www.w3.org/2000/svg}path")
+    path = subpath if subpath is not None else unit_data
+
+    x = path.get("{http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd}cx")
+    y = path.get("{http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd}cy")
+    if x is None or y is None:
+        # find all the points the objects are at
+        # take the center of the bounding box
+        pathstr = path.get("d")
+        if pathstr is None:
+            path = unit_data.findall("{http://www.w3.org/2000/svg}path")[0]
+            pathstr = path.get("d")
+        assert pathstr is not None
+        coordinates = sum(parse_path(pathstr, TransGL3(path)), start = [])
+        x_list = [p.real for p in coordinates]
+        y_list = [p.imag for p in coordinates]
+        return complex((min(x_list) + max(x_list)) / 2, (min(y_list) + max(y_list)) / 2)
+
+    coordinate = complex(float(x), float(y))
+    return coordinate if subpath is None else TransGL3(path).transform(coordinate)
+
+def get_sc_coordinates(supply_center_data: Element) -> complex:
+    circles = supply_center_data.findall(".//svg:circle", namespaces=NAMESPACE)
+    circle = circles[0] if circles else supply_center_data
+    cx = circle.get("cx")
+    cy = circle.get("cy")
+    if cx is None or cy is None:
+        return get_element_unit_coordinates(supply_center_data)
+    base_coordinates = complex(float(cx), float(cy))
+    return TransGL3(circle).transform(base_coordinates)
+
+# returns:
+# new base_coordinate (= base_coordinate if not applicable),
+# new former_coordinate (= former_coordinate if not applicable),
+def _parse_path_command(
+    command: str,
+    args: complex,
+    coordinate: complex,
+) -> complex:
+    is_absolute = command.isupper()
+    command = command.lower()
+
+    if command in ["m", "c", "l", "t", "s", "q", "a"]:
+        return args if is_absolute else coordinate + args  # Ignore all args except the last
+    if command == "h":
+        coordinate = complex(0, coordinate.imag) if is_absolute else coordinate
+        return coordinate + complex(args.real, 0)
+    if command == "v":
+        coordinate = complex(coordinate.real, 0) if is_absolute else coordinate
+        return coordinate + complex(0, args.real)
+    raise ValueError(f"Unknown SVG path command: {command}")
+
+def parse_path(path_string: str, translation: TransGL3) -> list[list[complex]]:
+    """Parses an SVG path string into a list of coordinates."""
+    province_coordinates = [[]]
+    command = None
+    arguments_by_command = {"a": 7, "c": 6, "h": 1, "l": 2, "m": 2, "q": 4, "s": 4, "t": 2, "v": 1}
+    expected_arguments = 0
+    current_index = 0
+    path: list[str] = re.split(r"[ ,]+", path_string.strip())
+
+    start = None
+    coordinate = complex(0)
+    while current_index < len(path):
+        if path[current_index][0].isalpha():
+            if len(path[current_index]) != 1:
+                # m20,70 is valid syntax, so move the 20,70 to the next element
+                path.insert(current_index + 1, path[current_index][1:])
+                path[current_index] = path[current_index][0]
+
+            command = path[current_index]
+            if command.lower() == "z":
+                if start is None:
+                    raise ValueError("Invalid geometry: got 'z' on first element in a subgeometry")
+                province_coordinates[-1].append(translation.transform(start))
+                coordinate = start
+                start = None
+                current_index += 1
+                if current_index < len(path):
+                    # If we are closing, and there is more, there must be a second polygon (Chukchi Sea)
+                    province_coordinates += [[]]
+                    continue
+                break
+
+            if (expected_arguments := arguments_by_command.get(command.lower())) is None:
+                raise RuntimeError(f"Unknown SVG path command {command}")
+
+            current_index += 1
+
+        if command is None:
+            raise RuntimeError("Path string does not start with a command")
+        if command.lower() == "z":
+            raise ValueError("Invalid path, 'z' was followed by arguments")
+
+        final_index = current_index + expected_arguments
+        if len(path) < final_index:
+            raise RuntimeError(f"Ran out of arguments for {command}")
+
+        if expected_arguments == 1:
+            args = complex(float(path[current_index]), 0.0)
+        else:
+            args = complex(float(path[final_index - 2]), float(path[final_index - 1]))
+
+        coordinate = _parse_path_command(
+            command, args, coordinate
+        )
+
+        if start is None:
+            start = coordinate
+
+        province_coordinates[-1].append(translation.transform(coordinate))
+        current_index = final_index
+    return province_coordinates
+
+# Initializes relevant province data
+# resident_dataset: SVG element whose children each live in some province
+# get_coordinates: functions to get x and y child data coordinates in SVG
+# function: method in Province that, given the province and a child element corresponding to that province, initializes
+# that data in the Province
+def initialize_province_resident_data(
+    provinces: set[Tile],
+    resident_dataset: Element | list[Element],
+    get_coordinates: Callable[[Element], complex],
+    resident_data_callback: Callable[[Tile, Element, str | None], None],
+) -> None:
+    resident_dataset = list(resident_dataset)
+    for province in provinces:
+        remove = set()
+
+        # found = False
+        for resident_data in resident_dataset:
+            point = get_coordinates(resident_data)
+            if not point:
+                remove.add(resident_data)
+                continue
+            if province.geometry is not None and province.geometry.contains(Point(point.real, point.imag)):
+                # found = True
+                resident_data_callback(province, resident_data, None)
+                remove.add(resident_data)
+
+        for resident_data in remove:
+            resident_dataset.remove(resident_data)
+
+def weighted_random_color(seed: str | None = None) -> str:
+    """Generates a random color, avoiding colors too close to black or white.
+    If a seed is provided, the same color will be generated for the same seed."""
+    rng = random if seed is None else random.Random(seed)
+    hue = rng.random()
+    sat = rng.uniform(0.15, 1)
+    lit = rng.uniform(0.30, 0.70)
+    r, g, b = colorsys.hls_to_rgb(hue, lit, sat)
+    return f"{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"

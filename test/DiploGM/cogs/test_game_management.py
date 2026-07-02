@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from discord.ext import commands
 
-from test.DiploGM.cogs.utils import (
+from test.DiploGM.utils.mocks import (
     CogTestCase,
     create_mock_channel,
     create_mock_gm_context,
