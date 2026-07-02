@@ -125,7 +125,7 @@ class Board:
         """Goes through the datafile and adds any missing players/nicknames."""
         for player_name, player_data in self.data["players"].items():
             if player_name.lower() not in self.name_to_player:
-                self.add_new_player(player_name, player_data["color"])
+                self.add_new_player(player_name, player_data.get("color", "00FF00"))
         for player in self.players:
             if nickname := self.data["players"][player.name].get("nickname"):
                 self.add_nickname(player, nickname)

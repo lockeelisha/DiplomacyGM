@@ -1,3 +1,15 @@
+1.12.1
+======
+
+Contributors:
+- Golden Kumquat
+
+# Bugfixes
+- Fixed published maps having the wrong season in their title
+- Made it so non-existant powers on the map are neon green instead of crashing the bot (typically caused if SC markers are a different color than the region colors)
+- Fixed the GUI Javascript file location
+- Added a bit more clarity to `.archive_upload` output
+
 1.12.0
 ======
 

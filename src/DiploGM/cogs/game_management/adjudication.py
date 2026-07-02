@@ -254,7 +254,7 @@ async def _upload_maps(
         draw_moves=is_orders,
         color_mode=color_mode,
     )
-    old_turn = board.turn.get_previous_turn() if is_orders else board.turn
+    old_turn = board.turn if is_orders else board.turn.get_previous_turn()
     title = (
         f"{board.data.get('game_name')} — " if board.data.get("game_name") else ""
     ) + f"{old_turn}"

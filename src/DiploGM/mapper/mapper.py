@@ -363,7 +363,7 @@ class Mapper:
         clear_svg_element(self._moves_svg, "power_banners", self.board_svg_data)
         clear_svg_element(self._moves_svg, "season", self.board_svg_data)
 
-        with open("DiploGM/mapper/mapper.js", "r", encoding="utf-8") as f:
+        with open("src/DiploGM/mapper/mapper.js", "r", encoding="utf-8") as f:
             js = f.read()
 
         locdict = {}

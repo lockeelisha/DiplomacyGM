@@ -3,13 +3,9 @@ import datetime
 import json
 import logging
 import uuid
-from typing import TYPE_CHECKING
 
 from discord.ext import commands, tasks
 from discord import Message, TextChannel, User
-
-if TYPE_CHECKING:
-    from discord.types.user import User as UserPayload
 
 from DiploGM.bot import DiploGM
 from DiploGM import perms
