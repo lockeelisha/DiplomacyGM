@@ -17,7 +17,7 @@ to_rename = [
     ["impdip.1.5.json", "impdip.1.5"],
     ["impdip.2.0.json", "impdip.2.0"],
     ["impdip.1.6.json", "impdip.1.6"],
-    ["helladip.0.3.json", "helladip.0.3"]
+    ["helladip.0.3.json", "helladip.0.3"],
 ]
 
 db_usages = [
@@ -34,9 +34,11 @@ WHERE {column_name} = '{search}';
 
 for table, column in db_usages:
     for find, replace in to_rename:
-        SQL_txt += SQL_format.format(table_name=table, column_name=column, replace=replace, search=find)
+        SQL_txt += SQL_format.format(
+            table_name=table, column_name=column, replace=replace, search=find
+        )
 
 SQL_txt += "\nCOMMIT;\n"
 
-with open("11-RenamedVariants.sql", 'w') as f:
+with open("11-RenamedVariants.sql", "w") as f:
     f.write(SQL_txt)

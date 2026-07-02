@@ -12,7 +12,8 @@ def get_open_cores(
 ) -> list[tuple[Player, tuple[Province, ...]]]:
     if player_restriction is None:
         players = board.players
-    else: players = {player_restriction}
+    else:
+        players = {player_restriction}
 
     response = []
 
@@ -28,6 +29,7 @@ def get_open_cores(
 
     return response
 
+
 def get_open_core_text(
     ctx: commands.Context,
     board: Board,
@@ -39,7 +41,6 @@ def get_open_core_text(
     response = []
     open_core_info_by_player = get_open_cores(board, player_restriction)
     for player, open_cores in open_core_info_by_player:
-
         if (player_role := find_discord_role(player, ctx.guild.roles)) is not None:
             player_name = player_role.mention
         else:

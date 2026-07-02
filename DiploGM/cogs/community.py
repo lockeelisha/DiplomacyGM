@@ -61,22 +61,30 @@ class CommunityService:
         if isinstance(identifier, str):
             return self.community_repo.find_one_by(lambda c: c.name == identifier)
 
-    def is_community_owner(self, community: Community, user: discord.User | discord.Member) -> bool:
+    def is_community_owner(
+        self, community: Community, user: discord.User | discord.Member
+    ) -> bool:
         rel = self.relation_repo.find_one_by(
-            lambda r: r.subject_id == user.id
-            and r.object_id == community.id
-            and r.type == RelationshipType.COMMUNITY_OWNER
+            lambda r: (
+                r.subject_id == user.id
+                and r.object_id == community.id
+                and r.type == RelationshipType.COMMUNITY_OWNER
+            )
         )
         if rel:
             return True
 
         return False
 
-    def is_user_in_community(self, community: Community, user: discord.User | discord.Member) -> bool:
+    def is_user_in_community(
+        self, community: Community, user: discord.User | discord.Member
+    ) -> bool:
         rel = self.relation_repo.find_one_by(
-            lambda r: r.subject_id == user.id
-            and r.object_id == community.id
-            and r.type == RelationshipType.COMMUNITY_MEMBER
+            lambda r: (
+                r.subject_id == user.id
+                and r.object_id == community.id
+                and r.type == RelationshipType.COMMUNITY_MEMBER
+            )
         )
         if rel:
             return True
@@ -85,8 +93,10 @@ class CommunityService:
 
     def is_server_in_community(self, server_id: int) -> Optional[int]:
         rel = self.relation_repo.find_one_by(
-            lambda r: r.subject_id == server_id
-            and r.type == RelationshipType.COMMUNITY_SERVER
+            lambda r: (
+                r.subject_id == server_id
+                and r.type == RelationshipType.COMMUNITY_SERVER
+            )
         )
         if rel:
             return rel.object_id
@@ -99,9 +109,11 @@ class CommunityService:
 
     def unregister_server_to_community(self, community: Community, server_id: int):
         rel = self.relation_repo.find_one_by(
-            lambda r: r.subject_id == server_id
-            and r.object_id == community.id
-            and r.type == RelationshipType.COMMUNITY_SERVER
+            lambda r: (
+                r.subject_id == server_id
+                and r.object_id == community.id
+                and r.type == RelationshipType.COMMUNITY_SERVER
+            )
         )
         if rel and rel.id:
             self.relation_repo.delete(rel.id)
@@ -113,8 +125,9 @@ class CommunityService:
         current_member_ids = {member.id for member in guild.members}
 
         existing_rels = self.relation_repo.find_by(
-            lambda rel: rel.object_id == guild.id
-            and rel.type == RelationshipType.SERVER_MEMBER
+            lambda rel: (
+                rel.object_id == guild.id and rel.type == RelationshipType.SERVER_MEMBER
+            )
         )
         existing_member_ids = {rel.subject_id for rel in existing_rels}
 
@@ -140,9 +153,11 @@ class CommunityService:
 
     def unregister_user_to_community(self, community: Community, user_id: int):
         rel = self.relation_repo.find_one_by(
-            lambda r: r.subject_id == user_id
-            and r.object_id == community.id
-            and r.type == RelationshipType.COMMUNITY_MEMBER
+            lambda r: (
+                r.subject_id == user_id
+                and r.object_id == community.id
+                and r.type == RelationshipType.COMMUNITY_MEMBER
+            )
         )
         if rel and rel.id:
             self.relation_repo.delete(rel.id)
@@ -245,8 +260,9 @@ class CommunityCog(commands.Cog):
 
         for c in sorted(communities, key=lambda c: c.name):
             owner_rel = self.service.relation_repo.find_one_by(
-                lambda r: r.object_id == c.id
-                and r.type == RelationshipType.COMMUNITY_OWNER
+                lambda r: (
+                    r.object_id == c.id and r.type == RelationshipType.COMMUNITY_OWNER
+                )
             )
             if owner_rel and (owner := self.bot.get_user(owner_rel.subject_id)):
                 out += f"({c.id}) {c.name} by {owner.mention}\n"
@@ -276,8 +292,10 @@ class CommunityCog(commands.Cog):
 
         out = f"ID: {community.id}\n"
         owner_rel = self.service.relation_repo.find_one_by(
-            lambda r: r.object_id == community.id
-            and r.type == RelationshipType.COMMUNITY_OWNER
+            lambda r: (
+                r.object_id == community.id
+                and r.type == RelationshipType.COMMUNITY_OWNER
+            )
         )
         if owner_rel:
             user = self.bot.get_user(owner_rel.subject_id)
@@ -287,8 +305,10 @@ class CommunityCog(commands.Cog):
 
         server_rels = list(
             self.service.relation_repo.find_by(
-                lambda r: r.object_id == community.id
-                and r.type == RelationshipType.COMMUNITY_SERVER
+                lambda r: (
+                    r.object_id == community.id
+                    and r.type == RelationshipType.COMMUNITY_SERVER
+                )
             )
         )
         out += f"Servers: {len(server_rels)}\n"
@@ -305,8 +325,10 @@ class CommunityCog(commands.Cog):
 
         member_rels = list(
             self.service.relation_repo.find_by(
-                lambda r: r.object_id == community.id
-                and r.type == RelationshipType.COMMUNITY_MEMBER
+                lambda r: (
+                    r.object_id == community.id
+                    and r.type == RelationshipType.COMMUNITY_MEMBER
+                )
             )
         )
         out += f"Members: {len(member_rels)}\n"
@@ -374,8 +396,8 @@ class CommunityCog(commands.Cog):
         community = self.service.get_community(existing_community_id)
         if not community:
             raise ValueError(
-                f"The community attached to this server '{existing_community_id}' could not be found, " +
-                 "contact a Bot Superuser."
+                f"The community attached to this server '{existing_community_id}' could not be found, "
+                + "contact a Bot Superuser."
             )
 
         if not self.service.is_community_owner(
@@ -457,8 +479,8 @@ class CommunityCog(commands.Cog):
         if self.service.is_community_owner(community, ctx.author):
             await send_message_and_file(
                 channel=ctx.channel,
-                message="### You're the owner of that community!\n" +
-                        "Find a replacement owner and contact a bot superuser to replace.",
+                message="### You're the owner of that community!\n"
+                + "Find a replacement owner and contact a bot superuser to replace.",
                 embed_colour=ERROR_COLOUR,
             )
             return
@@ -474,12 +496,14 @@ class CommunityCog(commands.Cog):
     async def community_graph(self, ctx: commands.Context):
         G = nx.DiGraph()
         rels = self.service.relation_repo.find_by(
-            lambda r: r.type
-            in [
-                RelationshipType.SERVER_MEMBER,
-                RelationshipType.COMMUNITY_MEMBER,
-                RelationshipType.COMMUNITY_SERVER,
-            ]
+            lambda r: (
+                r.type
+                in [
+                    RelationshipType.SERVER_MEMBER,
+                    RelationshipType.COMMUNITY_MEMBER,
+                    RelationshipType.COMMUNITY_SERVER,
+                ]
+            )
         )
 
         for r in rels:
@@ -640,8 +664,10 @@ class CommunityCog(commands.Cog):
             return
 
         curr_owner = self.service.relation_repo.find_one_by(
-            lambda r: r.object_id == community_id
-            and r.type == RelationshipType.COMMUNITY_OWNER
+            lambda r: (
+                r.object_id == community_id
+                and r.type == RelationshipType.COMMUNITY_OWNER
+            )
         )
         if curr_owner and curr_owner.id:
             self.service.relation_repo.delete(curr_owner.id)
@@ -670,9 +696,14 @@ class CommunityCog(commands.Cog):
 
         communities = list(
             rel_repo.find_by(
-                lambda r: r.subject_id == ctx.author.id
-                and r.type
-                in [RelationshipType.COMMUNITY_MEMBER, RelationshipType.COMMUNITY_OWNER]
+                lambda r: (
+                    r.subject_id == ctx.author.id
+                    and r.type
+                    in [
+                        RelationshipType.COMMUNITY_MEMBER,
+                        RelationshipType.COMMUNITY_OWNER,
+                    ]
+                )
             )
         )
         if len(communities) != 0:
@@ -691,8 +722,10 @@ class CommunityCog(commands.Cog):
 
         servers = list(
             rel_repo.find_by(
-                lambda r: r.subject_id == ctx.author.id
-                and r.type in [RelationshipType.SERVER_MEMBER]
+                lambda r: (
+                    r.subject_id == ctx.author.id
+                    and r.type in [RelationshipType.SERVER_MEMBER]
+                )
             )
         )
         if len(servers) != 0:

@@ -8,7 +8,8 @@ WantedBy=multi-user.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/DiplomacyGM
-ExecStart=/opt/DiplomacyGM/botvm/bin/python3 /opt/DiplomacyGM/main.py
+Environment=PYTHONPATH=/opt/DiplomacyGM/src
+ExecStart=/opt/DiplomacyGM/botvm/bin/python3 -m DiploGM.main
 SyslogIdentifier=%n
 Restart=always
 RestartSec=5

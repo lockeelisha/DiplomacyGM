@@ -1,4 +1,5 @@
 """Configuration methods for the bot."""
+
 from __future__ import annotations
 
 import logging
@@ -17,8 +18,9 @@ with open("config.toml", "rb") as toml_file:
     _toml = tomllib.load(toml_file)
 
 
-def merge_toml(main: dict[str, Any], default: dict[str, Any], current_path: str = "") -> Tuple[
-    List[Tuple[int, str]], dict[str, Any]]:
+def merge_toml(
+    main: dict[str, Any], default: dict[str, Any], current_path: str = ""
+) -> Tuple[List[Tuple[int, str]], dict[str, Any]]:
     """Merges the main config with the default config, returning a list of errors and the merged config."""
     output = {}
     errors = []
@@ -26,18 +28,28 @@ def merge_toml(main: dict[str, Any], default: dict[str, Any], current_path: str 
         if key in main:
             if type(main[key]) is type(default[key]):
                 if isinstance(main[key], dict):
-                    new_errors, output[key] = merge_toml(main[key], default[key], current_path=key)
+                    new_errors, output[key] = merge_toml(
+                        main[key], default[key], current_path=key
+                    )
                     errors.extend(new_errors)
                 else:
                     output[key] = main[key]
             else:
-                errors.append((logging.ERROR, f"Mismatched config types: {current_path}"))
+                errors.append(
+                    (logging.ERROR, f"Mismatched config types: {current_path}")
+                )
         else:
             output[key] = default[key]
     return errors, output
 
 
 toml_errors, all_config = merge_toml(_toml, _default_toml)
+
+# GEMERAL CONFIG
+DB_LOCATION = "bot_db.sqlite"
+DB_SCHEMA_LOCATION = "src/DiploGM/db/schema.sql"
+
+GRAMMAR_LOCATION = "src/DiploGM/orders.ebnf"
 
 # BOT CONFIG
 DISCORD_TOKEN = all_config["bot"]["discord_token"]
@@ -54,17 +66,27 @@ MAP_ARCHIVE_URL = all_config["archive_website"]["url"]
 
 # DEVELOPMENT SERVER HUB
 BOT_DEV_SERVER_ID: int = all_config["dev_hub"]["id"]
-BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID: int = all_config["dev_hub"]["unhandled_errors_channel"]
+BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID: int = all_config["dev_hub"][
+    "unhandled_errors_channel"
+]
 
 # HUB SERVER
 HUB_SERVER_ID: int = all_config["hub"]["id"]
 ## Channels
-HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID: int = all_config["hub"]["server_presence_channel"]
+HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID: int = all_config["hub"][
+    "server_presence_channel"
+]
 HUB_SERVER_BOT_STATUS_CHANNEL_ID: int = all_config["hub"]["status_channel"]
-HUB_SERVER_SUBSTITUTE_TICKET_CHANNEL_ID: int = all_config["hub"]["substitute_ticket_channel"]
-HUB_SERVER_SUBSTITUTE_ADVERTISE_CHANNEL_ID: int = all_config["hub"]["substitute_advertise_channel"]
+HUB_SERVER_SUBSTITUTE_TICKET_CHANNEL_ID: int = all_config["hub"][
+    "substitute_ticket_channel"
+]
+HUB_SERVER_SUBSTITUTE_ADVERTISE_CHANNEL_ID: int = all_config["hub"][
+    "substitute_advertise_channel"
+]
 HUB_SERVER_SUBSTITUTE_LOG_CHANNEL_ID: int = all_config["hub"]["substitute_log_channel"]
-HUB_SERVER_WINTER_SCOREBOARD_OUTPUT_CHANNEL_ID: int = all_config["hub"]["winter_scoreboard_output_channel"]
+HUB_SERVER_WINTER_SCOREBOARD_OUTPUT_CHANNEL_ID: int = all_config["hub"][
+    "winter_scoreboard_output_channel"
+]
 ## Roles
 HUB_BOT_WIZARD_ROLE: int = all_config["hub"]["bot_wizard"]
 HUB_SERVER_VERIFIED_ROLE: str = all_config["hub"]["verified_role"]
@@ -75,6 +97,7 @@ HUB_SERVER_BOT_BUG_REPORT_CHANNEL_MESSAGE: str = all_config["hub"]["bug_report_c
 GM_CATEGORY: str = all_config["server_channels"]["gm_category"]
 MAPS_CHANNEL: str = all_config["server_channels"]["maps_channel"]
 ORDERS_LOG_CHANNEL: str = all_config["server_channels"]["orders_log_channel"]
+RESTRICTED_ROLE_NAMES: str = all_config["server_channels"]["restricted_roles"]
 
 # PERMISSIONS
 SUPERUSERS = all_config["permissions"]["superusers"]
@@ -88,7 +111,10 @@ PARTIAL_ERROR_COLOUR: str = all_config["colours"]["embed_partial_success"]
 ERROR_COLOUR: str = all_config["colours"]["embed_error"]
 
 # INKSCAPE
-SIMULATRANEOUS_SVG_EXPORT_LIMIT = all_config["inkscape"]["simultaneous_svg_exports_limit"]
+SIMULATRANEOUS_SVG_EXPORT_LIMIT = all_config["inkscape"][
+    "simultaneous_svg_exports_limit"
+]
+
 
 class ConfigException(Exception):
     pass
@@ -188,6 +214,7 @@ temporary_bumbles: set[str] = set()
 def is_bumble(name: str) -> bool:
     """Checks to see if a username is a bumble."""
     return name == "_bumble" or name in temporary_bumbles
+
 
 def output_config_logs(logger=None):
     if logger is None:

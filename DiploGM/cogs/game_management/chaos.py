@@ -1,4 +1,5 @@
 """Chaos-related game management commands. Might be removed in the future."""
+
 import logging
 from discord import Member, PermissionOverwrite, TextChannel, Thread
 from discord.ext import commands
@@ -11,13 +12,12 @@ from DiploGM.manager import Manager
 logger = logging.getLogger(__name__)
 manager = Manager()
 
+
 async def publicize(ctx: commands.Context) -> None:
     """Opens a channel (usually a void) to the spectator role"""
     assert ctx.guild is not None
     if not is_gm(ctx.message.author):
-        raise PermissionError(
-            "You cannot publicize a void because you are not a GM."
-        )
+        raise PermissionError("You cannot publicize a void because you are not a GM.")
 
     channel = ctx.channel
     assert isinstance(channel, TextChannel)
@@ -67,9 +67,7 @@ async def publicize(ctx: commands.Context) -> None:
         reason=f"Creating Orders for {player.get_name()}",
         invitable=False,
     )
-    await thread.send(
-        f"{''.join([u.mention for u in users])} | {staff_role.mention}"
-    )
+    await thread.send(f"{''.join([u.mention for u in users])} | {staff_role.mention}")
 
     # Allow for sending messages in thread
     for user, permission in user_permissions:
@@ -77,9 +75,7 @@ async def publicize(ctx: commands.Context) -> None:
         await channel.set_permissions(target=user, overwrite=permission)
 
     # Add spectators
-    spectator_permissions = PermissionOverwrite(
-        view_channel=True, send_messages=False
-    )
+    spectator_permissions = PermissionOverwrite(view_channel=True, send_messages=False)
     await channel.set_permissions(
         target=spectator_role, overwrite=spectator_permissions
     )
@@ -87,6 +83,4 @@ async def publicize(ctx: commands.Context) -> None:
     # Update name
     await channel.edit(name=channel.name.replace("orders", "void"))
 
-    await send_message_and_file(
-        channel=channel, message="Finished publicizing void."
-    )
+    await send_message_and_file(channel=channel, message="Finished publicizing void.")

@@ -1,5 +1,6 @@
 """Handles uploading maps to the archive.
 Currently only works with Azure and isn't really meant for public use, but it could be in the future."""
+
 from __future__ import annotations
 
 import asyncio
@@ -20,11 +21,14 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def upload_map_to_archive(ctx: commands.Context,
-                                server_id: int,
-                                board: Board,
-                                game_map: bytes,
-                                turn: Turn | None = None) -> None:
+async def upload_map_to_archive(
+    ctx: commands.Context,
+    server_id: int,
+    board: Board,
+    game_map: bytes,
+    turn: Turn | None = None,
+    draw_moves: bool = True,
+) -> None:
     """Uploads a map to the archive given a server ID and the map as a PNG."""
     if not MAP_ARCHIVE_SAS_TOKEN:
         return
@@ -34,12 +38,16 @@ async def upload_map_to_archive(ctx: commands.Context,
         for server in gamefile:
             server_info = server.strip().split("\t")
             if str(server_id) == server_info[0]:
-                url = f"{MAP_ARCHIVE_UPLOAD_URL}/{server_info[1]}/{server_info[2]}/" + \
-                      f"{turnstr}m.png{MAP_ARCHIVE_SAS_TOKEN}"
+                url = (
+                    f"{MAP_ARCHIVE_UPLOAD_URL}/{server_info[1]}/{server_info[2]}/"
+                    + f"{turnstr}{'m' if draw_moves else 'r'}.png{MAP_ARCHIVE_SAS_TOKEN}"
+                )
                 break
     if url is None:
         return
-    png_map, _ = await svg_to_png(game_map, url, dpi=board.data["svg config"].get("dpi", 200))
+    png_map, _ = await svg_to_png(
+        game_map, url, dpi=board.data["svg config"].get("dpi", 200)
+    )
     p = await asyncio.create_subprocess_shell(
         f'azcopy copy "{url}" --from-to PipeBlob --content-type image/png',
         stdout=PIPE,

@@ -1,10 +1,14 @@
 """Module to parse commands to edit the board parameters."""
+
 from DiploGM.config import ERROR_COLOUR, PARTIAL_ERROR_COLOUR
 from DiploGM.utils import get_keywords
 from DiploGM.models.board import Board
 from DiploGM.manager import Manager
 
-def parse_user_prefs(user_id: int, message: str, board: Board | None) -> tuple[str, str, str | None]:
+
+def parse_user_prefs(
+    user_id: int, message: str, board: Board | None
+) -> tuple[str, str, str | None]:
     """Parses a message containing commands to edit user preferences,
     executes those commands, and returns a response message."""
     invalid: list[tuple[str, RuntimeError | ValueError]] = []
@@ -36,18 +40,42 @@ def parse_user_prefs(user_id: int, message: str, board: Board | None) -> tuple[s
         embed_colour,
     )
 
-def _set_color_mode(_, keywords: list[str], board: Board | None) -> tuple[str | None, str | None]:
+
+def _set_color_mode(
+    _, keywords: list[str], board: Board | None
+) -> tuple[str | None, str | None]:
     if board is None:
         raise ValueError("Setting a color mode requires an existing game")
     color_mode = keywords[0].lower()
-    valid_color_modes = board.data["svg config"].get("color_options", []) + ["standard", "custom"]
+    valid_color_modes = board.data["svg config"].get("color_options", []) + [
+        "standard",
+        "custom",
+    ]
     if color_mode not in valid_color_modes:
         raise ValueError(f"Unknown color mode: {color_mode}")
     return f"{board.datafile}/color_mode", color_mode
 
+
+def _set_pronouns(
+    _, keywords: list[str], board: Board | None
+) -> tuple[str | None, str | None]:
+    content = " ".join(keywords).lower()
+    return "pronouns", content
+
+
+def _set_timezone(
+    _, keywords: list[str], board: Board | None
+) -> tuple[str | None, str | None]:
+    content = " ".join(keywords).upper()
+    return "timezone", content
+
+
 function_list = {
-    "color mode": _set_color_mode
+    "color mode": _set_color_mode,
+    "pronouns": _set_pronouns,
+    "timezone": _set_timezone,
 }
+
 
 def _parse_command(user_id: int, command: str, board: Board | None) -> None:
     command_list: list[str] = get_keywords(command)

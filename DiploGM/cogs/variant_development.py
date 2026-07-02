@@ -1,4 +1,5 @@
 """Cog to handle variant development and management."""
+
 import asyncio
 import logging
 import os
@@ -12,16 +13,23 @@ from DiploGM.map_parser.vector.vector import get_parser
 from DiploGM.utils import log_command, send_message_and_file
 from DiploGM.manager import Manager
 from DiploGM.utils.sanitise import parse_variant_path
+
 logger = logging.getLogger(__name__)
 manager = Manager()
 
+
 class VariantDevelopmentCog(commands.Cog):
     """Bot administration commands, to be used by superusers only."""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    @commands.command(brief="Checks the adjacencies of a variant to find potential issues")
-    @perms.superuser_only("Checks the adjacencies of a variant to find potential issues")
+    @commands.command(
+        brief="Checks the adjacencies of a variant to find potential issues"
+    )
+    @perms.superuser_only(
+        "Checks the adjacencies of a variant to find potential issues"
+    )
     async def verify_adjacencies(self, ctx: commands.Context, arg) -> None:
         """Checks the adjacencies of a variant to find potential issues."""
         assert ctx.guild is not None
@@ -31,8 +39,12 @@ class VariantDevelopmentCog(commands.Cog):
         log_command(logger, ctx, message=message)
         await send_message_and_file(channel=ctx.channel, message=message)
 
-    @commands.command(brief="Reloads the map parser for a given variant. Useful if a map has been updated.")
-    @perms.superuser_only("Reloads the map parser for a given variant. Useful if a map has been updated.")
+    @commands.command(
+        brief="Reloads the map parser for a given variant. Useful if a map has been updated."
+    )
+    @perms.superuser_only(
+        "Reloads the map parser for a given variant. Useful if a map has been updated."
+    )
     async def reload_variant(self, ctx: commands.Context, arg) -> None:
         """Reloads the map parser for a given variant. Useful if a map has been updated."""
         assert ctx.guild is not None
@@ -58,7 +70,9 @@ class VariantDevelopmentCog(commands.Cog):
 
     @commands.command(brief="Pulls changes from the Git repository.")
     @perms.superuser_only("Pulls changes from the Git repository.")
-    async def update_variant(self, ctx: commands.Context, variant: str, branch: str = "main") -> None:
+    async def update_variant(
+        self, ctx: commands.Context, variant: str, branch: str = "main"
+    ) -> None:
         """Pulls changes from the Git repository."""
         assert ctx.guild is not None
 
@@ -71,7 +85,9 @@ class VariantDevelopmentCog(commands.Cog):
             return
 
         async def run_command(*args) -> bool:
-            process = await asyncio.create_subprocess_exec("git", *args, stdout=PIPE, stderr=PIPE, cwd=variant_dir)
+            process = await asyncio.create_subprocess_exec(
+                "git", *args, stdout=PIPE, stderr=PIPE, cwd=variant_dir
+            )
             _, err = await process.communicate()
             if process.returncode == 0:
                 return True
@@ -90,6 +106,7 @@ class VariantDevelopmentCog(commands.Cog):
         message = f"Updated `{variant}` on branch `{branch}`"
         log_command(logger, ctx, message=message)
         await send_message_and_file(channel=ctx.channel, message=message)
+
 
 async def setup(bot):
     cog = VariantDevelopmentCog(bot)

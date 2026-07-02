@@ -42,11 +42,11 @@ class ExtensionManagementCog(commands.Cog):
         try:
             await self.bot.unload_diplogm_extension(extension)
         except ExtensionNotFound:
-            status="Extension was not found"
-            colour=ERROR_COLOUR
+            status = "Extension was not found"
+            colour = ERROR_COLOUR
         except ExtensionNotLoaded:
             status = "Extension was not loaded"
-            colour=PARTIAL_ERROR_COLOUR
+            colour = PARTIAL_ERROR_COLOUR
         except:
             status = "Extension failed to unload for an unknown reason"
             colour = ERROR_COLOUR
@@ -55,9 +55,7 @@ class ExtensionManagementCog(commands.Cog):
             colour = None
         finally:
             await send_message_and_file(
-                channel=ctx.channel,
-                embed_colour=colour,
-                title=f"{status}: {extension}"
+                channel=ctx.channel, embed_colour=colour, title=f"{status}: {extension}"
             )
 
     @commands.command(hidden=True)
@@ -85,9 +83,7 @@ class ExtensionManagementCog(commands.Cog):
             colour = None
         finally:
             await send_message_and_file(
-                channel=ctx.channel,
-                embed_colour=colour,
-                title=f"{status}: {extension}"
+                channel=ctx.channel, embed_colour=colour, title=f"{status}: {extension}"
             )
 
     @commands.command(hidden=True)
@@ -96,32 +92,33 @@ class ExtensionManagementCog(commands.Cog):
         try:
             await self.bot.reload_diplogm_extension(extension)
         except ExtensionNotFound:
-            status="Extension was not found"
-            colour=ERROR_COLOUR
+            status = "Extension was not found"
+            colour = ERROR_COLOUR
         except ExtensionNotLoaded:
-            status="Extension was not loaded"
-            colour=PARTIAL_ERROR_COLOUR
+            status = "Extension was not loaded"
+            colour = PARTIAL_ERROR_COLOUR
         except ExtensionAlreadyLoaded:
-            status="Extension was unload but could not be loaded as it was already loaded"
-            colour=PARTIAL_ERROR_COLOUR
+            status = (
+                "Extension was unload but could not be loaded as it was already loaded"
+            )
+            colour = PARTIAL_ERROR_COLOUR
         except NoEntryPointError:
-            status="Extension was unloaded but now has no setup function"
-            colour=ERROR_COLOUR
+            status = "Extension was unloaded but now has no setup function"
+            colour = ERROR_COLOUR
         except ExtensionFailed:
-            status="Extension failed to load"
-            colour=ERROR_COLOUR
+            status = "Extension failed to load"
+            colour = ERROR_COLOUR
         except:
             status = "Extension failed to reload for an unknown reason"
             colour = ERROR_COLOUR
         else:
-            status="Reloaded Extension"
-            colour=None
+            status = "Reloaded Extension"
+            colour = None
         finally:
             await send_message_and_file(
-                channel=ctx.channel,
-                embed_colour=colour,
-                title=f"{status}: {extension}"
+                channel=ctx.channel, embed_colour=colour, title=f"{status}: {extension}"
             )
+
 
 async def setup(bot: DiploGM):
     cog = ExtensionManagementCog(bot)

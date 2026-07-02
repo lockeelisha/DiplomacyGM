@@ -2,19 +2,30 @@
 
 from enum import Enum
 
-from DiploGM.models.order import NMR, Hold, Core, Move, Support, ConvoyTransport, Transform, UnitOrder
+from DiploGM.models.order import (
+    NMR,
+    Hold,
+    Core,
+    Move,
+    Support,
+    ConvoyTransport,
+    Transform,
+    UnitOrder,
+)
 from DiploGM.models.province import Province
 from DiploGM.models.unit import Unit
 
 
 class Resolution(Enum):
     """Whether an order succeeds or fails."""
+
     SUCCEEDS = 0
     FAILS = 1
 
 
 class ResolutionState(Enum):
     """Resolution status for an order (unresolved, guessing, resolved)."""
+
     UNRESOLVED = 0
     GUESSING = 1
     RESOLVED = 2
@@ -22,6 +33,7 @@ class ResolutionState(Enum):
 
 class OrderType(Enum):
     """The type of order."""
+
     HOLD = 0
     CORE = 1
     MOVE = 2
@@ -33,6 +45,7 @@ class OrderType(Enum):
 class AdjudicableOrder:
     """Helper class for adjudicating orders.
     Contains order information and information about the unit's adjudication state."""
+
     def __init__(self, unit: Unit):
         self.state = ResolutionState.UNRESOLVED
         self.resolution = Resolution.FAILS
@@ -66,26 +79,34 @@ class AdjudicableOrder:
             self.destination_coast = unit.order.destination_coast
         elif isinstance(unit.order, Move):
             self.type = OrderType.MOVE
-            (self.destination_province, self.destination_coast) = unit.order.get_destination_and_coast()
+            (self.destination_province, self.destination_coast) = (
+                unit.order.get_destination_and_coast()
+            )
             self.is_sortie = unit.order.is_sortie
         elif isinstance(unit.order, Support):
             self.type = OrderType.SUPPORT
             self.source_province = unit.order.source
-            (self.destination_province, self.destination_coast) = unit.order.get_destination_and_coast()
+            (self.destination_province, self.destination_coast) = (
+                unit.order.get_destination_and_coast()
+            )
         elif isinstance(unit.order, ConvoyTransport):
             self.type = OrderType.CONVOY
             self.source_province = unit.order.source
             self.destination_province = unit.order.destination
         else:
-            raise ValueError(f"Can't parse {unit.order.__class__.__name__} to OrderType")
+            raise ValueError(
+                f"Can't parse {unit.order.__class__.__name__} to OrderType"
+            )
 
         self.base_unit = unit
 
     def __str__(self):
         # This could be improved
-        return f"{self.current_province} {self.type} " + \
-               f"{self.source_province if self.source_province else ''} " + \
-               f"{self.destination_province} [{self.state}:{self.resolution}]"
+        return (
+            f"{self.current_province} {self.type} "
+            + f"{self.source_province if self.source_province else ''} "
+            + f"{self.destination_province} [{self.state}:{self.resolution}]"
+        )
 
     def get_original_order(self) -> UnitOrder:
         """Get the original order."""

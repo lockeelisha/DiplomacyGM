@@ -12,7 +12,12 @@ from DiploGM.utils import (
     send_message_and_file,
 )
 from DiploGM.manager import Manager
-from DiploGM.models.player import ForcedDisbandOption, OrdersSubsetOption, Player, ViewOrdersTags
+from DiploGM.models.player import (
+    ForcedDisbandOption,
+    OrdersSubsetOption,
+    Player,
+    ViewOrdersTags,
+)
 from DiploGM.utils.send_message import ErrorMessage, send_error
 
 logger = logging.getLogger(__name__)
@@ -23,18 +28,23 @@ fow_export_limit = asyncio.Semaphore(
     max(int(config.SIMULATRANEOUS_SVG_EXPORT_LIMIT) - 1, 1)
 )
 
+
 class FogOfWarCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def _get_player_list(self, ctx: commands.Context, board: Board) -> set[tuple[Player, TextChannel]]:
+    async def _get_player_list(
+        self, ctx: commands.Context, board: Board
+    ) -> set[tuple[Player, TextChannel]]:
         assert ctx.guild is not None
 
         if board.data.get("fow", "disabled") != "enabled":
             await send_error(ctx.channel, ErrorMessage.FOW_DISABLED)
             return set()
 
-        player_category = next((c for c in ctx.guild.categories if config.is_player_category(c)), None)
+        player_category = next(
+            (c for c in ctx.guild.categories if config.is_player_category(c)), None
+        )
         if not player_category:
             await send_error(ctx.channel, ErrorMessage.NO_PLAYER_CATEGORY)
             return set()
@@ -69,22 +79,38 @@ class FogOfWarCog(commands.Cog):
 
         for player, channel in player_list:
             file, file_name = manager.draw_map(
-                server_id=ctx.guild.id, draw_moves=True, turn=prev_turn, fow_player=player
+                server_id=ctx.guild.id,
+                draw_moves=True,
+                turn=prev_turn,
+                fow_player=player,
             )
             await send_message_and_file(
-                channel=channel, title=f"{prev_turn} Orders Map",
+                channel=channel,
+                title=f"{prev_turn} Orders Map",
                 message=f"Here is the {prev_turn} orders map for {player.name}",
-                file=file, file_name=file_name, convert_svg=True, file_in_embed=False, dpi=dpi
+                file=file,
+                file_name=file_name,
+                convert_svg=True,
+                file_in_embed=False,
+                dpi=dpi,
             )
             await asyncio.sleep(0)
 
             file, file_name = manager.draw_map(
-                server_id=ctx.guild.id, draw_moves=False, turn=board.turn, fow_player=player
+                server_id=ctx.guild.id,
+                draw_moves=False,
+                turn=board.turn,
+                fow_player=player,
             )
             await send_message_and_file(
-                channel=channel, title=f"{prev_turn} Results Map",
+                channel=channel,
+                title=f"{prev_turn} Results Map",
                 message=f"Here is the {prev_turn} results map for {player.name}",
-                file=file, file_name=file_name, convert_svg=True, file_in_embed=False, dpi=dpi
+                file=file,
+                file_name=file_name,
+                convert_svg=True,
+                file_in_embed=False,
+                dpi=dpi,
             )
             await asyncio.sleep(0)
 
@@ -114,7 +140,7 @@ class FogOfWarCog(commands.Cog):
             forced=ForcedDisbandOption.MARK_FORCED,
             blind=False,
             open_cores=False,
-            explain=False
+            explain=False,
         )
         if board is None:
             await send_error(ctx.channel, ErrorMessage.NO_PREVIOUS_BOARD)
@@ -125,8 +151,12 @@ class FogOfWarCog(commands.Cog):
             if not prev_player:
                 continue
             message = get_orders(
-                board=board, player_restriction=None, ctx=ctx,
-                tags=tags, fields=False, fow_restriction=prev_player
+                board=board,
+                player_restriction=None,
+                ctx=ctx,
+                tags=tags,
+                fields=False,
+                fow_restriction=prev_player,
             )
             if not isinstance(message, str) or not message:
                 continue

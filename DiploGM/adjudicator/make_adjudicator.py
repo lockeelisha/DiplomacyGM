@@ -1,4 +1,5 @@
 """Factory function for creating an adjudicator for the current phase."""
+
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
@@ -9,6 +10,7 @@ from DiploGM.adjudicator.retreats_adjudicator import RetreatsAdjudicator
 if TYPE_CHECKING:
     from DiploGM.models.board import Board
     from DiploGM.adjudicator.adjudicator import Adjudicator
+
 
 def make_adjudicator(board: Board) -> Adjudicator:
     """Factory function for creating an adjudicator for the current phase."""

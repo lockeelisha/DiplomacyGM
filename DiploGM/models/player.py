@@ -1,4 +1,5 @@
 """Player information and methods."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -17,13 +18,14 @@ if TYPE_CHECKING:
 
 class Player:
     """Represents a player in the game."""
+
     def __init__(
         self,
         name: str,
         color: str | dict[str, str],
         centers: set[province.Province],
         units: set[unit.Unit],
-        is_active: bool = True
+        is_active: bool = True,
     ):
         self.name: str = name
         self.color_dict: dict | None = None
@@ -70,33 +72,47 @@ class Player:
         """Gets a string representation about the player's information."""
         bullet = "\n- "
 
-        units = sorted(self.units, key=lambda u: (u.unit_type.code, u.province.get_name(u.coast)))
+        units = sorted(
+            self.units, key=lambda u: (u.unit_type.code, u.province.get_name(u.coast))
+        )
         unit_str = f"({len(units)}):"
         for unit in units:
-            unit_str += f"{bullet}({unit.unit_type.code}) {unit.province.get_name(unit.coast)}"
+            unit_str += (
+                f"{bullet}({unit.unit_type.code}) {unit.province.get_name(unit.coast)}"
+            )
 
         centers = sorted(self.centers, key=lambda c: c.name)
         center_str = f"({len(centers)}):"
         for center in centers:
-            core_str = (" (core)" if center.core_data.core == self
-                        else " (half-core)" if center.core_data.half_core == self else "")
+            core_str = (
+                " (core)"
+                if center.core_data.core == self
+                else " (half-core)"
+                if center.core_data.half_core == self
+                else ""
+            )
             center_str += f"{bullet}{center.name}{core_str}"
 
-        player_data = board.data['players'][self.name]
-        color = player_data.get('custom_color', self.default_color)
+        player_data = board.data["players"][self.name]
+        color = player_data.get("custom_color", self.default_color)
         score = ""
         if not board.is_chaos():
-            color = (bullet + color + (bullet + bullet.join([k + ': ' + v for k, v in self.color_dict.items()])
-                                      if self.color_dict is not None else ""))
-            score = f"Score: [{len(self.centers)}/{int(player_data.get('vscc', 0))}] " + \
-                    f"{round(board.get_score(self) * 100, 2)}%\n"
+            color = (
+                bullet
+                + color
+                + (
+                    bullet
+                    + bullet.join([k + ": " + v for k, v in self.color_dict.items()])
+                    if self.color_dict is not None
+                    else ""
+                )
+            )
+            score = (
+                f"Score: [{len(self.centers)}/{int(player_data.get('vscc', 0))}] "
+                + f"{round(board.get_score(self) * 100, 2)}%\n"
+            )
 
-        out = (
-            f"Color: {color}\n"
-            f"{score}"
-            f"Centers: {center_str}\n"
-            f"Units: {unit_str}\n"
-        )
+        out = f"Color: {color}\n{score}Centers: {center_str}\nUnits: {unit_str}\n"
         return out
 
     def get_number_of_builds(self) -> int:
@@ -111,28 +127,36 @@ class Player:
                 num_builds += 1
         return num_builds
 
+
 class OrdersSubsetOption(Enum):
     """Whether to show all orders, only submitted orders, or only missing orders."""
+
     FULL = auto()
     MISSING = auto()
     SUBMITTED = auto()
 
+
 class ForcedDisbandOption(Enum):
     """Whether to mark dislodged units that must be disbanded, or even hide them entirely."""
+
     UNMARKED = auto()
     MARK_FORCED = auto()
     ONLY_FREE = auto()
 
+
 @dataclass
 class ViewOrdersTags:
     """Tags for viewing orders with various options."""
+
     subset: OrdersSubsetOption
     blind: bool
     forced: ForcedDisbandOption
     open_cores: bool
     explain: bool
 
+
 @dataclass
 class ViewOpenCoresTags:
     """Tags for viewing open cores with various options."""
+
     blind: bool

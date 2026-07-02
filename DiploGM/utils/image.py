@@ -1,4 +1,5 @@
 """Utility functions that handle image conversion."""
+
 import asyncio
 import logging
 import os
@@ -38,8 +39,8 @@ async def svg_to_png(svg: bytes, file_name: str, dpi: int = 200) -> tuple[bytes,
         png_start = b"\x89PNG\r\n\x1a\n"
 
         if data[:8] != png_start:
-#            logger.critical(f"failed to assert png code: {png_start}")
-#            logger.critical(data[:30])
+            #            logger.critical(f"failed to assert png code: {png_start}")
+            #            logger.critical(data[:30])
 
             data = data[data.find(png_start) :]
 

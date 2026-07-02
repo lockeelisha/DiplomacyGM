@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from unittest.mock import MagicMock
-from test.DiploGM.cogs.utils import CogTestCase, create_mock_context
+from test.DiploGM.utils.mocks import CogTestCase, create_mock_context
 
 from discord.ext import commands
 from DiploGM.cogs.command import CommandCog

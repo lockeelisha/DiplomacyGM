@@ -5,6 +5,7 @@ from typing import Iterable, Optional
 from DiploGM.db.database import get_connection
 from DiploGM.utils.repository import Repository
 
+
 @dataclass
 class Server:
     id: int
@@ -62,12 +63,18 @@ class SQLiteServerRepository(Repository[Server]):
         self.conn.commit()
 
     def soft_delete(self, object_id: int) -> None:
-        self.conn.execute("""
+        self.conn.execute(
+            """
             UPDATE community_servers 
             SET active = 0,
                 deactivated_at = ?
             WHERE id = ?
-        """, (datetime.datetime.now().isoformat(), object_id,))
+        """,
+            (
+                datetime.datetime.now().isoformat(),
+                object_id,
+            ),
+        )
 
     def clear(self) -> None:
         self.conn.execute("DELETE FROM community_servers")
@@ -85,4 +92,3 @@ class SQLiteServerRepository(Repository[Server]):
             active=bool(row[3]),
             deactivated_at=datetime.datetime.fromisoformat(row[4]) if row[4] else None,
         )
-

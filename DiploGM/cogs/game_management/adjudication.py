@@ -1,4 +1,5 @@
 """Game management commands related to adjudication."""
+
 import asyncio
 import logging
 
@@ -19,13 +20,18 @@ from DiploGM.utils import (
 from DiploGM.utils.image import svg_to_png
 
 from DiploGM.models.order import Disband, Build
-from DiploGM.models.player import ForcedDisbandOption, OrdersSubsetOption, ViewOrdersTags
+from DiploGM.models.player import (
+    ForcedDisbandOption,
+    OrdersSubsetOption,
+    ViewOrdersTags,
+)
 from DiploGM.manager import Manager
 from DiploGM.utils.sanitise import get_colour_option, remove_prefix
 from DiploGM.utils.send_message import ErrorMessage, send_error
 
 logger = logging.getLogger(__name__)
 manager = Manager()
+
 
 async def lock_orders(ctx: commands.Context) -> None:
     """Sets board flag to prevent new order submissions"""
@@ -39,6 +45,7 @@ async def lock_orders(ctx: commands.Context) -> None:
         message=f"{board.turn}",
     )
 
+
 async def unlock_orders(ctx: commands.Context) -> None:
     """Sets board flag to enable new order submissions"""
     assert ctx.guild is not None
@@ -51,6 +58,7 @@ async def unlock_orders(ctx: commands.Context) -> None:
         message=f"{board.turn}",
     )
 
+
 async def _post_orders(ctx: commands.Context, board: Board) -> str:
     assert ctx.guild is not None
 
@@ -60,7 +68,7 @@ async def _post_orders(ctx: commands.Context, board: Board) -> str:
             forced=ForcedDisbandOption.MARK_FORCED,
             blind=False,
             open_cores=False,
-            explain=False
+            explain=False,
         )
         order_text = get_orders(board, None, ctx, tags=tags, fields=True)
     except RuntimeError as err:
@@ -101,30 +109,45 @@ async def _post_orders(ctx: commands.Context, board: Board) -> str:
     )
     return log.jump_url
 
+
 async def _ping_phase_change(guild: Guild, board: Board, log_url: str) -> None:
     curr_board = manager.get_board(guild.id)
 
     extra_info = {}
     if curr_board.turn.is_retreats():
         for player in curr_board.get_players():
-            units_to_retreat = sorted([str(u) for u in player.units if len(u.retreat_options or []) > 0])
+            units_to_retreat = sorted(
+                [str(u) for u in player.units if len(u.retreat_options or []) > 0]
+            )
             if len(units_to_retreat) > 0:
-                extra_info[player.name] = "**Units to retreat**:\n" + '\n'.join(units_to_retreat)
-    elif (curr_board.turn.is_builds()
-            and (old_board := manager.get_previous_board(board.board_id)) is not None):
+                extra_info[player.name] = "**Units to retreat**:\n" + "\n".join(
+                    units_to_retreat
+                )
+    elif (
+        curr_board.turn.is_builds()
+        and (old_board := manager.get_previous_board(board.board_id)) is not None
+    ):
         for player in curr_board.get_players():
             old_player = old_board.get_player(player.name)
             if not old_player:
                 continue
             extra_info[player.name] = ""
-            centers_gained = {str(c) for c in player.centers} - {str(c) for c in old_player.centers}
+            centers_gained = {str(c) for c in player.centers} - {
+                str(c) for c in old_player.centers
+            }
             if len(centers_gained) > 0:
                 centers_gained = sorted([str(c) for c in centers_gained])
-                extra_info[player.name] = "**Centers gained**:\n" + '\n'.join(centers_gained)
-            centers_lost = {str(c) for c in old_player.centers} - {str(c) for c in player.centers}
+                extra_info[player.name] = "**Centers gained**:\n" + "\n".join(
+                    centers_gained
+                )
+            centers_lost = {str(c) for c in old_player.centers} - {
+                str(c) for c in player.centers
+            }
             if len(centers_lost) > 0:
                 centers_lost = sorted([str(c) for c in centers_lost])
-                extra_info[player.name] += "\n**Centers lost**:\n" + '\n'.join(centers_lost)
+                extra_info[player.name] += "\n**Centers lost**:\n" + "\n".join(
+                    centers_lost
+                )
 
     for c in [cat for cat in guild.categories if config.is_player_category(cat)]:
         for ch in c.text_channels:
@@ -145,6 +168,7 @@ async def _ping_phase_change(guild: Guild, board: Board, log_url: str) -> None:
                 ),
             )
 
+
 async def _update_deadline(ctx: commands.Context, guild_id: int) -> None:
     board = manager.get_board(guild_id)
     if not (timestamp := board.data.get("deadline")):
@@ -153,11 +177,13 @@ async def _update_deadline(ctx: commands.Context, guild_id: int) -> None:
     board.set_data("deadline", int(timestamp) + 60 * 60 * 24 * phase_length)
     get_connection().execute_arbitrary_sql(
         "INSERT OR REPLACE INTO board_parameters (board_id, parameter_key, parameter_value) VALUES (?, ?, ?)",
-        (board.board_id, "deadline", board.data["deadline"])
+        (board.board_id, "deadline", board.data["deadline"]),
     )
     await send_message_and_file(
         channel=ctx.channel,
-        message=f"Updated deadline to <t:{board.data['deadline']}:f>.")
+        message=f"Updated deadline to <t:{board.data['deadline']}:f>.",
+    )
+
 
 async def publish_orders(ctx: commands.Context, *args) -> None:
     """Publishes orders to the orders log channel, uploads the map to the archive,
@@ -182,6 +208,7 @@ async def publish_orders(ctx: commands.Context, *args) -> None:
     if board.data.get("deadline"):
         _ = asyncio.create_task(_update_deadline(ctx, guild.id))
 
+
 async def _is_missing_orders(board: Board) -> bool:
     if board.turn.is_moves():
         for unit in board.units:
@@ -190,9 +217,12 @@ async def _is_missing_orders(board: Board) -> bool:
 
     if board.turn.is_retreats():
         for unit in board.units:
-            if (unit.province.dislodged_unit == unit
-                and unit.retreat_options and len(unit.retreat_options) > 0
-                and unit.order is None):
+            if (
+                unit.province.dislodged_unit == unit
+                and unit.retreat_options
+                and len(unit.retreat_options) > 0
+                and unit.order is None
+            ):
                 return True
 
     if board.turn.is_builds():
@@ -209,8 +239,15 @@ async def _is_missing_orders(board: Board) -> bool:
                 return True
     return False
 
-async def _upload_maps(ctx: commands.Context, args: dict, board: Board, is_orders: bool,
-                       maps_channel_id: str, color_mode: str) -> None:
+
+async def _upload_maps(
+    ctx: commands.Context,
+    args: dict,
+    board: Board,
+    is_orders: bool,
+    maps_channel_id: str,
+    color_mode: str,
+) -> None:
     assert ctx.guild is not None
     file, file_name = manager.draw_map_for_board(
         board,
@@ -218,8 +255,14 @@ async def _upload_maps(ctx: commands.Context, args: dict, board: Board, is_order
         color_mode=color_mode,
     )
     old_turn = board.turn.get_previous_turn() if is_orders else board.turn
-    title = (f"{board.data.get('game_name')} — " if board.data.get("game_name") else "") + f"{old_turn}"
-    map_channel = ctx.guild.get_channel(int(maps_channel_id)) if maps_channel_id is not None else None
+    title = (
+        f"{board.data.get('game_name')} — " if board.data.get("game_name") else ""
+    ) + f"{old_turn}"
+    map_channel = (
+        ctx.guild.get_channel(int(maps_channel_id))
+        if maps_channel_id is not None
+        else None
+    )
     if not isinstance(map_channel, discord.TextChannel):
         await send_error(ctx.channel, ErrorMessage.INVALID_MAPS_CHANNEL)
         map_channel = None
@@ -227,11 +270,15 @@ async def _upload_maps(ctx: commands.Context, args: dict, board: Board, is_order
     image_file_name: str | None = None
     needs_png = args["return_svg"] or (args["full"] and map_channel is not None)
     if needs_png:
-        image_file, image_file_name = await svg_to_png(file, file_name, dpi=board.data["svg config"].get("dpi", 200))
+        image_file, image_file_name = await svg_to_png(
+            file, file_name, dpi=board.data["svg config"].get("dpi", 200)
+        )
     await send_message_and_file(
         channel=ctx.channel,
         title=f"{title} {'Orders' if is_orders else 'Results'} Map",
-        message=f"Test adjudication{ ' results' if not is_orders else ''}" if args["test"] else "",
+        message=f"Test adjudication{' results' if not is_orders else ''}"
+        if args["test"]
+        else "",
         file=image_file if args["return_svg"] else file,
         file_name=image_file_name if args["return_svg"] else file_name,
     )
@@ -247,27 +294,39 @@ async def _upload_maps(ctx: commands.Context, args: dict, board: Board, is_order
         except discord.Forbidden:
             pass
 
-async def _adjudication_utils(ctx: commands.Context,
-                              guild: discord.Guild,
-                              new_board: Board,
-                              test_adjudicate: bool) -> None:
+
+async def _adjudication_utils(
+    ctx: commands.Context, guild: discord.Guild, new_board: Board, test_adjudicate: bool
+) -> None:
     # AUTOMATIC SCOREBOARD OUTPUT FOR DATA SPREADSHEET
-    if (new_board.turn.is_builds()
-        and (guild.id != config.BOT_DEV_SERVER_ID and guild.name.startswith("Imperial Diplomacy"))
-        and not test_adjudicate):
-        channel = ctx.bot.get_channel(config.HUB_SERVER_WINTER_SCOREBOARD_OUTPUT_CHANNEL_ID)
+    if (
+        new_board.turn.is_builds()
+        and (
+            guild.id != config.BOT_DEV_SERVER_ID
+            and guild.name.startswith("Imperial Diplomacy")
+        )
+        and not test_adjudicate
+    ):
+        channel = ctx.bot.get_channel(
+            config.HUB_SERVER_WINTER_SCOREBOARD_OUTPUT_CHANNEL_ID
+        )
         if not channel:
-            await send_message_and_file(channel=ctx.channel,
-                                        message="Couldn't automatically send off the Winter Scoreboard data",
-                                        embed_colour=config.ERROR_COLOUR)
+            await send_message_and_file(
+                channel=ctx.channel,
+                message="Couldn't automatically send off the Winter Scoreboard data",
+                embed_colour=config.ERROR_COLOUR,
+            )
             return
-        title = f"### {guild.name} Centre Counts (alphabetical order) | {new_board.turn}"
+        title = (
+            f"### {guild.name} Centre Counts (alphabetical order) | {new_board.turn}"
+        )
 
         players = sorted(new_board.get_players(), key=lambda p: p.get_name())
         counts = "\n".join(map(lambda p: str(len(p.centers)), players))
 
         await channel.send(title)
         await channel.send(counts)
+
 
 async def adjudicate(ctx: commands.Context) -> None:
     """Adjudicates the game, and publishes the orders and results maps."""
@@ -277,19 +336,21 @@ async def adjudicate(ctx: commands.Context) -> None:
     board = manager.get_board(guild.id)
 
     arguments = remove_prefix(ctx).lower().split()
-    args = {"return_svg": not ({"true", "t", "svg", "s"} & set(arguments)),
-            "color": get_colour_option(board, arguments),
-            "test": "test" in arguments,
-            "full": "full" in arguments and "test" not in arguments,
-            "movement": "movement" in arguments,
-            "force": ({"force", "confirm"} & set(arguments)) and "test" not in arguments}
+    args = {
+        "return_svg": not ({"true", "t", "svg", "s"} & set(arguments)),
+        "color": get_colour_option(board, arguments),
+        "test": "test" in arguments,
+        "full": "full" in arguments and "test" not in arguments,
+        "movement": "movement" in arguments,
+        "force": ({"force", "confirm"} & set(arguments)) and "test" not in arguments,
+    }
 
     if not args["force"] and not args["test"] and await _is_missing_orders(board):
         await send_message_and_file(
             channel=ctx.channel,
             title="Missing Orders",
-            message="Game has not been adjudicated due to missing orders. " +
-                    f"To adjudicate anyway, use `{ctx.message.content} confirm`",
+            message="Game has not been adjudicated due to missing orders. "
+            + f"To adjudicate anyway, use `{ctx.message.content} confirm`",
             embed_colour=config.ERROR_COLOUR,
         )
         return
@@ -315,10 +376,14 @@ async def adjudicate(ctx: commands.Context) -> None:
     # We draw the board from the DB to apply failed and DP orders that we want to hide from players
     draw_board = manager.get_board_from_db(guild.id, old_turn)
     manager.apply_adjudication_results(guild.id, draw_board)
-    title = (f"{board.data.get('game_name')} — " if board.data.get("game_name") else "") + f"{old_turn}"
+    title = (
+        f"{board.data.get('game_name')} — " if board.data.get("game_name") else ""
+    ) + f"{old_turn}"
 
     if args["full"]:
-        map_channels = dict(manager.ctx_parameters.get(guild.id, {}).get("maps_channel", {}))
+        map_channels = dict(
+            manager.ctx_parameters.get(guild.id, {}).get("maps_channel", {})
+        )
     else:
         map_channels = {}
     default_maps_channel = _get_maps_channel(guild)
@@ -352,6 +417,7 @@ async def adjudicate(ctx: commands.Context) -> None:
         await unlock_orders(ctx)
 
     await _adjudication_utils(ctx, guild, new_board, args["test"])
+
 
 def _get_maps_channel(guild: Guild) -> str | None:
     for channel in guild.channels:

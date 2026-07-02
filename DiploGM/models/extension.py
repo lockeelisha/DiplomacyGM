@@ -1,4 +1,5 @@
 """Module that handles extensions/graces, mainly interacted via the .grace command"""
+
 from __future__ import annotations
 from dataclasses import dataclass, field
 import datetime
@@ -10,9 +11,11 @@ from DiploGM.utils.repository import Repository
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class ExtensionEvent:
     """Represents an extension event in the system."""
+
     user_id: int
     server_id: int
     hours: float
@@ -38,11 +41,13 @@ class ExtensionEvent:
             server_id=data["server_id"],
             hours=data["hours"],
             reason=data["reason"],
-            created_at=datetime.datetime.fromisoformat(data["created_at"])
+            created_at=datetime.datetime.fromisoformat(data["created_at"]),
         )
+
 
 class SQLiteExtensionEventRepository(Repository):
     """A repository for storing and retrieving ExtensionEvent objects from a SQLite database."""
+
     def __init__(self) -> None:
         self.conn = get_connection()._connection
         self._initialise_schema()
@@ -65,7 +70,13 @@ class SQLiteExtensionEventRepository(Repository):
         cursor = self.conn.cursor()
         cursor.execute(
             "INSERT INTO extension_events (user_id, server_id, hours, reason, created_at) VALUES (?, ?, ?, ?, ?)",
-            (entity.user_id, entity.server_id, entity.hours, entity.reason, entity.created_at.isoformat()),
+            (
+                entity.user_id,
+                entity.server_id,
+                entity.hours,
+                entity.reason,
+                entity.created_at.isoformat(),
+            ),
         )
         self.conn.commit()
         entity.id = cursor.lastrowid
@@ -88,7 +99,7 @@ class SQLiteExtensionEventRepository(Repository):
             server_id=data[2],
             hours=data[3],
             reason=data[4],
-            created_at=datetime.datetime.fromisoformat(data[5])
+            created_at=datetime.datetime.fromisoformat(data[5]),
         )
 
         return entity
@@ -119,13 +130,14 @@ class SQLiteExtensionEventRepository(Repository):
 
         return [
             ExtensionEvent(
-            id=row[0],
-            user_id=row[1],
-            server_id=row[2],
-            hours=row[3],
-            reason=row[4],
-            created_at=datetime.datetime.fromisoformat(row[5])
-            ) for row in data
+                id=row[0],
+                user_id=row[1],
+                server_id=row[2],
+                hours=row[3],
+                reason=row[4],
+                created_at=datetime.datetime.fromisoformat(row[5]),
+            )
+            for row in data
         ]
 
     def load_by_user(self, user_id: int) -> list[ExtensionEvent]:
@@ -141,13 +153,14 @@ class SQLiteExtensionEventRepository(Repository):
 
         return [
             ExtensionEvent(
-            id=row[0],
-            user_id=row[1],
-            server_id=row[2],
-            hours=row[3],
-            reason=row[4],
-            created_at=datetime.datetime.fromisoformat(row[5])
-            ) for row in data
+                id=row[0],
+                user_id=row[1],
+                server_id=row[2],
+                hours=row[3],
+                reason=row[4],
+                created_at=datetime.datetime.fromisoformat(row[5]),
+            )
+            for row in data
         ]
 
     def load_by_server(self, server_id: int) -> list[ExtensionEvent]:
@@ -163,11 +176,12 @@ class SQLiteExtensionEventRepository(Repository):
 
         return [
             ExtensionEvent(
-            id=row[0],
-            user_id=row[1],
-            server_id=row[2],
-            hours=row[3],
-            reason=row[4],
-            created_at=datetime.datetime.fromisoformat(row[5])
-            ) for row in data
+                id=row[0],
+                user_id=row[1],
+                server_id=row[2],
+                hours=row[3],
+                reason=row[4],
+                created_at=datetime.datetime.fromisoformat(row[5]),
+            )
+            for row in data
         ]

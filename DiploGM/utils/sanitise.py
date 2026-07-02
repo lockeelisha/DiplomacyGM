@@ -1,4 +1,5 @@
 """Module to sanitise string inputs to stuff that the bot likes."""
+
 from __future__ import annotations
 
 import os
@@ -20,15 +21,18 @@ coast_dict = {
     "wc": ["wc", "west coast", "(wc)"],
 }
 
+
 def sanitise_name(name: str) -> str:
     """Removes apostrophes and replaces hyphens with spaces."""
     name = re.sub(r"[‘’`´′‛.']", "", name)
     name = re.sub(r"-", " ", name)
     return name
 
+
 def remove_special_characters(name: str) -> str:
     """Removes all special characters from a string and makes it lowercase."""
     return re.sub(r"[^a-zA-Z0-9\s]", "", name).lower()
+
 
 # I'm sorry this is a bad function name. I couldn't think of anything better and I'm in a rush
 def simple_player_name(name: str) -> str:
@@ -63,9 +67,8 @@ def _manage_coast_signature(keyword: str) -> str:
             keyword += f" {new_suffix}"
     return keyword
 
-def parse_season(
-    arguments: list[str], default_turn: Turn
-) -> Turn:
+
+def parse_season(arguments: list[str], default_turn: Turn) -> Turn:
     """Given a string, attempts to parse it into a Turn.
     The result should be at latest default_turn, and that is used if year is not given."""
     year, season, retreat = None, None, False
@@ -93,7 +96,10 @@ def parse_season(
 
     new_turn = Turn(year, season, default_turn.start_year)
     new_turn.year = min(new_turn.year, default_turn.year)
-    if new_turn.year == default_turn.year and new_turn.phase.value > default_turn.phase.value:
+    if (
+        new_turn.year == default_turn.year
+        and new_turn.phase.value > default_turn.phase.value
+    ):
         if new_turn.year == default_turn.start_year:
             return default_turn
         return Turn(new_turn.year - 1, season, default_turn.start_year)
@@ -111,21 +117,28 @@ def get_value_from_timestamp(timestamp: str) -> int | None:
 
     return None
 
-def find_discord_role(user: Player,
-                      roles: Sequence[discord.Role],
-                      get_order_role: bool = False) -> Optional[discord.Role]:
+
+def find_discord_role(
+    user: Player, roles: Sequence[discord.Role], get_order_role: bool = False
+) -> Optional[discord.Role]:
     """Gets the Discord role associated with this player, if it exists."""
     prefix = "orders-" if get_order_role else ""
     for role in roles:
-        if simple_player_name(role.name) == prefix + simple_player_name(user.get_name()):
+        if simple_player_name(role.name) == prefix + simple_player_name(
+            user.get_name()
+        ):
             return role
     for role in roles:
         if simple_player_name(role.name) == prefix + simple_player_name(user.name):
             return role
     return None
 
-def parse_variant_path(variant: str, as_filename: bool = True, return_parent: bool = False) -> str:
+
+def parse_variant_path(
+    variant: str, as_filename: bool = True, return_parent: bool = False
+) -> str:
     """Parses the variant path to get the correct path for the parser."""
+
     def _version_key(v: str) -> Version:
         try:
             return Version(v.split(".", 1)[1])
@@ -135,30 +148,40 @@ def parse_variant_path(variant: str, as_filename: bool = True, return_parent: bo
     if os.path.isdir(f"variants/{variant}"):
         if return_parent:
             return f"variants/{variant}"
-        variant_list = sorted(os.listdir(f"variants/{variant}"), key=_version_key, reverse=True)
+        variant_list = sorted(
+            os.listdir(f"variants/{variant}"), key=_version_key, reverse=True
+        )
         for v in variant_list:
-            if os.path.isdir(f"variants/{variant}/{v}") and os.path.isfile(f"variants/{variant}/{v}/config.json"):
+            if os.path.isdir(f"variants/{variant}/{v}") and os.path.isfile(
+                f"variants/{variant}/{v}/config.json"
+            ):
                 return f"variants/{variant}/{v}" if as_filename else v
         if os.path.isfile(f"variants/{variant}/config.json"):
             return f"variants/{variant}" if as_filename else variant
     elif "." in variant:
         variant_name, _ = variant.split(".", 1)
         variant_path = f"variants/{variant_name}/{variant}"
-        if os.path.isdir(variant_path) and os.path.isfile(f"{variant_path}/config.json"):
+        if os.path.isdir(variant_path) and os.path.isfile(
+            f"{variant_path}/config.json"
+        ):
             if return_parent:
                 return f"variants/{variant_name}"
             return variant_path if as_filename else variant
     raise ValueError(f"Variant {variant} does not exist or is missing a config file.")
 
+
 def remove_prefix(ctx: commands.Context) -> str:
     """Removes the command prefix from the message content."""
     return ctx.message.content.removeprefix(f"{ctx.prefix}{ctx.invoked_with}").strip()
 
+
 def get_colour_option(board, args) -> str | None:
     """Gets the colour option from the arguments, defaulting to None."""
-    color_options: list[str] = board.data["svg config"].get("color_options", ["standard"])
+    color_options: list[str] = board.data["svg config"].get(
+        "color_options", ["standard"]
+    )
     color_options.append("custom")
     color_options.append("random")
-    if (color_arguments := list(set(color_options) & set(args))):
+    if color_arguments := list(set(color_options) & set(args)):
         return color_arguments[0]
     return None

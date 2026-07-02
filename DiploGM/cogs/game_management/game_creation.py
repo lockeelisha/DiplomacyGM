@@ -1,7 +1,10 @@
 """Module within the Game Management cog to handle game creation and exporting/importing game state."""
+
 import json
 import logging
 import os
+import re
+import discord
 from discord.ext import commands
 
 from DiploGM import config
@@ -13,9 +16,12 @@ from DiploGM.utils import (
     send_message_and_file,
 )
 from DiploGM.manager import Manager
+from DiploGM.utils.sanitise import remove_prefix
+from DiploGM.utils.send_message import send_error, ErrorMessage
 
 logger = logging.getLogger(__name__)
 manager = Manager()
+
 
 async def create_game(ctx: commands.Context, *args) -> None:
     """Create a new game for the server."""
@@ -30,16 +36,20 @@ async def create_game(ctx: commands.Context, *args) -> None:
 
     success, message = manager.create_game(ctx.guild.id, gametype, fow=fow, chaos=chaos)
 
-    welcome_message = "Welcome to the game!\n" + \
-        "To submit orders, use the .order command, entering one order per line.\n" + \
-        "To view a map including all submitted orders, use the .view_map command.\n" + \
-        "To see all your units and which orders you have submitted, use the .view_orders command.\n" + \
-        "To create a private press channel, use .create_press_channel.\n" + \
-        "For a list of all commands, use the .help command.\n" + \
-        "Good luck!"
+    welcome_message = (
+        "Welcome to the game!\n"
+        + "To submit orders, use the .order command, entering one order per line.\n"
+        + "To view a map including all submitted orders, use the .view_map command.\n"
+        + "To see all your units and which orders you have submitted, use the .view_orders command.\n"
+        + "To create a private press channel, use .create_press_channel.\n"
+        + "For a list of all commands, use the .help command.\n"
+        + "Good luck!"
+    )
     if success:
         board = manager.get_board(ctx.guild.id)
-        for c in [cat for cat in ctx.guild.categories if config.is_player_category(cat)]:
+        for c in [
+            cat for cat in ctx.guild.categories if config.is_player_category(cat)
+        ]:
             for ch in c.text_channels:
                 player = perms.get_player_by_channel(board, ch)
                 if not player:
@@ -51,6 +61,69 @@ async def create_game(ctx: commands.Context, *args) -> None:
                 )
     log_command(logger, ctx, message=message)
     await send_message_and_file(channel=ctx.channel, message=message)
+
+async def assign_powers(ctx: commands.Context) -> None:
+    """Assigns power roles to players."""
+    assert ctx.guild is not None
+    guild = ctx.guild
+
+    assigned: list[str] = []
+    warnings: list[str] = []
+    player_role = discord.utils.get(guild.roles, name="Player")
+    if player_role is None:
+        logger.error("Could not find the Player role.")
+        await send_error(ctx.channel, ErrorMessage.NO_PLAYER_ROLE)
+        return
+
+    for line in remove_prefix(ctx).split("\n"):
+        if not line.strip():
+            continue
+
+        ids = re.findall(r"(\d+)", line)
+        if len(ids) < 2:
+            warnings.append(f"Expected a user and a role: `{line.strip()}`")
+            continue
+        member = guild.get_member(int(ids[0]))
+        role = guild.get_role(int(ids[1]))
+        if member is None or role is None:
+            warnings.append(f"Could not find a member or a role in: `{line.strip()}`")
+            continue
+
+        if role.name in config.RESTRICTED_ROLE_NAMES or "orders-" in role.name.lower():
+            warnings.append(f"Cannot assign restricted role {role.mention}.")
+            continue
+
+        try:
+            await member.add_roles(role, player_role)
+            orders_role = discord.utils.get(guild.roles, name=f"orders-{role.name.lower()}")
+            if orders_role:
+                await member.add_roles(orders_role)
+            else:
+                warnings.append(f"Could not find orders role for {role.mention}.")
+        except discord.DiscordException as e:
+            warnings.append(f"Failed to assign {role.mention} to {member.mention}: {e}")
+            continue
+
+        assigned.append(f"Assigned {member.mention} to {role.mention}")
+
+    message_parts: list[str] = []
+    colour = config.EMBED_STANDARD_COLOUR
+    if assigned:
+        message_parts.append("**Assigned:**\n" + "\n".join(assigned))
+    if warnings:
+        message_parts.append("**Warnings:**\n" + "\n".join(warnings))
+        colour = config.PARTIAL_ERROR_COLOUR if assigned else config.ERROR_COLOUR
+    if not assigned and not warnings:
+        message_parts.append("Please provide a list of users and power roles.")
+        colour = config.ERROR_COLOUR
+
+    log_command(logger, ctx, message=f"Assigned {len(assigned)} power role(s)")
+    await send_message_and_file(
+        channel=ctx.channel,
+        title="Assign Powers",
+        message="\n\n".join(message_parts),
+        embed_colour=colour,
+    )
 
 async def export_game(ctx: commands.Context) -> None:
     """Exports the current game state (players, provinces, parameters) as a JSON file."""
@@ -65,6 +138,7 @@ async def export_game(ctx: commands.Context) -> None:
         file=json_str.encode("utf-8"),
         file_name=file_name,
     )
+
 
 async def import_game(ctx: commands.Context) -> None:
     """Imports a game from an uploaded JSON file."""
@@ -93,12 +167,14 @@ async def import_game(ctx: commands.Context) -> None:
     log_command(logger, ctx, message=message)
     await send_message_and_file(channel=ctx.channel, message=message)
 
+
 async def delete_game(ctx: commands.Context) -> None:
     """Completely deletes the game in the server. Cannot be undone."""
     assert ctx.guild is not None
     manager.total_delete(ctx.guild.id)
     log_command(logger, ctx, message="Deleted game")
     await send_message_and_file(channel=ctx.channel, title="Deleted game")
+
 
 async def list_variants(ctx: commands.Context) -> None:
     """Lists all variants currently loaded into the bot."""
@@ -111,8 +187,9 @@ async def list_variants(ctx: commands.Context) -> None:
         version_list = []
         variant_versions = os.listdir(os.path.join("variants", v))
         for vv in variant_versions:
-            if os.path.isdir(os.path.join("variants", v, vv)) \
-                and os.path.isfile(os.path.join("variants", v, vv, "config.json")):
+            if os.path.isdir(os.path.join("variants", v, vv)) and os.path.isfile(
+                os.path.join("variants", v, vv, "config.json")
+            ):
                 version_list.append(vv)
         version_list.sort()
         if len(version_list) > 0:
@@ -122,4 +199,6 @@ async def list_variants(ctx: commands.Context) -> None:
     loaded_variants.sort()
     message = "\n".join(loaded_variants)
     log_command(logger, ctx, message=message)
-    await send_message_and_file(channel=ctx.channel, title="Currently loaded variants", message=message)
+    await send_message_and_file(
+        channel=ctx.channel, title="Currently loaded variants", message=message
+    )

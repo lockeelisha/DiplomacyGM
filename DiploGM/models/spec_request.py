@@ -6,10 +6,12 @@ from pathlib import Path
 from typing import Iterable, Optional
 from DiploGM.utils.repository import Repository
 
+
 @dataclass
 class SpectatorBan:
     user_id: int
-    end_time: str # discord_timestamp
+    end_time: str  # discord_timestamp
+
 
 class SpectatorBanRepository(Repository):
     def __init__(self, db_path: Path | str) -> None:
@@ -24,7 +26,6 @@ class SpectatorBanRepository(Repository):
                 data = json.loads(f.read())
                 for k, v in data.items():
                     self.bans[k] = SpectatorBan(**v)
-
 
     def _save_to_file(self):
         curr = self.bans.copy()
@@ -58,6 +59,7 @@ class SpectatorBanRepository(Repository):
 
     def all(self) -> Iterable[SpectatorBan]:
         return self.bans.values().__iter__()
+
 
 class SpecRequest:
     def __init__(self, server_id: int, user_id: int, role_id: int):

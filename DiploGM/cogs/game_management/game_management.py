@@ -1,15 +1,19 @@
 """Cog for managing games, including creation, editing, and adjudication.
 This has a lot of commands, so logic has been split into separate modules."""
+
 import logging
 from typing import Optional
 import discord
 from discord.ext import commands
-from DiploGM.cogs.game_management import (adjudication,
-                                          channel_management, chaos,
-                                          deadline_management,
-                                          game_creation,
-                                          game_editing,
-                                          grace)
+from DiploGM.cogs.game_management import (
+    adjudication,
+    channel_management,
+    chaos,
+    deadline_management,
+    game_creation,
+    game_editing,
+    grace,
+)
 from DiploGM import perms
 from DiploGM.utils import send_message_and_file
 from DiploGM.manager import Manager
@@ -17,8 +21,10 @@ from DiploGM.manager import Manager
 logger = logging.getLogger(__name__)
 manager = Manager()
 
+
 class GameManagementCog(commands.Cog):
     """Cog for managing games, including creation, editing, and adjudication."""
+
     def __init__(self, bot):
         self.bot = bot
 
@@ -29,7 +35,7 @@ class GameManagementCog(commands.Cog):
     async def create_game(self, ctx: commands.Context, *args) -> None:
         """Create a new game for the server.
 
-        Usage: 
+        Usage:
             `.create_game <gametype>`
 
         Note:
@@ -51,7 +57,7 @@ class GameManagementCog(commands.Cog):
     async def import_game(self, ctx: commands.Context) -> None:
         """Imports a game from an uploaded JSON file.
 
-        Usage: 
+        Usage:
             `.import_game`, attaching a JSON file ideally from `.export_game`
 
         Note:
@@ -74,11 +80,24 @@ class GameManagementCog(commands.Cog):
         """
         await game_creation.delete_game(ctx)
 
+    @commands.command(brief="Assigns power roles to players")
+    @perms.gm_only("assign powers")
+    async def assign_powers(self, ctx: commands.Context) -> None:
+        """Assigns power roles to players.
+
+        Usage:
+            `.assign_powers @user @power` (one assignment per line)
+
+        Note:
+            This command expects mentions of users and roles.
+        """
+        await game_creation.assign_powers(ctx)
+
     @commands.command(brief="lists all variants currently supported")
     @perms.gm_only("lists variants")
     async def list_variants(self, ctx: commands.Context) -> None:
         """Lists all variants currently supported by the bot.
-        
+
         Usage:
             `.list_variants`
         """
@@ -115,10 +134,10 @@ class GameManagementCog(commands.Cog):
     async def archive(self, ctx: commands.Context) -> None:
         """Set all channels within a category to read-only, during game close
 
-        Usage: 
+        Usage:
             Used as `.archive #<channel_mention>`
 
-        Note: 
+        Note:
             Removes all permission overwrites and sets "send_messages" to false
             Does not apply to Administrator roles
         """
@@ -129,28 +148,28 @@ class GameManagementCog(commands.Cog):
     async def set_deadline(self, ctx: commands.Context) -> None:
         """Manages the deadline for the current phase.
 
-        Usage: 
+        Usage:
             `.set_deadline <timestamp>`
             `.set_deadline adjust <relative time, e.g. 2 days, -3h, etc.>`
             `.set_deadline cancel`
 
-        Note: 
+        Note:
             When orders are published, deadline is automatically advanced by 1-2 days depending on phase.
         """
         await deadline_management.set_deadline(ctx)
 
     @commands.command(
         brief="Pings players who don't have the expected number of orders.",
-        aliases=["pp"]
+        aliases=["pp"],
     )
     @perms.gm_only("ping players")
     async def ping_players(self, ctx: commands.Context) -> None:
         """Pings all players with withstanding orders, listing number of needed orders and which units require them
 
-        Usage: 
+        Usage:
             `.ping_players <timestamp?>`
 
-        Note: 
+        Note:
             Timestamp optional, will be formatted to "in XX hours" when displayed.
             If a deadline is set with .set_deadline, the timestamp will default to that time.
         """
@@ -164,7 +183,7 @@ class GameManagementCog(commands.Cog):
     async def lock_orders(self, ctx: commands.Context) -> None:
         """Sets board flag to prevent new order submissions
 
-        Usage: 
+        Usage:
             `.lock_orders`
         """
         await adjudication.lock_orders(ctx)
@@ -174,7 +193,7 @@ class GameManagementCog(commands.Cog):
     async def unlock_orders(self, ctx: commands.Context) -> None:
         """Sets board flag to enable new order submissions
 
-        Usage: 
+        Usage:
             `.unlock_orders`
         """
         await adjudication.unlock_orders(ctx)
@@ -185,30 +204,36 @@ class GameManagementCog(commands.Cog):
         """Command to log and view graces, which occur when adjudication is delayed due to a player missing orders.
         Use one of the following subcommands to manage graces:
 
-        Usage: 
+        Usage:
             `.grace log <user> <hours> <reason>`
             `.grace view user <user>`
             `.grace view server <server_id?>`
             `.grace delete <grace_id>`
 
-        Note: 
+        Note:
             For more detailed information on each subcommand, use `.help grace <subcommand>`
         """
-        await send_message_and_file(channel=ctx.channel, message="Valid commands are: *log*, *delete*, and *view*")
+        await send_message_and_file(
+            channel=ctx.channel,
+            message="Valid commands are: *log*, *delete*, and *view*",
+        )
 
     @grace.command(name="log", brief="Logs a grace period")
     @perms.gm_only("record a grace")
-    async def grace_log(self,
-                        ctx: commands.Context,
-                        user: discord.User,
-                        hours: float, *,
-                        reason: str = "Unspecified") -> None:
+    async def grace_log(
+        self,
+        ctx: commands.Context,
+        user: discord.User,
+        hours: float,
+        *,
+        reason: str = "Unspecified",
+    ) -> None:
         """Store a record of grace in a game, grace can be NMR or Extension and should be detailed in the reason
 
-        Usage: 
+        Usage:
             `.grace log     <user> <hours> <reason>`
 
-        Note: 
+        Note:
             Can't log for bots
             Can log for any discord user
 
@@ -224,10 +249,10 @@ class GameManagementCog(commands.Cog):
     async def grace_delete(self, ctx: commands.Context, grace_id: int) -> None:
         """Delete a record of grace from the database
 
-        Usage: 
+        Usage:
             `.grace delete <grace_id>`
 
-        Note: 
+        Note:
             Will return positive message even if no record for ID
             Use .grace view to find grace IDs
 
@@ -240,24 +265,26 @@ class GameManagementCog(commands.Cog):
     async def grace_view(self, ctx: commands.Context) -> None:
         """Views grace records for a user or server
 
-        Usage: 
+        Usage:
             `.grace view user <user>`
             `.grace view server <server_id?>`
 
         Note:
             For more detailed information on each subcommand, use `.help grace view <subcommand>`
         """
-        await send_message_and_file(channel=ctx.channel, message="Valid commands are: *user* and *server*")
+        await send_message_and_file(
+            channel=ctx.channel, message="Valid commands are: *user* and *server*"
+        )
 
     @grace_view.command(name="user", brief="View the grace history of a user")
     @perms.gm_only("view graces made by a user")
     async def grace_view_user(self, ctx: commands.Context, user: discord.User) -> None:
         """View the grace record for a specific user
 
-        Usage: 
+        Usage:
             `.grace view user <user>`
 
-        Note: 
+        Note:
             Groups by server graces are logged in
             Records sorted by server_id (newer servers?) then creation datetime
 
@@ -268,13 +295,15 @@ class GameManagementCog(commands.Cog):
 
     @grace_view.command(name="server", brief="View the grace history of a server")
     @perms.gm_only("view graces that have occurred in a server")
-    async def grace_view_server(self, ctx: commands.Context, server_id: Optional[int] = None) -> None:
+    async def grace_view_server(
+        self, ctx: commands.Context, server_id: Optional[int] = None
+    ) -> None:
         """View the grace record for the current server
 
-        Usage: 
+        Usage:
             `.grace view server <server_id?>`
 
-        Note: 
+        Note:
             Groups by server graces are logged in
             Records sorted by server_id (newer servers?) then creation datetime
 
@@ -288,11 +317,11 @@ class GameManagementCog(commands.Cog):
     async def publish_orders(self, ctx: commands.Context, *args) -> None:
         """Publishes orders to the orders log channel, uploads the map to the archive,
         and informs players about the phase change.
-        
+
         Usage:
             `.publish_orders`
             `.publish_orders silent` - does not post in orders channels about phase changes
-        
+
         Note:
             If a deadline is set, automatically updates the deadline by 1-2 days depending on phase.
             Posts in player channels information about the phase change unless "silent" is passed.
@@ -300,24 +329,21 @@ class GameManagementCog(commands.Cog):
         """
         await adjudication.publish_orders(ctx, *args)
 
-    @commands.command(
-        brief="Adjudicates the game",
-        aliases=["adju", "adjudication"]
-    )
+    @commands.command(brief="Adjudicates the game", aliases=["adju", "adjudication"])
     @perms.gm_only("adjudicate")
     async def adjudicate(self, ctx: commands.Context) -> None:
         """Adjudicates the game, and publishes the orders and results maps.
-        
+
         Usage:
             `.adjudicate [arguments]`
-        
+
         Args:
             `test`: Runs a test adjudication without touching the actual game state.
             `full`: Locks orders, adjudicates, uploads maps, publishes orders, and then unlocks orders.
             `<color_mode>`: Publishes maps with a specific color scheme.
             `confirm`: Adjudicates even if there are missing orders.
             `svg`: Uploads the maps as SVGs instead of PNGs.
-        
+
         Note:
             By default, the command will not adjudicate if there are missing orders.
             Use the "confirm" argument to override this.
@@ -332,10 +358,10 @@ class GameManagementCog(commands.Cog):
     async def rollback(self, ctx: commands.Context) -> None:
         """Rolls back the game board to the previous phase
 
-        Usage: 
+        Usage:
             `.rollback`
 
-        Note: 
+        Note:
             Will clear any orders in the current phase before rolling back.
         """
         await game_editing.rollback(ctx)
@@ -345,7 +371,7 @@ class GameManagementCog(commands.Cog):
     async def reload(self, ctx: commands.Context) -> None:
         """Reloads the board state currently saved in the database.
 
-        Usage: 
+        Usage:
             `.reload`
         """
         await game_editing.reload(ctx)
@@ -355,7 +381,7 @@ class GameManagementCog(commands.Cog):
     async def edit(self, ctx: commands.Context) -> None:
         """Edits the current board state
 
-        Usage: 
+        Usage:
             `.edit <commands>`
         """
         await game_editing.edit(ctx)
@@ -365,10 +391,10 @@ class GameManagementCog(commands.Cog):
     async def blitz(self, ctx: commands.Context) -> None:
         """Creates all pairwise press channels between players in a game
 
-        Usage: 
+        Usage:
             `.blitz`
 
-        Note: 
+        Note:
             Uses the board.get_players() method (which is read from the config)
         """
         await channel_management.blitz(ctx)
@@ -378,24 +404,23 @@ class GameManagementCog(commands.Cog):
     async def last_message(self, ctx: commands.Context) -> None:
         """Gets the last time each player sent a message.
 
-        Usage: 
+        Usage:
             `.last_message`
 
-        Note: 
+        Note:
             This data does not persist across bot restarts.
             Does not differentiate between orders, press, or other messages.
         """
         await channel_management.last_message(ctx)
 
-    @commands.command(brief="Publicize void for chaos",
-                      hidden=True)
+    @commands.command(brief="Publicize void for chaos", hidden=True)
     async def publicize(self, ctx: commands.Context) -> None:
         """Opens a channel (usually a void) to the spectator role
 
-        Usage: 
+        Usage:
             Used as `.publicize`
 
-        Note: 
+        Note:
             Used exclusively for the World of Chaos event
 
         Args:
@@ -418,7 +443,7 @@ class GameManagementCog(commands.Cog):
     async def edit_game(self, ctx: commands.Context) -> None:
         """Edits game parameters.
 
-        Usage: 
+        Usage:
             `.edit_game <commands>`
         """
         await game_editing.edit_game(ctx)
@@ -428,17 +453,19 @@ class GameManagementCog(commands.Cog):
     async def edit_server(self, ctx: commands.Context) -> None:
         """Edits server settings.
 
-        Usage: 
+        Usage:
             `.edit_server <commands>`
         """
         await game_editing.edit_server(ctx)
 
     @commands.command(brief="Renames a player")
     @perms.gm_only("rename player")
-    async def rename_player(self, ctx: commands.Context, old_name: str, new_name: str) -> None:
+    async def rename_player(
+        self, ctx: commands.Context, old_name: str, new_name: str
+    ) -> None:
         """Renames a player, and updates their role and channel names if possible.
 
-        Usage: 
+        Usage:
             `.rename_player <old_name> <new_name>`
 
         Note:
@@ -446,6 +473,7 @@ class GameManagementCog(commands.Cog):
             You cannot rename a player to have the same name as another existing player.
         """
         await game_editing.rename_player(ctx, old_name, new_name)
+
 
 async def setup(bot):
     cog = GameManagementCog(bot)

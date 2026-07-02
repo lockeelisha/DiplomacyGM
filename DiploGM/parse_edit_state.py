@@ -2,6 +2,7 @@
 These commands are designed to make changes to the current board and not for game-wide settings.
 After these commands are executed, the Units, Provinces, Players, and, Retreat Options tables are saved.
 For changes to game-wide settings, see .edit_game in parse_board_params.py."""
+
 import logging
 
 from DiploGM.config import ERROR_COLOUR, PARTIAL_ERROR_COLOUR
@@ -14,7 +15,9 @@ from DiploGM.db.database import get_connection
 logger = logging.getLogger(__name__)
 
 
-def parse_edit_state(message: str, board: Board) -> tuple[str, str, bytes | None, str | None, str | None]:
+def parse_edit_state(
+    message: str, board: Board
+) -> tuple[str, str, bytes | None, str | None, str | None]:
     """Parses a message containing commands to edit the game state,
     executes those commands, and returns a response message and an updated map if applicable."""
     invalid: list[tuple[str, Exception]] = []
@@ -32,7 +35,9 @@ def parse_edit_state(message: str, board: Board) -> tuple[str, str, bytes | None
         for command in invalid:
             response_body += f"\n`{command[0]}` with error: {command[1]}"
 
-        embed_colour = ERROR_COLOUR if len(invalid) == len(commands) else PARTIAL_ERROR_COLOUR
+        embed_colour = (
+            ERROR_COLOUR if len(invalid) == len(commands) else PARTIAL_ERROR_COLOUR
+        )
     else:
         response_title = "Commands validated successfully. Results map updated."
         response_body = ""
@@ -49,6 +54,7 @@ def parse_edit_state(message: str, board: Board) -> tuple[str, str, bytes | None
         file_name,
         embed_colour,
     )
+
 
 # TODO: Move to .edit_game be careful about earlier boards
 def _set_phase(_, keywords: list[str], board: Board) -> None:
@@ -79,6 +85,7 @@ def _set_province_core(command: str, keywords: list[str], board: Board) -> None:
     else:
         province.core_data.half_core = player
 
+
 def _set_player_color(_, keywords: list[str], board: Board) -> None:
     raise NotImplementedError("set_player_color has been moved to `.edit_game`.")
 
@@ -95,6 +102,7 @@ def _set_province_owner(command: str, keywords: list[str], board: Board) -> None
     if "total" in command:
         province.core_data.core = player
 
+
 def _create_unit(_, keywords: list[str], board: Board) -> None:
     unit_type = board.unit_types.get(keywords[0].strip().upper()[0])
     if unit_type is None:
@@ -102,7 +110,11 @@ def _create_unit(_, keywords: list[str], board: Board) -> None:
 
     player = board.get_player(keywords[1])
     province, coast = board.get_province_and_coast(" ".join(keywords[2:]))
-    if Terrain.COAST in unit_type.moves_on and province.adjacencies.coasts and coast not in province.adjacencies.coasts:
+    if (
+        Terrain.COAST in unit_type.moves_on
+        and province.adjacencies.coasts
+        and coast not in province.adjacencies.coasts
+    ):
         raise ValueError(f"Province '{province.name}' requires a valid coast.")
     if not province.adjacencies.coasts:
         coast = None
@@ -118,22 +130,28 @@ def _create_dislodged_unit(_, keywords: list[str], board: Board) -> None:
         raise ValueError(f"Invalid Unit Type received: {unit_type}")
     player = board.get_player(keywords[1])
     province, coast = board.get_province_and_coast(keywords[2])
-    if Terrain.COAST in unit_type.moves_on and province.adjacencies.coasts and coast not in province.adjacencies.coasts:
+    if (
+        Terrain.COAST in unit_type.moves_on
+        and province.adjacencies.coasts
+        and coast not in province.adjacencies.coasts
+    ):
         raise ValueError(f"Province '{province.name}' requires a valid coast.")
     if not province.adjacencies.coasts:
         coast = None
-    retreat_options = {board.get_province_and_coast(province_name) for province_name in keywords[3:]}
+    retreat_options = {
+        board.get_province_and_coast(province_name) for province_name in keywords[3:]
+    }
     if not all(retreat_options):
-        raise ValueError(
-            "Could not find at least one province in retreat options."
-        )
+        raise ValueError("Could not find at least one province in retreat options.")
     board.create_unit(unit_type, player, province, coast, retreat_options)
+
 
 def _delete_unit(command: str, keywords: list[str], board: Board) -> None:
     province = board.get_province(keywords[0])
     unit = board.delete_unit(province, is_dislodged="dislodged" in command)
     if not unit:
         raise RuntimeError(f"No unit to delete in {province}")
+
 
 def _move_unit(_, keywords: list[str], board: Board) -> None:
     old_province = board.get_province(keywords[0])
@@ -143,11 +161,15 @@ def _move_unit(_, keywords: list[str], board: Board) -> None:
     new_province, new_coast = board.get_province_and_coast(keywords[1])
     if Terrain.COAST not in unit.unit_type.moves_on:
         new_coast = None
-    elif new_province.adjacencies.coasts and new_coast not in new_province.adjacencies.coasts:
+    elif (
+        new_province.adjacencies.coasts
+        and new_coast not in new_province.adjacencies.coasts
+    ):
         raise ValueError(f"Province '{new_province.name}' requires a valid coast.")
     if not new_province.adjacencies.coasts:
         new_coast = None
     board.move_unit(unit, new_province, new_coast)
+
 
 def _transform_unit(_, keywords: list[str], board: Board) -> None:
     unit_types = board.fetch_unit_types()
@@ -162,7 +184,9 @@ def _transform_unit(_, keywords: list[str], board: Board) -> None:
         raise RuntimeError(f"No unit to transform in {province}")
     new_unit_type = new_unit_type or unit.unit_type.transforms_to
     if not new_unit_type:
-        raise RuntimeError(f"Unit type {unit.unit_type} cannot transform to any other type")
+        raise RuntimeError(
+            f"Unit type {unit.unit_type} cannot transform to any other type"
+        )
 
     if Terrain.COAST not in new_unit_type.moves_on:
         coast = None
@@ -173,6 +197,7 @@ def _transform_unit(_, keywords: list[str], board: Board) -> None:
     unit.unit_type = new_unit_type
     unit.coast = coast
 
+
 def _dislodge_unit(_, keywords: list[str], board: Board) -> None:
     if not board.turn.is_retreats():
         raise RuntimeError("Cannot create a dislodged unit in move phase")
@@ -182,11 +207,11 @@ def _dislodge_unit(_, keywords: list[str], board: Board) -> None:
     unit = province.unit
     if unit is None:
         raise RuntimeError("No unit to dislodge in province")
-    retreat_options = {board.get_province_and_coast(province_name) for province_name in keywords[1:]}
+    retreat_options = {
+        board.get_province_and_coast(province_name) for province_name in keywords[1:]
+    }
     if not all(retreat_options):
-        raise ValueError(
-            "Could not find at least one province in retreat options."
-        )
+        raise ValueError("Could not find at least one province in retreat options.")
     board.create_unit(
         unit.unit_type, unit.player, unit.province, unit.coast, retreat_options
     )
@@ -203,8 +228,10 @@ def _make_units_claim_provinces(_, keywords: list[str], board: Board) -> None:
         if claim_centers or not unit.province.has_supply_center:
             board.change_owner(unit.province, unit.player, force_change=True)
 
+
 def _set_game_name(_, parameter_str: str, board: Board) -> None:
     raise NotImplementedError("set_game_name has been moved to `.edit_game`.")
+
 
 def _apocalypse(_, keywords: list[str], board: Board) -> None:
     """
@@ -220,7 +247,9 @@ def _apocalypse(_, keywords: list[str], board: Board) -> None:
 
     for unit_name in unit_types:
         if delete_all or unit_name.lower() in keywords:
-            units = set(filter(lambda u: u.unit_type == unit_types[unit_name], board.units))
+            units = set(
+                filter(lambda u: u.unit_type == unit_types[unit_name], board.units)
+            )
             board.units -= units
             for player in board.players:
                 player.units -= units
@@ -244,6 +273,7 @@ def _bulk_create_units(command: str, keywords: list[str], board: Board) -> None:
     for i in keywords[2:]:
         _create_unit(command, [unit_type, player, i], board)
 
+
 function_list = {
     "set phase": _set_phase,
     "set core": _set_province_core,
@@ -261,12 +291,19 @@ function_list = {
     "make units claim provinces": _make_units_claim_provinces,
     "set game name": _set_game_name,
     "bulk create units": _bulk_create_units,
-    "apocalypse": _apocalypse
+    "apocalypse": _apocalypse,
 }
+
 
 def _bulk(_, keywords: list[str], board: Board) -> None:
     player = keywords[1]
-    if keywords[0] in ["set core", "set half core", "set province owner", "set total owner", "delete unit"]:
+    if keywords[0] in [
+        "set core",
+        "set half core",
+        "set province owner",
+        "set total owner",
+        "delete unit",
+    ]:
         for i in keywords[2:]:
             function_list[keywords[0]](keywords[0], [i, player], board)
         return
@@ -275,11 +312,11 @@ def _bulk(_, keywords: list[str], board: Board) -> None:
             function_list[keywords[0]](keywords[0], [keywords[1], i], board)
         return
 
-    raise RuntimeError(
-        "You can't use bulk with this commands"
-    )
+    raise RuntimeError("You can't use bulk with this commands")
+
 
 function_list["bulk"] = _bulk
+
 
 def _parse_command(command: str, board: Board) -> None:
     command_list: list[str] = get_keywords(command)

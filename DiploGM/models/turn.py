@@ -1,39 +1,49 @@
 """Module to handle turns, which includ the year and phase."""
+
 from __future__ import annotations
 from enum import Enum
 
+
 class PhaseName(Enum):
     """Enum for the different phases within a year."""
+
     SPRING_MOVES = 0
     SPRING_RETREATS = 1
     FALL_MOVES = 2
     FALL_RETREATS = 3
     WINTER_BUILDS = 4
 
+
 class Turn:
     """Class representing a turn in the game, including the year and phase.
     Start_year is included mostly for legacy database reasons."""
-    def __init__(self, year: int = 1901, phase: PhaseName = PhaseName.SPRING_MOVES, start_year: int = 1901):
+
+    def __init__(
+        self,
+        year: int = 1901,
+        phase: PhaseName = PhaseName.SPRING_MOVES,
+        start_year: int = 1901,
+    ):
         self.phase_names: dict[PhaseName, str] = {
             PhaseName.SPRING_MOVES: "Spring Moves",
             PhaseName.SPRING_RETREATS: "Spring Retreats",
             PhaseName.FALL_MOVES: "Fall Moves",
             PhaseName.FALL_RETREATS: "Fall Retreats",
-            PhaseName.WINTER_BUILDS: "Winter Builds"
+            PhaseName.WINTER_BUILDS: "Winter Builds",
         }
         self.season_names: dict[PhaseName, str] = {
             PhaseName.SPRING_MOVES: "Spring",
             PhaseName.SPRING_RETREATS: "Spring",
             PhaseName.FALL_MOVES: "Fall",
             PhaseName.FALL_RETREATS: "Fall",
-            PhaseName.WINTER_BUILDS: "Winter"
+            PhaseName.WINTER_BUILDS: "Winter",
         }
         self.short_names: dict[PhaseName, str] = {
             PhaseName.SPRING_MOVES: "sm",
             PhaseName.SPRING_RETREATS: "sr",
             PhaseName.FALL_MOVES: "fm",
             PhaseName.FALL_RETREATS: "fr",
-            PhaseName.WINTER_BUILDS: "wa"
+            PhaseName.WINTER_BUILDS: "wa",
         }
         self.year: int = year
         self.phase: PhaseName = phase if phase in PhaseName else PhaseName.SPRING_MOVES
@@ -41,7 +51,7 @@ class Turn:
 
     def __str__(self):
         if self.year < 0:
-            year_str =  f"{str(1-self.year)} BCE"
+            year_str = f"{str(1 - self.year)} BCE"
         else:
             year_str = str(self.year)
         return f"{year_str} {self.phase_names[self.phase]}"
@@ -63,13 +73,17 @@ class Turn:
             return str(self)
         result = fmt
         result = result.replace("%Y", str(self.year))
-        result = result.replace("%B", f"{str(self.year) if self.year > 0 else str(1 - self.year) + ' BC'}")
+        result = result.replace(
+            "%B", f"{str(self.year) if self.year > 0 else str(1 - self.year) + ' BC'}"
+        )
         result = result.replace("%y", str(self.year % 100))
         result = result.replace("%I", str(self.year - self.start_year))
         result = result.replace("%S", self.phase_names[self.phase])
         result = result.replace("%s", self.short_names[self.phase])
         result = result.replace("%Z", self.season_names[self.phase])
-        result = result.replace("%i", str(5 * (self.year - self.start_year) + self.phase.value))
+        result = result.replace(
+            "%i", str(5 * (self.year - self.start_year) + self.phase.value)
+        )
         return result
 
     def get_next_turn(self) -> Turn:

@@ -37,8 +37,8 @@
     },
     "first_season": "Spring",
     "build_options": "classic",
-	"victory_conditions": "classic",
-	"victory_count": 18,
+    "victory_conditions": "classic",
+    "victory_count": 18,
     "convoyable_islands": "disabled",
     "core_options": {
         "turns": "2",
@@ -51,42 +51,42 @@
     "transformation": "disabled",
     "dp": "disabled",
     "fow": "disabled",
-	"abbreviations": {
-		"bot": "Gulf of Bothnia",
-		"ems": "Eastern Mediterranean Sea",
-		"gob": "Gulf of Bothnia",
-		"gol": "Gulf of Lyon",
-		"liv": "Livonia",
+    "abbreviations": {
+        "bot": "Gulf of Bothnia",
+        "ems": "Eastern Mediterranean Sea",
+        "gob": "Gulf of Bothnia",
+        "gol": "Gulf of Lyon",
+        "liv": "Livonia",
         "lvn": "Livonia",
-		"lvp": "Liverpool",
-		"lyo": "Gulf of Lyon",
-		"mao": "Mid-Atlantic Ocean",
-		"naf": "North Africa",
-		"nao": "North Atlantic Ocean",
-		"nor": "Norway",
-		"nth": "North Sea",
-		"nwg": "Norwegian Sea",
-		"nwy": "Norway",
+        "lvp": "Liverpool",
+        "lyo": "Gulf of Lyon",
+        "mao": "Mid-Atlantic Ocean",
+        "naf": "North Africa",
+        "nao": "North Atlantic Ocean",
+        "nor": "Norway",
+        "nth": "North Sea",
+        "nwg": "Norwegian Sea",
+        "nwy": "Norway",
         "stp": "St. Petersburg",
-		"tyr": "Tyrolia",
-		"tys": "Tyrrhenian Sea",
-		"wms": "Western Mediterranean Sea"
-	},
+        "tyr": "Tyrolia",
+        "tys": "Tyrrhenian Sea",
+        "wms": "Western Mediterranean Sea"
+    },
     "overrides": {
         "provinces": {
             "Spain": {
                 "coasts": {
                    "nc": [
                         "Mid-Atlantic Ocean",
-						"Gascony",
-						"Portugal"
+                        "Gascony",
+                        "Portugal"
                    ],
                    "sc": [
                         "Mid-Atlantic Ocean",
-						"Western Mediterranean Sea",
-						"Gulf of Lyon",
-						"Marseilles",
-						"Portugal"
+                        "Western Mediterranean Sea",
+                        "Gulf of Lyon",
+                        "Marseilles",
+                        "Portugal"
                    ]
                 }
             },
@@ -94,13 +94,13 @@
                 "coasts": {
                     "ec": [
                         "Black Sea",
-						"Constantinople",
-						"Rumania"
+                        "Constantinople",
+                        "Rumania"
                     ],
                     "sc": [
                         "Aegean Sea",
-						"Constantinople",
-						"Greece"
+                        "Constantinople",
+                        "Greece"
                     ]
                 }
             },
@@ -108,12 +108,12 @@
                 "coasts": {
                     "nc": [
                         "Barents Sea",
-						"Norway"
+                        "Norway"
                     ],
                     "sc": [
                         "Gulf of Bothnia",
-						"Finland",
-						"Livonia"
+                        "Finland",
+                        "Livonia"
                     ]
                 }
             }
@@ -122,31 +122,31 @@
     "players": {
         "Austria": {
             "color": "cd5c5c",
-			"iscc": 3
+            "iscc": 3
         },
         "England": {
             "color": "7b68ee",
-			"iscc": 3
+            "iscc": 3
         },
         "France": {
             "color": "87ceeb",
-			"iscc": 3
+            "iscc": 3
         },
         "Germany": {
             "color": "696969",
-			"iscc": 3
+            "iscc": 3
         },
         "Italy": {
             "color": "6b8e23",
-			"iscc": 3
+            "iscc": 3
         },
         "Russia": {
             "color": "d3d3d3",
-			"iscc": 4
+            "iscc": 4
         },
         "Turkey": {
             "color": "daa520",
-			"iscc": 3
+            "iscc": 3
         }
     }
 }

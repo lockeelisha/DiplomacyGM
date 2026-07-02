@@ -66,7 +66,7 @@ def _check_missing_adjacencies(province: Province,
             for province2 in loop[index1 + 2:]:
                 if province2 in _get_adjacent_geom(province1):
                     continue
-                distance = shapely.distance(province1.geometry, province2.geometry)
+                distance = shapely.distance(province1.tile.geometry, province2.tile.geometry)
                 if distance < min_distance:
                     min_distance = distance
                     closest_pair = (province1, province2)
@@ -110,7 +110,7 @@ def _check_cliques(province: Province,
             max_distance = 0.0
             furthest_pair = (province, adj)
             for province1, province2 in combinations(clique, 2):
-                distance = shapely.distance(province1.geometry, province2.geometry)
+                distance = shapely.distance(province1.tile.geometry, province2.tile.geometry)
                 if distance > max_distance:
                     max_distance = distance
                     furthest_pair = (province1, province2)

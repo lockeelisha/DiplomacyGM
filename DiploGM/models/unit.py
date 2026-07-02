@@ -1,4 +1,5 @@
 """Armies and fleets and so forth."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -8,6 +9,7 @@ from DiploGM.models.adjacency import Terrain
 
 if TYPE_CHECKING:
     from DiploGM.models import province, player, order
+
 
 @dataclass
 class UnitType:
@@ -20,14 +22,18 @@ class UnitType:
     moves_on: set[Terrain] = field(default_factory=lambda: {Terrain.LAND})
     transforms_to: Optional[UnitType] = None
 
+
 @dataclass
 class DPAllocation:
     """Dataclass for storing DP allocation information."""
+
     points: int
     order: order.UnitOrder
 
+
 class Unit:
     """Units information. They don't have a lot of logic to them aside from retreat options at the moment."""
+
     def __init__(
         self,
         unit_type: UnitType,
@@ -54,12 +60,17 @@ class Unit:
         """Adds all valid retreat options based on unit type and current province."""
         if self.retreat_options is None:
             self.retreat_options = set()
-        if Terrain.LAND in self.unit_type.moves_on and Terrain.SEA in self.unit_type.moves_on:
+        if (
+            Terrain.LAND in self.unit_type.moves_on
+            and Terrain.SEA in self.unit_type.moves_on
+        ):
             for province in self.province.adjacencies.get_all():
                 if not province.is_impassable:
                     self.retreat_options.add((province, None))
             return
-        for province in self.province.adjacencies.get_all(self.unit_type.moves_on - {Terrain.COAST}):
+        for province in self.province.adjacencies.get_all(
+            self.unit_type.moves_on - {Terrain.COAST}
+        ):
             if not province.is_impassable:
                 self.retreat_options.add((province, None))
         if Terrain.COAST in self.unit_type.moves_on:

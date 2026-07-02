@@ -6,6 +6,7 @@ from typing import Iterable, Optional
 from DiploGM.db.database import get_connection
 from DiploGM.utils.repository import Repository
 
+
 class RelationshipType(StrEnum):
     SERVER_MEMBER = "SERVER_MEMBER"
     SERVER_MODERATOR = "SERVER_MODERATOR"
@@ -15,6 +16,7 @@ class RelationshipType(StrEnum):
     COMMUNITY_ADMIN = "COMMUNITY_ADMIN"
     COMMUNITY_OWNER = "COMMUNITY_OWNER"
 
+
 @dataclass
 class Relationship:
     subject_id: int
@@ -22,6 +24,7 @@ class Relationship:
     type: RelationshipType
     id: Optional[int] = None
     created_at: datetime.datetime = field(default_factory=datetime.datetime.now)
+
 
 class SQLiteRelationshipRepository(Repository[Relationship]):
     def __init__(self) -> None:
@@ -67,12 +70,15 @@ class SQLiteRelationshipRepository(Repository[Relationship]):
             VALUES (?, ?, ?, ?)
             ON CONFLICT DO NOTHING
             """,
-            [(
-                entity.subject_id,
-                entity.object_id,
-                entity.type,
-                entity.created_at.isoformat(),
-            ) for entity in entities]
+            [
+                (
+                    entity.subject_id,
+                    entity.object_id,
+                    entity.type,
+                    entity.created_at.isoformat(),
+                )
+                for entity in entities
+            ],
         )
         self.conn.commit()
 
@@ -87,7 +93,10 @@ class SQLiteRelationshipRepository(Repository[Relationship]):
         self.conn.commit()
 
     def delete_many(self, object_ids: list[int]):
-        self.conn.executemany("DELETE FROM relationships WHERE id = ?", [(object_id,) for object_id in object_ids])
+        self.conn.executemany(
+            "DELETE FROM relationships WHERE id = ?",
+            [(object_id,) for object_id in object_ids],
+        )
         self.conn.commit()
 
     def clear(self) -> None:

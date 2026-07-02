@@ -9,6 +9,13 @@ if TYPE_CHECKING:
     from discord.ext import commands
 
 
+def setup_logging(log_level):
+    logging.basicConfig(
+        format="%(asctime)-15s | %(levelname)-7s: | %(filename)-16s (line %(lineno)-4d) | %(message)s",
+        level=log_level,
+    )
+
+
 def log_command(
     remote_logger: logging.Logger,
     ctx: commands.Context,
@@ -55,5 +62,5 @@ def log_command_no_ctx(
     channel_name = getattr(channel, "name", "DM")
 
     remote_logger.log(
-        level, f"[{guild}][#{channel_name}]({invoker}) - " f"'{command}' -> " f"{message}"
+        level, f"[{guild}][#{channel_name}]({invoker}) - '{command}' -> {message}"
     )

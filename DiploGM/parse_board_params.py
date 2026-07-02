@@ -1,4 +1,5 @@
 """Module to parse commands to edit the board parameters."""
+
 import string
 from DiploGM.config import ERROR_COLOUR, PARTIAL_ERROR_COLOUR
 from DiploGM.utils import get_keywords
@@ -6,7 +7,10 @@ from DiploGM.mapper.mapper import Mapper
 from DiploGM.models.board import Board
 from DiploGM.db.database import get_connection
 
-def parse_board_params(message: str, board: Board) -> tuple[str, str, bytes | None, str | None, str | None]:
+
+def parse_board_params(
+    message: str, board: Board
+) -> tuple[str, str, bytes | None, str | None, str | None]:
     """Parses a message containing commands to edit the board parameters,
     executes those commands, and returns a response message and an updated map if applicable."""
     invalid: list[tuple[str, RuntimeError | ValueError]] = []
@@ -45,20 +49,26 @@ def parse_board_params(message: str, board: Board) -> tuple[str, str, bytes | No
         embed_colour,
     )
 
-def _set_game_name(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
-    new_name = ' '.join(keywords)
+
+def _set_game_name(
+    _, keywords: list[str], board: Board
+) -> tuple[str | None, str | None]:
+    new_name = " ".join(keywords)
     if new_name == "None":
         board.data.pop("game_name", None)
         board.custom_data.pop("game_name", None)
         get_connection().execute_arbitrary_sql(
             "DELETE FROM board_parameters WHERE board_id = ? AND parameter_key = ?",
-            (board.board_id, "game_name")
+            (board.board_id, "game_name"),
         )
         return None, None
     board.set_data("game_name", new_name)
     return "game_name", new_name
 
-def _set_build_options(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
+
+def _set_build_options(
+    _, keywords: list[str], board: Board
+) -> tuple[str | None, str | None]:
     key_name = "build_options"
     valid_options = "classic", "cores", "control", "anywhere"
     new_value = keywords[0].lower()
@@ -67,7 +77,10 @@ def _set_build_options(_, keywords: list[str], board: Board) -> tuple[str | None
     board.set_data([key_name], new_value)
     return key_name, new_value
 
-def _set_transformation(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
+
+def _set_transformation(
+    _, keywords: list[str], board: Board
+) -> tuple[str | None, str | None]:
     key_name = "transformation"
     valid_options = "disabled", "moves", "builds", "all"
     new_value = keywords[0].lower()
@@ -76,7 +89,10 @@ def _set_transformation(_, keywords: list[str], board: Board) -> tuple[str | Non
     board.set_data([key_name], new_value)
     return key_name, new_value
 
-def _set_victory_conditions(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
+
+def _set_victory_conditions(
+    _, keywords: list[str], board: Board
+) -> tuple[str | None, str | None]:
     key_name = "victory_conditions"
     valid_options = "classic", "vscc"
     new_value = keywords[0].lower()
@@ -85,13 +101,17 @@ def _set_victory_conditions(_, keywords: list[str], board: Board) -> tuple[str |
     board.set_data([key_name], new_value)
     return key_name, new_value
 
-def _set_victory_count(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
+
+def _set_victory_count(
+    _, keywords: list[str], board: Board
+) -> tuple[str | None, str | None]:
     key_name = "victory_count"
     new_value = keywords[0].lower()
     if not new_value.isdigit():
         raise ValueError(f"{new_value} is not a whole number of victory SCs")
     board.set_data([key_name], new_value)
     return key_name, new_value
+
 
 def _set_iscc(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
     player_name, new_iscc = (keywords[0].lower(), keywords[1])
@@ -103,6 +123,7 @@ def _set_iscc(_, keywords: list[str], board: Board) -> tuple[str | None, str | N
     board.set_data(["players", player.name, "iscc"], new_iscc)
     return key_name, new_iscc
 
+
 def _set_vscc(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
     player_name, new_vscc = (keywords[0].lower(), keywords[1])
     if not (player := board.get_player(player_name)):
@@ -113,6 +134,7 @@ def _set_vscc(_, keywords: list[str], board: Board) -> tuple[str | None, str | N
     board.set_data(["players", player.name, "vscc"], new_vscc)
     return key_name, new_vscc
 
+
 def _set_capital(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
     player_name, new_capital = (keywords[0].lower(), keywords[1])
     if not (player := board.get_player(player_name)):
@@ -122,15 +144,21 @@ def _set_capital(_, keywords: list[str], board: Board) -> tuple[str | None, str 
     board.set_data(["players", player.name, "capital"], capital.name)
     return key_name, capital.name
 
-def _set_player_name(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
-    player_name, new_name = (keywords[0].lower(), ' '.join(keywords[1:]))
+
+def _set_player_name(
+    _, keywords: list[str], board: Board
+) -> tuple[str | None, str | None]:
+    player_name, new_name = (keywords[0].lower(), " ".join(keywords[1:]))
     if not (player := board.get_player(player_name)):
         raise ValueError(f"{player_name} was not found in the board")
     key_name = f"players/{player.name}/nickname"
     board.add_nickname(player, new_name)
     return key_name, new_name
 
-def _set_player_color(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
+
+def _set_player_color(
+    _, keywords: list[str], board: Board
+) -> tuple[str | None, str | None]:
     player_name, new_color = (keywords[0].lower(), keywords[1].lower())
     if not (player := board.get_player(player_name)):
         raise ValueError(f"Unknown player: {player_name}")
@@ -140,6 +168,7 @@ def _set_player_color(_, keywords: list[str], board: Board) -> tuple[str | None,
     board.set_data(["players", player.name, "custom_color"], new_color)
     key_name = f"players/{player.name}/custom_color"
     return key_name, new_color
+
 
 def _hide_player(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
     player_name, is_hidden = (keywords[0].lower(), keywords[1].lower())
@@ -151,50 +180,78 @@ def _hide_player(_, keywords: list[str], board: Board) -> tuple[str | None, str 
     board.set_data(["players", player.name, "hidden"], is_hidden)
     return key_name, is_hidden
 
+
 def _add_player(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
-    player_name, player_color = (' '.join(keywords[:-1]), keywords[-1].lower())
+    player_name, player_color = (" ".join(keywords[:-1]), keywords[-1].lower())
     if player_name in board.name_to_player:
         raise ValueError(f"{player_name} is already a player")
     key_name = f"players/{player_name}/color"
     player_data = {
         "color": player_color,
-        "iscc" : 1,
-        "vscc" : board.data["victory_count"]
+        "iscc": 1,
+        "vscc": board.data["victory_count"],
     }
     board.set_data(["players", player_name], dict(player_data))
     board.add_new_player(player_name, player_color)
     get_connection().execute_arbitrary_sql(
         "INSERT INTO players (board_id, player_name, color, liege, points) VALUES (?, ?, ?, ?, ?)",
-        (board.board_id, player_name, player_color, None, 0)
+        (board.board_id, player_name, player_color, None, 0),
     )
     return key_name, player_color
 
+
 # Several options are enabled/disabled toggles, so let's combine them.
-def _toggle_game_option(command: str, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
+def _toggle_game_option(
+    command: str, keywords: list[str], board: Board
+) -> tuple[str | None, str | None]:
     key_name = str.replace(command, " ", "_")
     valid_options = "true", "false", "enabled", "disabled"
     new_value = keywords[0].lower()
     if new_value not in valid_options:
-        raise ValueError(f"{new_value} is not a valid option. Please use true/false or enabled/disabled.")
+        raise ValueError(
+            f"{new_value} is not a valid option. Please use true/false or enabled/disabled."
+        )
     board.set_data(key_name, new_value)
     return key_name, new_value
 
+
 _CORE_OPTIONS_PARAMS = {
-    "turns": {"options": ("1", "2"), "default": "2",
-        "description": "Number of turns required to core a province"},
-    "supportable": {"options": ("true", "false"), "default": "false",
-        "description": "Whether core orders can be support-held"},
-    "require_adjacent_ownership": {"options": ("false", "sc", "all"), "default": "false",
-        "description": "Whether to require ownership of adjacent SCs or provinces to core"},
-    "require_no_enemy_units": {"options": ("false", "sc", "all"), "default": "false",
-        "description": "Whether an enemy unit in an adjacent SC/province can be adjacent to the coring province"},
-    "require_no_interactions": {"options": ("true", "false"), "default": "false",
-        "description": "Core fails if any unit (friendly or enemy) support-holds it"},
-    "fail_on_adjacent_move": {"options": ("false", "sc", "all"), "default": "false",
-        "description": "Core fails if an enemy unit successfully moves into an adjacent SC/province"},
+    "turns": {
+        "options": ("1", "2"),
+        "default": "2",
+        "description": "Number of turns required to core a province",
+    },
+    "supportable": {
+        "options": ("true", "false"),
+        "default": "false",
+        "description": "Whether core orders can be support-held",
+    },
+    "require_adjacent_ownership": {
+        "options": ("false", "sc", "all"),
+        "default": "false",
+        "description": "Whether to require ownership of adjacent SCs or provinces to core",
+    },
+    "require_no_enemy_units": {
+        "options": ("false", "sc", "all"),
+        "default": "false",
+        "description": "Whether an enemy unit in an adjacent SC/province can be adjacent to the coring province",
+    },
+    "require_no_interactions": {
+        "options": ("true", "false"),
+        "default": "false",
+        "description": "Core fails if any unit (friendly or enemy) support-holds it",
+    },
+    "fail_on_adjacent_move": {
+        "options": ("false", "sc", "all"),
+        "default": "false",
+        "description": "Core fails if an enemy unit successfully moves into an adjacent SC/province",
+    },
 }
 
-def _set_core_options(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
+
+def _set_core_options(
+    _, keywords: list[str], board: Board
+) -> tuple[str | None, str | None]:
     core_options = board.data.get("core_options", {})
 
     if not keywords:
@@ -202,8 +259,10 @@ def _set_core_options(_, keywords: list[str], board: Board) -> tuple[str | None,
         lines = ["To set a core option, use `.edit_game core options <param> <value>`."]
         lines.append("Current parameters and valid options:")
         for param, info in _CORE_OPTIONS_PARAMS.items():
-            current = core_options.get(param, info['default'])
-            lines.append(f"  `{param}`: {current} (valid: {', '.join(info['options'])})")
+            current = core_options.get(param, info["default"])
+            lines.append(
+                f"  `{param}`: {current} (valid: {', '.join(info['options'])})"
+            )
             lines.append(f"    {info['description']}")
         raise ValueError("\n".join(lines))
 
@@ -223,6 +282,7 @@ def _set_core_options(_, keywords: list[str], board: Board) -> tuple[str | None,
     key_name = f"core_options/{param}"
     return key_name, value
 
+
 function_list = {
     "game name": _set_game_name,
     "building": _set_build_options,
@@ -238,8 +298,9 @@ function_list = {
     "player color": _set_player_color,
     "hide player": _hide_player,
     "add player": _add_player,
-    "core options": _set_core_options
+    "core options": _set_core_options,
 }
+
 
 def _parse_command(command: str, board: Board) -> None:
     command_list: list[str] = get_keywords(command)
@@ -254,5 +315,5 @@ def _parse_command(command: str, board: Board) -> None:
     if new_key is not None:
         get_connection().execute_arbitrary_sql(
             "INSERT OR REPLACE INTO board_parameters (board_id, parameter_key, parameter_value) VALUES (?, ?, ?)",
-            (board.board_id, new_key, new_value)
+            (board.board_id, new_key, new_value),
         )

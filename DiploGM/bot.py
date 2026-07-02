@@ -1,8 +1,8 @@
 """Main bot class for DiploGM."""
+
 import asyncio
 import datetime
 import inspect
-import importlib
 import logging
 import os
 import random
@@ -15,7 +15,6 @@ from typing import Optional
 import discord
 from discord.ext import commands
 
-from DiploGM.events.base_listener import BaseListener
 from DiploGM.errors import NoGameError
 from DiploGM.config import (
     BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID,
@@ -28,7 +27,6 @@ from DiploGM.config import (
     EXTENSIONS_TO_LOAD_ON_STARTUP,
     HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID,
 )
-from DiploGM.events.eventbus import EventBus
 from DiploGM.errors import CommandPermissionError
 from DiploGM.help import HelpCommand
 from DiploGM.utils import file_hexdigest, send_message_and_file
@@ -37,10 +35,7 @@ from DiploGM.manager import Manager
 logger = logging.getLogger(__name__)
 
 _EXTENSION_PATH = "DiploGM.cogs."
-_EXTENSION_DIRECTORY = "DiploGM/cogs/"
-
-_LISTENER_PATH = "DiploGM.events.listeners."
-_LISTENER_DIRECTORY = "DiploGM/events/listeners/"
+_EXTENSION_DIRECTORY = "src/DiploGM/cogs/"
 
 # List of funny, sarcastic messages
 WELCOME_MESSAGES = [
@@ -62,8 +57,11 @@ WELCOME_MESSAGES = [
 
 class DiploGM(commands.Bot):
     """Main bot class for DiploGM."""
+
     def __init__(self, command_prefix, intents):
-        super().__init__(command_prefix=command_prefix, intents=intents, help_command=HelpCommand())
+        super().__init__(
+            command_prefix=command_prefix, intents=intents, help_command=HelpCommand()
+        )
         self.creation_time = datetime.datetime.now(datetime.timezone.utc)
         self.last_command_time = None
 
@@ -73,11 +71,7 @@ class DiploGM(commands.Bot):
         self.after_invoke(self.after_any_command)
         self.tree.interaction_check = self.before_any_slash_command
 
-        self.manager = Manager()
-
-        self.eventbus = EventBus()
-        for module_path in DiploGM.get_all_listeners():
-            await self.load_listener(self.eventbus, module_path)
+        self.manager: Manager = Manager()
 
         # modularly load command modules
         for extension in EXTENSIONS_TO_LOAD_ON_STARTUP:
@@ -87,7 +81,10 @@ class DiploGM(commands.Bot):
         try:
             synced = await self.tree.sync()
             logger.info("Successfully synched %s slash commands.", len(synced))
-            logger.info("Loaded app commands: %s", [cmd.name for cmd in self.tree.get_commands()])
+            logger.info(
+                "Loaded app commands: %s",
+                [cmd.name for cmd in self.tree.get_commands()],
+            )
         except discord.app_commands.CommandAlreadyRegistered as e:
             logger.warning("Command already registered: %s", e)
         except discord.HTTPException as e:
@@ -97,11 +94,15 @@ class DiploGM(commands.Bot):
         """Loads a DiploGM cog."""
         await self.load_extension(f"{_EXTENSION_PATH}{name}", package=package)
 
-    async def unload_diplogm_extension(self, name: str, *, package: Optional[str] = None):
+    async def unload_diplogm_extension(
+        self, name: str, *, package: Optional[str] = None
+    ):
         """Unloads a DiploGM cog."""
         await self.unload_extension(f"{_EXTENSION_PATH}{name}", package=package)
 
-    async def reload_diplogm_extension(self, name: str, *, package: Optional[str] = None):
+    async def reload_diplogm_extension(
+        self, name: str, *, package: Optional[str] = None
+    ):
         """Reloads a DiploGM cog. Will roll back to the previous version if it fails to load."""
         await self.reload_extension(f"{_EXTENSION_PATH}{name}", package=package)
 
@@ -122,62 +123,46 @@ class DiploGM(commands.Bot):
         try:
             start = datetime.datetime.now()
             await super().load_extension(f"{name}", package=package)
-            logger.info("Successfully loaded Cog: %s in %s", name, datetime.datetime.now() - start)
+            logger.info(
+                "Successfully loaded Cog: %s in %s",
+                name,
+                datetime.datetime.now() - start,
+            )
         except commands.ExtensionError as e:
             logger.info("Failed to load Cog %s", name)
             raise e
 
-    async def unload_extension(self, name: str, *, package: Optional[str] = None) -> None:
+    async def unload_extension(
+        self, name: str, *, package: Optional[str] = None
+    ) -> None:
         """Unloads a cog extension."""
         try:
             start = datetime.datetime.now()
             await super().unload_extension(f"{name}", package=package)
-            logger.info("Successfully unloaded Cog: %s in %s", name, datetime.datetime.now() - start)
+            logger.info(
+                "Successfully unloaded Cog: %s in %s",
+                name,
+                datetime.datetime.now() - start,
+            )
         except commands.ExtensionError as e:
             logger.info("Failed to unload Cog %s", name)
             raise e
 
-    async def reload_extension(self, name: str, *, package: Optional[str] = None) -> None:
+    async def reload_extension(
+        self, name: str, *, package: Optional[str] = None
+    ) -> None:
         """Reloads a cog extension. Will roll back to the previous version if it fails to load."""
         try:
             start = datetime.datetime.now()
             await super().reload_extension(f"{name}", package=package)
-            logger.info("Successfully reloaded Cog: %s in %s", name, datetime.datetime.now() - start)
+            logger.info(
+                "Successfully reloaded Cog: %s in %s",
+                name,
+                datetime.datetime.now() - start,
+            )
         except commands.ExtensionError as e:
             logger.info("Failed to reload Cog %s", name)
             raise e
-
-    @staticmethod
-    def get_all_listeners():
-        for filename in os.listdir(_LISTENER_DIRECTORY):
-            if not filename.endswith(".py") or filename.startswith("_"):
-                continue
-
-            yield f"{_LISTENER_PATH}{filename[:-3]}"
-
-    async def load_listener(self, bus: EventBus, module_path: str):
-        try:
-            module = importlib.import_module(module_path)
-        except ImportError as e:
-            logger.error("Failed to import %s: %s", module_path, e)
-            return
-
-        for attr in dir(module):
-            cls = getattr(module, attr)
-            if not isinstance(cls, type):
-                continue
-
-            if not (cls is not BaseListener and issubclass(cls, BaseListener)):
-                continue
-
-            try:
-                listener = cls(self)
-                listener.setup(bus)
-                logger.info("Loaded event listener: %s", cls.__name__)
-            except Exception as e:
-                logger.error("Failed to load event listener: %s: %s - %s", cls.__name__, e.__class__.__name__, str(e))
-
-    # TODO: Functionality to unload/reload listeners
 
     async def on_ready(self):
         """Stuff that happens when the bot has finished starting up."""
@@ -193,10 +178,15 @@ class DiploGM(commands.Bot):
         # Get the specific channel
         channel = self.get_channel(HUB_SERVER_BOT_STATUS_CHANNEL_ID)
         if not channel or not isinstance(channel, discord.abc.Messageable):
-            logger.warning("Cannot find Bot Status Channel [id=%s]", HUB_SERVER_BOT_STATUS_CHANNEL_ID)
+            logger.warning(
+                "Cannot find Bot Status Channel [id=%s]",
+                HUB_SERVER_BOT_STATUS_CHANNEL_ID,
+            )
         else:
             message = random.choice(WELCOME_MESSAGES)
-            await send_message_and_file(channel=channel, message=message, embed_colour=EMBED_STANDARD_COLOUR)
+            await send_message_and_file(
+                channel=channel, message=message, embed_colour=EMBED_STANDARD_COLOUR
+            )
             await self._post_changelog(channel)
 
         # Set bot's presence (optional)
@@ -240,9 +230,12 @@ class DiploGM(commands.Bot):
 
         if changed:
             version, changes = _get_recent_changelog(changelog)
-            await send_message_and_file(channel=channel,
-                                        embed_colour="#aabb00",
-                                        title=f"Changelog Version: {version}\n___", message=changes)
+            await send_message_and_file(
+                channel=channel,
+                embed_colour="#aabb00",
+                title=f"Changelog Version: {version}\n___",
+                message=changes,
+            )
 
     async def close(self):
         logger.info("Shutting down gracefully.")
@@ -266,7 +259,10 @@ class DiploGM(commands.Bot):
 
     async def before_any_command(self, ctx: commands.Context):
         """Before any command, log the command and thumbs-up the message."""
-        if isinstance(ctx.channel, (discord.DMChannel, discord.PartialMessageable)) or not ctx.guild:
+        if (
+            isinstance(ctx.channel, (discord.DMChannel, discord.PartialMessageable))
+            or not ctx.guild
+        ):
             return
         assert isinstance(ctx.guild, discord.Guild)
         await self.manager.ensure_board_loaded(ctx.guild.id)
@@ -276,7 +272,7 @@ class DiploGM(commands.Bot):
             ctx.guild.name,
             ctx.channel.name,
             ctx.message.author.name,
-            ctx.message.content
+            ctx.message.content,
         )
 
         # People input apostrophes that don't match what the province names are, we can catch all of that here
@@ -293,7 +289,11 @@ class DiploGM(commands.Bot):
     async def after_any_command(self, ctx: commands.Context):
         """After any command, log the time taken to execute the command."""
         assert ctx.command is not None
-        if isinstance(ctx.channel, (discord.DMChannel, discord.PartialMessageable)) or not ctx.guild or not ctx.command:
+        if (
+            isinstance(ctx.channel, (discord.DMChannel, discord.PartialMessageable))
+            or not ctx.guild
+            or not ctx.command
+        ):
             return
         self.last_command_time = ctx.message.created_at
         time_spent = (
@@ -304,7 +304,11 @@ class DiploGM(commands.Bot):
 
         if time_spent.total_seconds() < 1:
             level = logging.DEBUG
-        elif time_spent.total_seconds() < 10 and ctx.command.name not in ["o", "order", "orders"]:
+        elif time_spent.total_seconds() < 10 and ctx.command.name not in [
+            "o",
+            "order",
+            "orders",
+        ]:
             level = logging.INFO
         else:
             level = logging.WARN
@@ -324,7 +328,11 @@ class DiploGM(commands.Bot):
             # we shouldn't do anything if the user says something like "..."
             return
 
-        assert context.guild is not None and context.command is not None and self.user is not None
+        assert (
+            context.guild is not None
+            and context.command is not None
+            and self.user is not None
+        )
         try:
             # mark the message as failed
             await context.message.add_reaction("❌")
@@ -334,7 +342,10 @@ class DiploGM(commands.Bot):
             pass
 
         if getattr(context, "handled", False):
-            logger.info("global on_command_error skipped a %s that was previously handled...", type(exception))
+            logger.info(
+                "global on_command_error skipped a %s that was previously handled...",
+                type(exception),
+            )
             return
 
         time_spent = (
@@ -353,8 +364,11 @@ class DiploGM(commands.Bot):
         else:
             original = exception
 
-        channel_name = (context.channel.name if isinstance(context.channel, (discord.TextChannel, discord.Thread))
-                                             else context.channel.id)
+        channel_name = (
+            context.channel.name
+            if isinstance(context.channel, (discord.TextChannel, discord.Thread))
+            else context.channel.id
+        )
 
         if isinstance(original, CommandPermissionError):
             logger.info(
@@ -381,7 +395,11 @@ class DiploGM(commands.Bot):
             context.message.author.name,
             context.message.content,
             time_spent,
-            ''.join(traceback.format_exception(type(exception), exception, exception.__traceback__)),
+            "".join(
+                traceback.format_exception(
+                    type(exception), exception, exception.__traceback__
+                )
+            ),
         )
 
         if isinstance(original, discord.Forbidden):
@@ -398,8 +416,8 @@ class DiploGM(commands.Bot):
         if isinstance(original, commands.errors.MissingRequiredArgument):
             out = (
                 f"`{original}`\n\n"
-                "If you need some help on how to use this command, " +
-                f"consider running this command instead: `.help {context.command}`"
+                "If you need some help on how to use this command, "
+                + f"consider running this command instead: `.help {context.command}`"
             )
             await send_message_and_file(
                 channel=context.channel,
@@ -458,12 +476,16 @@ class DiploGM(commands.Bot):
         # Out to Bot Dev Server
         bot_error_channel = self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID)
         if bot_error_channel and isinstance(bot_error_channel, discord.abc.Messageable):
-            channel_category = (context.channel.category
-                                if isinstance(context.channel, (discord.TextChannel, discord.Thread))
-                                else context.channel.id)
-            channel_name = (context.channel.name
-                            if isinstance(context.channel, (discord.TextChannel, discord.Thread))
-                            else context.channel.id)
+            channel_category = (
+                context.channel.category
+                if isinstance(context.channel, (discord.TextChannel, discord.Thread))
+                else context.channel.id
+            )
+            channel_name = (
+                context.channel.name
+                if isinstance(context.channel, (discord.TextChannel, discord.Thread))
+                else context.channel.id
+            )
             unhandled_out_dev = (
                 f"Type: {type(original)}\n"
                 f"Location: {context.guild.name} [{channel_category or ''}]-[{channel_name}]\n"
@@ -492,16 +514,18 @@ class DiploGM(commands.Bot):
 
     async def on_guild_join(self, guild: discord.Guild):
         """When the bot joins a new server, log it and report back to the hub server."""
-        channel = (self.get_channel(HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID)
-                   or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID))
+        self.manager.save_ctx_parameter(guild.id, "server_name", guild.name)
+        channel = self.get_channel(
+            HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID
+        ) or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID)
         if channel is None or not isinstance(channel, discord.abc.Messageable):
-            logger.warning("Bot joined a Guild(%s) but could not find a location to log to.", guild.id)
+            logger.warning(
+                "Bot joined a Guild(%s) but could not find a location to log to.",
+                guild.id,
+            )
             return
 
-        out = (
-            f"Guild: `{guild.name}`\n"
-            f"Guild ID: `{guild.id}`"
-        )
+        out = f"Guild: `{guild.name}`\nGuild ID: `{guild.id}`"
 
         if guild.owner:
             out += (
@@ -512,7 +536,9 @@ class DiploGM(commands.Bot):
             out += "\n-- Owner unidentified --"
 
         await asyncio.sleep(2)
-        async for entry in guild.audit_logs(limit=5, action=discord.AuditLogAction.bot_add):
+        async for entry in guild.audit_logs(
+            limit=5, action=discord.AuditLogAction.bot_add
+        ):
             if not self.user or not entry.user or not entry.target:
                 continue
 
@@ -524,25 +550,28 @@ class DiploGM(commands.Bot):
                 )
                 break
         else:
-            out += ("\n-- Inviter unidentified --")
+            out += "\n-- Inviter unidentified --"
 
-        await send_message_and_file(channel=channel,
-                                    embed_colour="#00FF00",
-                                    title="DiploGM joined a server",
-                                    message=out)
+        await send_message_and_file(
+            channel=channel,
+            embed_colour="#00FF00",
+            title="DiploGM joined a server",
+            message=out,
+        )
 
     async def on_guild_remove(self, guild: discord.Guild):
         """When the bot is removed from a server, log it and report back to the hub server."""
-        channel = (self.get_channel(HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID)
-                   or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID))
+        channel = self.get_channel(
+            HUB_SERVER_SERVER_PRESENCE_CHANNEL_ID
+        ) or self.get_channel(BOT_DEV_UNHANDLED_ERRORS_CHANNEL_ID)
         if channel is None or not isinstance(channel, discord.abc.Messageable):
-            logger.warning("Bot was removed from Guild(%s) but could not find a location to log to.", guild.id)
+            logger.warning(
+                "Bot was removed from Guild(%s) but could not find a location to log to.",
+                guild.id,
+            )
             return
 
-        out = (
-            f"Guild: `{guild.name}`\n"
-            f"Guild ID: `{guild.id}`"
-        )
+        out = f"Guild: `{guild.name}`\nGuild ID: `{guild.id}`"
 
         if guild.owner:
             out += (
@@ -552,7 +581,12 @@ class DiploGM(commands.Bot):
         else:
             out += "\n-- Owner unidentified --"
 
-        await send_message_and_file(channel=channel, embed_colour="#FF0000", title="DiploGM left a server", message=out)
+        await send_message_and_file(
+            channel=channel,
+            embed_colour="#FF0000",
+            title="DiploGM left a server",
+            message=out,
+        )
 
     async def on_message(self, message: discord.Message):
         """If a player sends a message, update their last activity time."""

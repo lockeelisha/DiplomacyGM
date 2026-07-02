@@ -17,9 +17,6 @@ logger = logging.getLogger(__name__)
 
 class RetreatsAdjudicator(Adjudicator):
     """Adjudicator for retreat phases."""
-    def __init__(self, board: Board):
-        super().__init__(board)
-
     def _validate_orders(self) -> tuple[dict[str, set[Unit]], set[Unit]]:
         retreats_by_destination: dict[str, set[Unit]] = {}
         units_to_delete: set[Unit] = set()

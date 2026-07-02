@@ -5,9 +5,10 @@ import random
 from typing import TYPE_CHECKING
 from collections import defaultdict
 from discord import Member
+import discord
 from discord.ext import commands
 
-from DiploGM.config import ERROR_COLOUR
+from DiploGM.config import ERROR_COLOUR, PARTIAL_ERROR_COLOUR
 from DiploGM import perms
 from DiploGM.errors import NoGameError
 from DiploGM.models.adjacency import Terrain
@@ -72,7 +73,9 @@ class CommandCog(commands.Cog):
         """Outputs the version number of the bot, read from the first line of Changelog.md"""
         with open("Changelog.md", "r", encoding="utf-8") as f:
             version = f.readline()
-        await send_message_and_file(channel=ctx.channel, message=f"DiploGM Version: {version}")
+        await send_message_and_file(
+            channel=ctx.channel, message=f"DiploGM Version: {version}"
+        )
 
     @commands.command(name="rng", hidden=True)
     async def rng(self, ctx: commands.Context, upper: int = 1_000_000_000) -> None:
@@ -80,13 +83,12 @@ class CommandCog(commands.Cog):
         number = random.randint(0, upper)
 
         title = "Your selected number was..."
-        out = (
-            f"Result: `{number}`\n"
-            f"Range: `0` to `{upper}`"
-        )
+        out = f"Result: `{number}`\nRange: `0` to `{upper}`"
         await send_message_and_file(channel=ctx.channel, title=title, message=out)
 
-    def _generate_scoreboard(self, board: Board, ctx: commands.Context, alphabetical: bool) -> str:
+    def _generate_scoreboard(
+        self, board: Board, ctx: commands.Context, alphabetical: bool
+    ) -> str:
         assert ctx.guild is not None
         response = ""
         try:
@@ -101,9 +103,7 @@ class CommandCog(commands.Cog):
             else board.get_players_sorted_by_score()
         )
         for player in player_list:
-            if (
-                player_role := find_discord_role(player, ctx.guild.roles)
-            ) is not None:
+            if (player_role := find_discord_role(player, ctx.guild.roles)) is not None:
                 player_name = player_role.mention
             else:
                 player_name = player.get_name()
@@ -113,7 +113,8 @@ class CommandCog(commands.Cog):
             response += (
                 f"\n**{player_name}**: "
                 f"{len(player.centers)} ({'+' if len(player.centers) - len(player.units) >= 0 else ''}"
-                f"{len(player.centers) - len(player.units)}) ")
+                f"{len(player.centers) - len(player.units)}) "
+            )
 
             if old_board is not None:
                 old_player = old_board.get_player(player.name)
@@ -121,7 +122,8 @@ class CommandCog(commands.Cog):
                 sc_diff = len(player.centers) - len(old_player.centers)
                 response += (
                     f"({'+' if sc_diff >= 0 else ''}"
-                    f"{sc_diff} SC{'s' if abs(sc_diff) != 1 else ''}) ")
+                    f"{sc_diff} SC{'s' if abs(sc_diff) != 1 else ''}) "
+                )
 
             response += f"[{round(board.get_score(player) * 100, 1)}%]"
         return response
@@ -242,6 +244,58 @@ class CommandCog(commands.Cog):
         )
 
     @commands.command(
+        brief="outputs information for which user is playing which power",
+        aliases=["vp"],
+    )
+    async def view_players(self, ctx: commands.Context) -> None:
+        assert ctx.guild is not None
+        board = manager.get_board(ctx.guild.id)
+        players = board.get_players()
+
+        player_role = discord.utils.get(ctx.guild.roles, name="Player")
+        if player_role is None:
+            await send_message_and_file(
+                channel=ctx.channel,
+                message="Could not find an @Player role to search for.",
+                embed_colour=PARTIAL_ERROR_COLOUR,
+            )
+            return
+
+        power_roles = set(map(lambda p: find_discord_role(p, ctx.guild.roles), players))
+        active_players = {role: [] for role in power_roles}
+
+        for member in ctx.guild.members:
+            if not any(r == player_role for r in member.roles):
+                continue
+
+            player_powers = power_roles & set(member.roles)
+            for role in player_powers:
+                active_players[role].append(member)
+
+        active_players = dict(
+            sorted(
+                [(k, v) for (k, v) in active_players.items() if k is not None],
+                key=lambda pair: pair[0].name,
+            )
+        )
+
+        out = ""
+        for role, members in active_players.items():
+            out += f"{role.mention}:\n"
+            for member in members:
+                pronouns = manager.ctx_parameters.get(member.id, {}).get(
+                    "pronouns", "?/?"
+                )
+                timezone = manager.ctx_parameters.get(member.id, {}).get(
+                    "timezone", "UTC+?"
+                )
+                out += f"\\- {member.mention} PN={pronouns} TZ={timezone}\n"
+
+        await send_message_and_file(
+            channel=ctx.channel, title=f"{ctx.guild.name}\nPlayer List", message=out
+        )
+
+    @commands.command(
         brief="outputs information about a specific province",
         aliases=["province"],
     )
@@ -256,7 +310,6 @@ class CommandCog(commands.Cog):
                 "You cannot use .province_info in a non-GM channel while orders are locked.",
                 non_gm_alt="Orders locked! If you think this is an error, contact a GM.",
             )
-            return
 
         province_name = remove_prefix(ctx)
         if not province_name:
@@ -354,7 +407,6 @@ class CommandCog(commands.Cog):
                 "You cannot use .player_info in a non-GM channel while orders are locked.",
                 non_gm_alt="Orders locked! If you think this is an error, contact a GM.",
             )
-            return
 
         player_name = remove_prefix(ctx)
         if not player_name:
@@ -385,7 +437,9 @@ class CommandCog(commands.Cog):
         out = player.info(board)
         log_command(logger, ctx, message=f"Got info for player {player}")
 
-        await send_message_and_file(channel=ctx.channel, title=player.get_name(), message=out)
+        await send_message_and_file(
+            channel=ctx.channel, title=player.get_name(), message=out
+        )
 
     @commands.command(brief="outputs all provinces per owner")
     async def all_province_data(self, ctx: commands.Context) -> None:
@@ -394,9 +448,7 @@ class CommandCog(commands.Cog):
         board = manager.get_board(ctx.guild.id)
 
         if not board.orders_enabled:
-            perms.assert_gm_only(
-                ctx, "call .all_province_data while orders are locked"
-            )
+            perms.assert_gm_only(ctx, "call .all_province_data while orders are locked")
 
         province_by_owner = defaultdict(list)
         for province in board.provinces:
@@ -409,9 +461,7 @@ class CommandCog(commands.Cog):
         for owner, provinces in province_by_owner.items():
             if owner is None:
                 player_name = "None"
-            elif (
-                player_role := find_discord_role(owner, ctx.guild.roles)
-            ) is not None:
+            elif (player_role := find_discord_role(owner, ctx.guild.roles)) is not None:
                 player_name = player_role.mention
             else:
                 player_name = owner
@@ -479,8 +529,7 @@ class CommandCog(commands.Cog):
             channel=ctx.channel, message=f"Nickname updated to `{prefix + name}`"
         )
 
-    @commands.command(brief="Gets the current deadline",
-                      aliases=["deadline"])
+    @commands.command(brief="Gets the current deadline", aliases=["deadline"])
     async def get_deadline(self, ctx: commands.Context) -> None:
         """Gets the current deadline."""
         assert ctx.guild is not None
@@ -489,26 +538,32 @@ class CommandCog(commands.Cog):
         if deadline is None:
             await send_message_and_file(channel=ctx.channel, message="No deadline set")
             return
-        await send_message_and_file(channel=ctx.channel, message=f"Current deadline: <t:{deadline}:f>")
+        await send_message_and_file(
+            channel=ctx.channel, message=f"Current deadline: <t:{deadline}:f>"
+        )
 
     @commands.command(brief="Changes your user preferences")
     async def edit_prefs(self, ctx: commands.Context) -> None:
         """Edits your own user preferences.
 
-        Usage: 
+        Usage:
             `.edit_prefs <commands>`
         """
         assert ctx.guild is not None
         param_commands = remove_prefix(ctx)
         try:
-            title, message, colour = parse_user_prefs(ctx.author.id, param_commands, manager.get_board(ctx.guild.id))
+            title, message, colour = parse_user_prefs(
+                ctx.author.id, param_commands, manager.get_board(ctx.guild.id)
+            )
         except NoGameError:
-            title, message, colour = parse_user_prefs(ctx.author.id, param_commands, None)
+            title, message, colour = parse_user_prefs(
+                ctx.author.id, param_commands, None
+            )
         log_command(logger, ctx, message=title)
-        await send_message_and_file(channel=ctx.channel,
-                                    title=title,
-                                    message=message,
-                                    embed_colour=colour)
+        await send_message_and_file(
+            channel=ctx.channel, title=title, message=message, embed_colour=colour
+        )
+
 
 async def setup(bot):
     """Sets up the cog."""

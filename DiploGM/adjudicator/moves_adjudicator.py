@@ -1,5 +1,6 @@
 """Adjudicator for move phases. There's a lot going on here, so make sure all DATC tests pass if you
 modify this at all."""
+
 from __future__ import annotations
 
 import collections
@@ -13,7 +14,11 @@ from DiploGM.adjudicator.defs import (
     AdjudicableOrder,
     OrderType,
 )
-from DiploGM.adjudicator.validate_order import OrderValidity, is_valid_result, order_is_valid
+from DiploGM.adjudicator.validate_order import (
+    OrderValidity,
+    is_valid_result,
+    order_is_valid,
+)
 from DiploGM.db import database
 from DiploGM.models.adjacency import Terrain
 from DiploGM.models.order import NMR, Core, Support
@@ -26,8 +31,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class MovesAdjudicator(Adjudicator):
     """Adjudicator for move phases."""
+
     # Algorithm from https://diplom.org/Zine/S2009M/Kruijswijk/DipMath_Chp6.htm
     def __init__(self, board: Board):
         super().__init__(board)
@@ -40,19 +47,25 @@ class MovesAdjudicator(Adjudicator):
             points_available = player.dp_max
             for unit, allocation in board.get_player_dp_orders(player).items():
                 if allocation.points > points_available:
-                    logger.info("Player %s allocated more DP than they have. Skipping this DP orders", player)
+                    logger.info(
+                        "Player %s allocated more DP than they have. Skipping this DP orders",
+                        player,
+                    )
                     unit.dp_allocations.pop(player.name)
                     break
                 points_available -= allocation.points
 
         # For each unit, assign a DP order if appropriate
         for unit in board.units:
-            if unit.order is None and (best_order := board.get_winning_dp_order(unit)) is not None:
+            if (
+                unit.order is None
+                and (best_order := board.get_winning_dp_order(unit)) is not None
+            ):
                 unit.order = best_order
                 self.dp_order_strings[str(unit.province)] = (
                     type(unit.order).__name__,
                     unit.order.get_destination_str(),
-                    unit.order.get_source_str()
+                    unit.order.get_source_str(),
                 )
 
         # run supports after everything else since illegal cores / moves should be treated as holds
@@ -60,7 +73,9 @@ class MovesAdjudicator(Adjudicator):
         for unit in units:
             self._validate_unit(unit)
 
-        self.orders_by_province = {order.current_province.name: order for order in self.orders}
+        self.orders_by_province = {
+            order.current_province.name: order for order in self.orders
+        }
         self.moves_by_destination: dict[str, set[AdjudicableOrder]] = {}
         for order in self.orders:
             if order.type == OrderType.MOVE:
@@ -90,10 +105,17 @@ class MovesAdjudicator(Adjudicator):
 
         failed: bool = False
         # indicates that an illegal move / core can't be support held
-        if isinstance(unit.order, Core) and self.parameters.get("core_options", {}).get("supportable") == "true":
+        if (
+            isinstance(unit.order, Core)
+            and self.parameters.get("core_options", {}).get("supportable") == "true"
+        ):
             unit.order.is_support_holdable = True
 
-        valid, reason = order_is_valid(unit.province, unit.order, core_options=self.parameters.get("core_options", {}))
+        valid, reason = order_is_valid(
+            unit.province,
+            unit.order,
+            core_options=self.parameters.get("core_options", {}),
+        )
         if not is_valid_result(valid):
             logger.debug("Order for %s is invalid because %s", unit, reason)
             # Invalid moves are considered unsupportable. This deviates from standard adjudication rules
@@ -124,7 +146,9 @@ class MovesAdjudicator(Adjudicator):
             # 2.  the convoy isn't disrupted
 
             if order.destination_province.name in self.orders_by_province:
-                attacked_order = self.orders_by_province[order.destination_province.name]
+                attacked_order = self.orders_by_province[
+                    order.destination_province.name
+                ]
                 if attacked_order.destination_province == order.source_province:
                     if self._adjudicate_convoys_for_order(order) == Resolution.SUCCEEDS:
                         order.is_convoy = True
@@ -136,22 +160,39 @@ class MovesAdjudicator(Adjudicator):
             self._resolve_order(order)
             order.get_original_order().has_failed = order.resolution == Resolution.FAILS
         if self.save_orders:
-            database.get_connection().save_order_for_units(self._board, set(o.base_unit for o in self.orders))
+            database.get_connection().save_order_for_units(
+                self._board, set(o.base_unit for o in self.orders)
+            )
         self._update_board()
         return self._board
 
     def _update_order(self, order: AdjudicableOrder):
         if order.type == OrderType.CORE and order.resolution == Resolution.SUCCEEDS:
             order.source_province.core_data.corer = order.country
-        if order.type == OrderType.TRANSFORM and order.resolution == Resolution.SUCCEEDS:
+        if (
+            order.type == OrderType.TRANSFORM
+            and order.resolution == Resolution.SUCCEEDS
+        ):
             logger.debug("Transforming %s", order.base_unit)
             if (new_type := order.base_unit.unit_type.transforms_to) is None:
-                logger.warning("Skipping %s: %s", order, "tried to transform a unit that cannot transform")
+                logger.warning(
+                    "Skipping %s: %s",
+                    order,
+                    "tried to transform a unit that cannot transform",
+                )
                 return
             order.base_unit.unit_type = new_type
-            order.base_unit.coast = order.destination_coast if Terrain.COAST in new_type.moves_on else None
-        if order.type == OrderType.MOVE and not order.is_sortie and order.resolution == Resolution.SUCCEEDS:
-            logger.debug("Moving %s to %s", order.source_province, order.destination_province)
+            order.base_unit.coast = (
+                order.destination_coast if Terrain.COAST in new_type.moves_on else None
+            )
+        if (
+            order.type == OrderType.MOVE
+            and not order.is_sortie
+            and order.resolution == Resolution.SUCCEEDS
+        ):
+            logger.debug(
+                "Moving %s to %s", order.source_province, order.destination_province
+            )
             if order.source_province.unit == order.base_unit:
                 order.source_province.unit = None
             if order.source_province.dislodged_unit == order.base_unit:
@@ -171,9 +212,11 @@ class MovesAdjudicator(Adjudicator):
             order.base_unit.coast = order.destination_coast
             order.destination_province.unit = order.base_unit
             self._board.change_owner(order.destination_province, order.country)
-        if (order.type == OrderType.HOLD
+        if (
+            order.type == OrderType.HOLD
             and order.resolution == Resolution.SUCCEEDS
-            and order.source_province.dislodged_unit is None):
+            and order.source_province.dislodged_unit is None
+        ):
             self._board.change_owner(order.destination_province, order.country)
 
     def _update_board(self):
@@ -189,7 +232,10 @@ class MovesAdjudicator(Adjudicator):
                 province.core_data.half_core = None
                 continue
 
-            if turns_to_core == "1" or province.core_data.half_core == province.core_data.corer:
+            if (
+                turns_to_core == "1"
+                or province.core_data.half_core == province.core_data.corer
+            ):
                 province.core_data.core = province.core_data.corer
                 province.core_data.half_core = None
             else:
@@ -241,14 +287,17 @@ class MovesAdjudicator(Adjudicator):
         while 0 < len(to_visit):
             current: Province = to_visit.popleft()
             # Have to pass through at least one convoying fleet
-            if current != order.source_province and current.adjacencies.get(order.destination_province):
+            if current != order.source_province and current.adjacencies.get(
+                order.destination_province
+            ):
                 return Resolution.SUCCEEDS
 
             visited.add(current.name)
 
             adjacent_convoys = {
-                convoy_order for convoy_order in order.convoys
-                    if current.adjacencies.get(convoy_order.current_province)
+                convoy_order
+                for convoy_order in order.convoys
+                if current.adjacencies.get(convoy_order.current_province)
             }
             for convoy in adjacent_convoys:
                 if convoy.current_province.name in visited:
@@ -262,22 +311,30 @@ class MovesAdjudicator(Adjudicator):
         # Cases where a valid support breaks the core order
         if core_options.get("require_no_interactions") == "true":
             for support in order.supports:
-                if is_valid_result(order_is_valid(support.current_province,
-                                      support.get_original_order(),
-                                      core_options={"supportable": "true"})):
+                if is_valid_result(
+                    order_is_valid(
+                        support.current_province,
+                        support.get_original_order(),
+                        core_options={"supportable": "true"},
+                    )
+                ):
                     return Resolution.FAILS
 
         # Cases where an enemy move into an adjacent province breaks the core order
-        if (adj_move_param := core_options.get("fail_on_adjacent_move", "false")) != "false":
+        if (
+            adj_move_param := core_options.get("fail_on_adjacent_move", "false")
+        ) != "false":
             for adjacent in order.current_province.adjacencies.get_all():
                 if not adjacent.has_supply_center and adj_move_param == "sc":
                     continue
                 moves_here = self.moves_by_destination.get(adjacent.name, set())
                 for move_here in moves_here:
-                    if move_here.country != order.country and self._adjudicate_order(move_here) == Resolution.SUCCEEDS:
+                    if (
+                        move_here.country != order.country
+                        and self._adjudicate_order(move_here) == Resolution.SUCCEEDS
+                    ):
                         return Resolution.FAILS
         return Resolution.SUCCEEDS
-
 
     def _adjudicate_order(self, order: AdjudicableOrder) -> Resolution:
         if order.type == OrderType.HOLD:
@@ -285,18 +342,25 @@ class MovesAdjudicator(Adjudicator):
             return Resolution.SUCCEEDS
         if order.type in (OrderType.CORE, OrderType.TRANSFORM, OrderType.SUPPORT):
             # These orders fail if attacked by nation, even if that order isn't successful
-            moves_here = self.moves_by_destination.get(order.current_province.name, set()) - {order}
+            moves_here = self.moves_by_destination.get(
+                order.current_province.name, set()
+            ) - {order}
             for move_here in moves_here:
                 # coring and transforming should fail even if the attack comes from the same nation
-                if move_here.country == order.country and order.type == OrderType.SUPPORT:
+                if (
+                    move_here.country == order.country
+                    and order.type == OrderType.SUPPORT
+                ):
                     continue
                 if not move_here.is_valid:
                     continue
                 if not move_here.is_convoy:
                     # If we are being attacked by the place we are supporting against,
                     # our support only fails if they succeed
-                    if (move_here.current_province != order.destination_province
-                        or self._resolve_order(move_here) == Resolution.SUCCEEDS):
+                    if (
+                        move_here.current_province != order.destination_province
+                        or self._resolve_order(move_here) == Resolution.SUCCEEDS
+                    ):
                         return Resolution.FAILS
                     continue
                 # decide to fail convoys that cut support to their attack
@@ -309,7 +373,9 @@ class MovesAdjudicator(Adjudicator):
                 return self._adjudicate_core_order(order)
             return Resolution.SUCCEEDS
         if order.type == OrderType.CONVOY:
-            moves_here = self.moves_by_destination.get(order.current_province.name, set())
+            moves_here = self.moves_by_destination.get(
+                order.current_province.name, set()
+            )
             for move_here in moves_here:
                 # see https://webdiplomacy.net/doc/DATC_v3_0.html#5.D
                 if self._adjudicate_order(move_here) == Resolution.SUCCEEDS:
@@ -320,30 +386,46 @@ class MovesAdjudicator(Adjudicator):
             return self._adjudicate_move_order(order)
         raise ValueError("Unknown order type for adjudication")
 
-    def _count_strength(self, order: AdjudicableOrder, attacked_country: Player | None = None) -> int:
+    def _count_strength(
+        self, order: AdjudicableOrder, attacked_country: Player | None = None
+    ) -> int:
         # Your own unit counts, unless it's a difficult adjacency
-        strength = 0 if order.base_unit.province.adjacencies.is_difficult(order.destination_province) else 1
+        strength = (
+            0
+            if order.base_unit.province.adjacencies.is_difficult(
+                order.destination_province
+            )
+            else 1
+        )
         for support in order.supports:
-            if (self._resolve_order(support) == Resolution.SUCCEEDS
-                and (support.country is None or attacked_country != support.country)):
+            if self._resolve_order(support) == Resolution.SUCCEEDS and (
+                support.country is None or attacked_country != support.country
+            ):
                 strength += 1
         return strength
 
     def _head_on_check(self, order: AdjudicableOrder) -> bool:
         attacked_order = self.orders_by_province.get(order.destination_province.name)
-        return (attacked_order is not None
-                and attacked_order.type == OrderType.MOVE
-                and attacked_order.destination_province == order.current_province
-                and not order.is_convoy
-                and not attacked_order.is_convoy)
+        return (
+            attacked_order is not None
+            and attacked_order.type == OrderType.MOVE
+            and attacked_order.destination_province == order.current_province
+            and not order.is_convoy
+            and not attacked_order.is_convoy
+        )
 
     def _adjudicate_move_order(self, order: AdjudicableOrder) -> Resolution:
         # check that convoy path work
-        if order.is_convoy and self._adjudicate_convoys_for_order(order) == Resolution.FAILS:
+        if (
+            order.is_convoy
+            and self._adjudicate_convoys_for_order(order) == Resolution.FAILS
+        ):
             return Resolution.FAILS
 
         # X -> Z, Y -> Z scenario, prevent strength
-        orders_to_overcome = self.moves_by_destination[order.destination_province.name] - {order}
+        orders_to_overcome = self.moves_by_destination[
+            order.destination_province.name
+        ] - {order}
         # X -> Y, Y -> Z scenario
         attacked_order = self.orders_by_province.get(order.destination_province.name)
 
@@ -351,10 +433,9 @@ class MovesAdjudicator(Adjudicator):
 
         attack_strength = 1
         # Determine if destination unit moved
-        attacked_move = (
-            attacked_order is None
-            or (attacked_order.type == OrderType.MOVE
-                and self._resolve_order(attacked_order) == Resolution.SUCCEEDS)
+        attacked_move = attacked_order is None or (
+            attacked_order.type == OrderType.MOVE
+            and self._resolve_order(attacked_order) == Resolution.SUCCEEDS
         )
 
         # If there is a unit in the destionation and it either didn't move or is a head-on attack,
@@ -369,7 +450,10 @@ class MovesAdjudicator(Adjudicator):
 
             opponent_strength = 1
             # count supports if it wasn't a failed move
-            if head_on or (attacked_order.type != OrderType.MOVE and not attacked_order.not_supportable):
+            if head_on or (
+                attacked_order.type != OrderType.MOVE
+                and not attacked_order.not_supportable
+            ):
                 opponent_strength = self._count_strength(attacked_order)
 
             if attack_strength <= opponent_strength:
@@ -382,14 +466,18 @@ class MovesAdjudicator(Adjudicator):
                 orders_to_overcome = {
                     order
                     for order in orders_to_overcome
-                    if order.source_province != attacked_order.destination_province or order.is_convoy
+                    if order.source_province != attacked_order.destination_province
+                    or order.is_convoy
                 }
 
         for opponent in orders_to_overcome:
             if not opponent.is_valid:
                 continue
             # don't need to overcome failed convoys
-            if opponent.is_convoy and self._adjudicate_convoys_for_order(opponent) == Resolution.FAILS:
+            if (
+                opponent.is_convoy
+                and self._adjudicate_convoys_for_order(opponent) == Resolution.FAILS
+            ):
                 continue
             prevent_strength = self._count_strength(opponent)
             if attack_strength <= prevent_strength:
@@ -460,7 +548,10 @@ class MovesAdjudicator(Adjudicator):
         # Deal with paradoxes and circular dependencies
         orders = self._dependencies[old_dependency_count:]
         self._dependencies = self._dependencies[:old_dependency_count]
-        logger.warning("I think there's a move paradox involving these moves: %s", [str(x) for x in orders])
+        logger.warning(
+            "I think there's a move paradox involving these moves: %s",
+            [str(x) for x in orders],
+        )
         # Szykman rule - If any of these orders is a convoy, fail the order
         apply_szykman = False
         for order in orders:

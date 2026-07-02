@@ -5,6 +5,7 @@ from typing import Callable, Generic, Iterable, Optional, TypeVar
 T = TypeVar("T")
 Predicate = Callable[[T], bool]
 
+
 class Repository(ABC, Generic[T]):
     @abstractmethod
     def save(self, entity: T) -> T: ...

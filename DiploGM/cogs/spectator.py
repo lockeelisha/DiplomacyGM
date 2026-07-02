@@ -6,8 +6,14 @@ from discord.utils import find as discord_find
 
 from DiploGM import perms
 from DiploGM import utils
-from DiploGM.config import (ERROR_COLOUR, HUB_SERVER_ID, HUB_SERVER_VERIFIED_ROLE,
-                            PARTIAL_ERROR_COLOUR, PLAYER_CHANNEL_SUFFIX)
+from DiploGM.config import (
+    ERROR_COLOUR,
+    HUB_SERVER_ID,
+    HUB_SERVER_VERIFIED_ROLE,
+    PARTIAL_ERROR_COLOUR,
+    PLAYER_CHANNEL_SUFFIX,
+    RESTRICTED_ROLE_NAMES,
+)
 from DiploGM.models.spec_request import SpectatorBan, SpectatorBanRepository
 from DiploGM.utils import send_message_and_file
 from DiploGM.manager import Manager
@@ -19,6 +25,7 @@ manager = Manager()
 
 class SpecView(discord.ui.View):
     """Handles the button presses for spectator requests."""
+
     def __init__(
         self,
         member: discord.Member,
@@ -69,15 +76,21 @@ class SpecView(discord.ui.View):
                 f"Accept response sent to {self.member.mention}!", ephemeral=True
             )
         except discord.Forbidden:
-            logger.warning("Unable to send a message to direct message. The user might have DMs blocked.")
+            logger.warning(
+                "Unable to send a message to direct message. The user might have DMs blocked."
+            )
         await self.member.add_roles(self.power_role, self.spec_role)
 
         out = f"[SPECTATOR LOG] {self.member.mention} approved for power {self.power_role.mention}"
         await self.admin_channel.send(out)
 
         # record acceptance to db and manager
-        resp = manager.save_spec_request(interaction.guild.id, self.member.id, self.power_role.id)
-        await self.admin_channel.send(f"[SPECTATOR LOG] for {self.member.mention}: {resp}")
+        resp = manager.save_spec_request(
+            interaction.guild.id, self.member.id, self.power_role.id
+        )
+        await self.admin_channel.send(
+            f"[SPECTATOR LOG] for {self.member.mention}: {resp}"
+        )
 
         if interaction.message:
             await interaction.message.delete()
@@ -94,7 +107,9 @@ class SpecView(discord.ui.View):
                 f"Reject response sent to {self.member.mention}!", ephemeral=True
             )
         except discord.Forbidden:
-            logger.warning("Unable to send a message to direct message. The user might have DMs blocked.")
+            logger.warning(
+                "Unable to send a message to direct message. The user might have DMs blocked."
+            )
 
         out = f"[SPECTATOR LOG] {self.member.mention} rejected for power {self.power_role.mention}"
         await self.admin_channel.send(out)
@@ -131,10 +146,10 @@ class SpectatorCog(commands.Cog):
     ):
         """Ban a user from country spectating with /spec
 
-        Usage: 
+        Usage:
             Used as `.spec_ban add <user> <?timestamp>`
 
-        Note: 
+        Note:
             Timestamps will be automatically checked and bans removed after expiration
 
         Args:
@@ -170,20 +185,22 @@ class SpectatorCog(commands.Cog):
     @spec_ban_add.error
     async def spec_ban_add_error(self, ctx: commands.Context, exc):
         if isinstance(exc, commands.errors.UserNotFound):
-            await send_message_and_file(channel=ctx.channel,
-                                        message="Could not find that user!",
-                                        embed_colour=ERROR_COLOUR)
-            ctx.handled = True # type: ignore
+            await send_message_and_file(
+                channel=ctx.channel,
+                message="Could not find that user!",
+                embed_colour=ERROR_COLOUR,
+            )
+            ctx.handled = True  # type: ignore
 
     @spec_ban.command(name="remove")
     @perms.mod_only("remove a spectating ban")
     async def spec_ban_remove(self, ctx: commands.Context, user: discord.User):
         """Unban a user from spectating
 
-        Usage: 
+        Usage:
             Used as `.spec_ban remove <user>`
 
-        Note: 
+        Note:
             Removes first from the board object and then from the database
             Use in a GM Channel will remove all orders globally
             Use in a Player Channel will remove all orders for that player
@@ -212,10 +229,10 @@ class SpectatorCog(commands.Cog):
     ):
         """Unban a user from spectating
 
-        Usage: 
+        Usage:
             Used as `.spec_ban remove <?user>`
 
-        Note: 
+        Note:
             if no user is provided, list all current outstanding bans
 
         Args:
@@ -292,9 +309,11 @@ class SpectatorCog(commands.Cog):
 
     async def _validate_good_standing(self, interaction: discord.Interaction) -> bool:
         guild = interaction.guild
-        if not (guild
-                and (_member := guild.get_member(self.bot.user.id))
-                and (requester := self.bot.get_user(interaction.user.id))):
+        if not (
+            guild
+            and (_member := guild.get_member(self.bot.user.id))
+            and (requester := self.bot.get_user(interaction.user.id))
+        ):
             return False
 
         if (_team := discord.utils.get(guild.roles, name="GM Team")) is None:
@@ -310,7 +329,8 @@ class SpectatorCog(commands.Cog):
         if not any([_role in _member.roles for _role in _team_roles]):
             _elle = discord.utils.get(guild.members, name="eelisha")
             await interaction.response.send_message(
-                f"Bot is not on GM Team! Alerting {_team.mention}" + (f" and {_elle.mention}" if _elle else "")
+                f"Bot is not on GM Team! Alerting {_team.mention}"
+                + (f" and {_elle.mention}" if _elle else "")
             )
             return False
 
@@ -321,8 +341,8 @@ class SpectatorCog(commands.Cog):
 
             if end_ts is not None and now_ts < end_ts:
                 await interaction.response.send_message(
-                    "You are currently banned from spectating with DiploGM until this time:\n\n" +
-                    f"{end_ts}\n\nContact the Moderation team if you are unsure why.",
+                    "You are currently banned from spectating with DiploGM until this time:\n\n"
+                    + f"{end_ts}\n\nContact the Moderation team if you are unsure why.",
                     ephemeral=True,
                 )
                 return False
@@ -353,7 +373,12 @@ class SpectatorCog(commands.Cog):
     async def spec(self, interaction: discord.Interaction, power_role: discord.Role):
         """Request to spectate a player."""
         guild = interaction.guild
-        if not (guild and self.bot.user and interaction.channel and await self._validate_spec_request(interaction)):
+        if not (
+            guild
+            and self.bot.user
+            and interaction.channel
+            and await self._validate_spec_request(interaction)
+        ):
             return
 
         requester = guild.get_member(interaction.user.id)
@@ -368,7 +393,9 @@ class SpectatorCog(commands.Cog):
             lambda c: c.name in admin_channel_names, guild.text_channels
         )
         if not admin_channel:
-            logger.warning("Server: %s does not have a #gm-bot-commands channel.", guild.name)
+            logger.warning(
+                "Server: %s does not have a #gm-bot-commands channel.", guild.name
+            )
             await interaction.response.send_message(
                 "Could not process your request. (Contact Admin)", ephemeral=True
             )
@@ -380,8 +407,8 @@ class SpectatorCog(commands.Cog):
             prev_role = guild.get_role(prev_request.role_id)
             if prev_role:
                 await admin_channel.send(
-                    f"[SPECTATOR LOG] {interaction.user.mention} has requested to spectate {power_role.mention} " +
-                    f"after already being accepted for role: {prev_role.mention}"
+                    f"[SPECTATOR LOG] {interaction.user.mention} has requested to spectate {power_role.mention} "
+                    + f"after already being accepted for role: {prev_role.mention}"
                 )
 
                 await interaction.response.send_message(
@@ -391,13 +418,7 @@ class SpectatorCog(commands.Cog):
             return
 
         # prevent spectating non-power roles
-        if (
-            power_role.name in [
-                "Admin", "Moderators", "GM", "Heavenly Angel", "GM Team", "Player",
-                "Spectator", "Country Spectator", "Dead", "DiploGM",
-            ]
-            or power_role.name.find("-orders") != -1
-        ):
+        if (power_role.name in RESTRICTED_ROLE_NAMES or power_role.name.find("-orders") != -1):
             await interaction.response.send_message(
                 "Can't spectate that role!", ephemeral=True
             )
@@ -416,8 +437,9 @@ class SpectatorCog(commands.Cog):
         # if player already a player or country spec
         if any(
             map(
-                lambda r: r.name
-                in ["Player", "Spectator", "Country Spectator", "Dead"],
+                lambda r: (
+                    r.name in ["Player", "Spectator", "Country Spectator", "Dead"]
+                ),
                 requester.roles,
             )
         ):
@@ -430,7 +452,8 @@ class SpectatorCog(commands.Cog):
 
         # get power channel to send request
         role_channel = discord.utils.find(
-            lambda c: c.name == f"{power_role.name.lower()}{PLAYER_CHANNEL_SUFFIX}", guild.text_channels
+            lambda c: c.name == f"{power_role.name.lower()}{PLAYER_CHANNEL_SUFFIX}",
+            guild.text_channels,
         )
         role_void = discord.utils.find(
             lambda c: c.name == f"{power_role.name.lower()}-void", guild.text_channels

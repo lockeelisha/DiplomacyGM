@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class MapperInformation:
     """Used for storing unit information for handling test cases."""
 
@@ -23,8 +24,7 @@ class MapperInformation:
 
 
 class Adjudicator:
-    """Abstract base class for phase-specific adjudicators.
-    """
+    """Abstract base class for phase-specific adjudicators."""
 
     __metaclass__ = abc.ABCMeta
 
@@ -36,9 +36,11 @@ class Adjudicator:
         """
         self._board = board
         self.save_orders = True
-        self.parameters = {"build_options": board.data.get("build_options", "classic"),
-                           "core_options": board.data.get("core_options", {}),
-                           "convoyable_islands": (board.data.get("convoyable_islands") == "enabled")}
+        self.parameters = {
+            "build_options": board.data.get("build_options", "classic"),
+            "core_options": board.data.get("core_options", {}),
+            "convoyable_islands": (board.data.get("convoyable_islands") == "enabled"),
+        }
         self.failed_or_invalid_units: set[MapperInformation] = set()
 
     @abc.abstractmethod

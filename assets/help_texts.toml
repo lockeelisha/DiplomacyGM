@@ -237,6 +237,12 @@ variant = "The variant to create (e.g. 'classic', 'impdip.2.4'). Defaults to 'cl
 [delete_game]
 description = "Permanently deletes the game in this server. This cannot be undone."
 
+[assign_powers]
+description = """
+Given lists of users and power roles, assigns the users Player, power, and order-power roles.
+Put one assignment per line, of the form '@user @power'
+"""
+
 [edit]
 description = """
 Edits the game state directly. One sub-command per line.

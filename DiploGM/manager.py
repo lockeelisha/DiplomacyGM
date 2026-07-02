@@ -20,6 +20,7 @@ from DiploGM.utils.sanitise import parse_variant_path, simple_player_name
 
 logger = logging.getLogger(__name__)
 
+
 class Manager(metaclass=SingletonMeta):
     """Manager acts as an intermediary between Bot (the Discord API), Board (the board state), the database."""
 
@@ -37,7 +38,9 @@ class Manager(metaclass=SingletonMeta):
         # We store the values as strings because we don't want to modify existing Province objects
         # Ideally we should deepcopy the board, but it requires a custom implementation
         self.last_failed_orders: dict[int, set[str]] = {}
-        self.last_dp_orders: dict[int, dict[str, tuple[str, str | None, str | None]]] = {}
+        self.last_dp_orders: dict[
+            int, dict[str, tuple[str, str | None, str | None]]
+        ] = {}
 
         self.ctx_parameters: dict = self._database.load_ctx_parameters()
 
@@ -60,7 +63,9 @@ class Manager(metaclass=SingletonMeta):
         """Gets a list of server ids that have games."""
         return self._database.get_active_board_ids()
 
-    def create_game(self, server_id: int, gametype: str = "classic", **kwargs) -> tuple[bool, str]:
+    def create_game(
+        self, server_id: int, gametype: str = "classic", **kwargs
+    ) -> tuple[bool, str]:
         """Creates a new game in the specified server and of the specified variant."""
         if self._boards.get(server_id):
             return False, "A game already exists in this server."
@@ -176,13 +181,10 @@ class Manager(metaclass=SingletonMeta):
                 cur_board.datafile,
             )
             if board is None:
-                raise NoGameError(
-                    f"There is no {turn} board for this server"
-                )
-            if (
-                board.turn.year < cur_board.turn.year
-                or (board.turn.year == cur_board.turn.year
-                    and board.turn.phase.value < cur_board.turn.phase.value)
+                raise NoGameError(f"There is no {turn} board for this server")
+            if board.turn.year < cur_board.turn.year or (
+                board.turn.year == cur_board.turn.year
+                and board.turn.phase.value < cur_board.turn.phase.value
             ):
                 player_restriction = None
             if kwargs.get("fow_player") is not None:
@@ -211,13 +213,14 @@ class Manager(metaclass=SingletonMeta):
                 color_mode=kwargs.get("color_mode"),
                 oil_spill_mode=kwargs.get("oil_spill_mode", False),
                 invert_color_mode=kwargs.get("invert_color_mode", False),
-                clean_map_mode=kwargs.get("clean_map_mode", False)
+                clean_map_mode=kwargs.get("clean_map_mode", False),
             )
 
             if draw_moves:
-                svg, file_name = mapper.draw_moves_map(board.turn,
-                                                       player_restriction=player_restriction,
-                                                       movement_only=kwargs.get("movement_only", False),
+                svg, file_name = mapper.draw_moves_map(
+                    board.turn,
+                    player_restriction=player_restriction,
+                    movement_only=kwargs.get("movement_only", False),
                 )
             else:
                 svg, file_name = mapper.draw_current_map()
@@ -228,7 +231,9 @@ class Manager(metaclass=SingletonMeta):
         logger.info("manager.draw_map_for_board took %ss", elapsed)
         return svg, file_name
 
-    def adjudicate(self, server_id: int, test: bool = False) -> tuple[str | None, Board]:
+    def adjudicate(
+        self, server_id: int, test: bool = False
+    ) -> tuple[str | None, Board]:
         """Adjudicates the game for a given board, and saves the result if it's not a test adjudication."""
         start = time.time()
 
@@ -239,14 +244,16 @@ class Manager(metaclass=SingletonMeta):
         adjudicator.save_orders = not test
         new_board = adjudicator.run()
         if old_board.turn.is_builds():
-            self.last_failed_orders[server_id] = getattr(adjudicator, 'failed_build_provinces', set())
+            self.last_failed_orders[server_id] = getattr(
+                adjudicator, "failed_build_provinces", set()
+            )
         else:
             self.last_failed_orders[server_id] = {
                 order.current_province.name
-                for order in getattr(adjudicator, 'orders', [])
+                for order in getattr(adjudicator, "orders", [])
                 if order.resolution == Resolution.FAILS
             }
-        self.last_dp_orders[server_id] = getattr(adjudicator, 'dp_order_strings', {})
+        self.last_dp_orders[server_id] = getattr(adjudicator, "dp_order_strings", {})
         new_board.turn = new_board.turn.get_next_turn()
         message = new_board.run_variant_scripts()
         if message:
@@ -287,11 +294,11 @@ class Manager(metaclass=SingletonMeta):
         board = self.get_board(server_id)
         last_turn = board.turn.get_previous_turn()
 
-        old_board = self._database.get_board(board.board_id, last_turn, board.datafile, clear_status=True)
+        old_board = self._database.get_board(
+            board.board_id, last_turn, board.datafile, clear_status=True
+        )
         if old_board is None:
-            raise ValueError(
-                f"There is no {last_turn} board for this server"
-            )
+            raise ValueError(f"There is no {last_turn} board for this server")
 
         self._database.delete_board(board)
         self._boards[old_board.board_id] = old_board
@@ -313,11 +320,11 @@ class Manager(metaclass=SingletonMeta):
         logger.info("Reloading server %s", server_id)
         board = self.get_board(server_id)
 
-        loaded_board = self._database.get_board(board.board_id, board.turn, board.datafile)
+        loaded_board = self._database.get_board(
+            board.board_id, board.turn, board.datafile
+        )
         if loaded_board is None:
-            raise ValueError(
-                f"There is no {board.turn} board for this server"
-            )
+            raise ValueError(f"There is no {board.turn} board for this server")
 
         self._boards[board.board_id] = loaded_board
         mapper = Mapper(loaded_board)
@@ -331,7 +338,9 @@ class Manager(metaclass=SingletonMeta):
         for server_id, board in self._boards.items():
             if board.datafile == variant:
                 logger.info("Reloading board for server %s", server_id)
-                loaded_board = self._database.get_board(board.board_id, board.turn, board.datafile)
+                loaded_board = self._database.get_board(
+                    board.board_id, board.turn, board.datafile
+                )
                 if loaded_board is None:
                     logger.warning("There is no %s board for this server", board.turn)
                     continue
@@ -348,8 +357,11 @@ class Manager(metaclass=SingletonMeta):
             return None
         for role in member.roles:
             for player in players:
-                if (simple_player_name(player.name) == simple_player_name(role.name)
-                    or simple_player_name(player.get_name()) == simple_player_name(role.name)):
+                if simple_player_name(player.name) == simple_player_name(
+                    role.name
+                ) or simple_player_name(player.get_name()) == simple_player_name(
+                    role.name
+                ):
                     return player
         return None
 
@@ -361,24 +373,26 @@ class Manager(metaclass=SingletonMeta):
                 self.last_activity[server_id] = {}
             self.last_activity[server_id][player.name] = time.time()
 
-    def save_ctx_parameter(self, context_id: int, parameter_key: str, parameter_value: str) -> None:
+    def save_ctx_parameter(
+        self, context_id: int, parameter_key: str, parameter_value: str
+    ) -> None:
         """Saves a context parameter to the database."""
         self.ctx_parameters[context_id] = self.ctx_parameters.get(context_id, {})
-        keys = parameter_key.split('/')
+        keys = parameter_key.split("/")
         data = self.ctx_parameters[context_id]
         for key in keys[:-1]:
             data = data.setdefault(key, {})
         data[keys[-1]] = parameter_value
         self._database.execute_arbitrary_sql(
             "INSERT OR REPLACE INTO ctx_parameters (context_id, parameter_key, parameter_value) VALUES (?, ?, ?)",
-            (context_id, parameter_key, parameter_value)
+            (context_id, parameter_key, parameter_value),
         )
 
     def delete_ctx_parameter(self, context_id: int, parameter_key: str) -> None:
         """Deletes a context parameter from the database."""
         if context_id not in self.ctx_parameters:
             return
-        keys = parameter_key.split('/')
+        keys = parameter_key.split("/")
         data = self.ctx_parameters[context_id]
         for key in keys[:-1]:
             if key in data:
@@ -389,5 +403,5 @@ class Manager(metaclass=SingletonMeta):
             del data[keys[-1]]
         self._database.execute_arbitrary_sql(
             "DELETE FROM ctx_parameters WHERE context_id = ? AND parameter_key = ?",
-            (context_id, parameter_key)
+            (context_id, parameter_key),
         )

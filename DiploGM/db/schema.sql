@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS boards (
     phase text,
     data_file text,
     fish int,
-	name text,
+    name text,
     PRIMARY KEY (board_id, phase));
 CREATE TABLE IF NOT EXISTS players (
     board_id int,
@@ -68,11 +68,11 @@ CREATE TABLE IF NOT EXISTS builds(
 );
 
 CREATE TABLE IF NOT EXISTS spec_requests (
-	request_id INTEGER PRIMARY KEY AUTOINCREMENT,
-	server_id INTEGER NOT NULL,
-	user_id INTEGER NOT NULL,
-	role_id INTEGER NOT NULL,
-	UNIQUE (server_id, user_id) -- only one approved request can be stored per server
+    request_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    role_id INTEGER NOT NULL,
+    UNIQUE (server_id, user_id) -- only one approved request can be stored per server
 );
 
 CREATE TABLE IF NOT EXISTS board_parameters (

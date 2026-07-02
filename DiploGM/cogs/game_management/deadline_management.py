@@ -1,4 +1,5 @@
 """Game management commands related to deadlines and pinging players."""
+
 import logging
 import re
 from datetime import timedelta
@@ -34,6 +35,7 @@ _TIMEDELTA_RE = re.compile(
     r"(?:(-?\d+)\s*s(?:ec(?:ond)?s?)?)?\s*$"
 )
 
+
 def _parse_timedelta(s: str) -> timedelta:
     m = _TIMEDELTA_RE.fullmatch(s.strip())
     if m and any(m.groups()):
@@ -44,6 +46,7 @@ def _parse_timedelta(s: str) -> timedelta:
             seconds=int(m.group(4) or 0),
         )
     raise ValueError(f"Cannot parse time duration: {s!r}")
+
 
 async def set_deadline(ctx: commands.Context) -> None:
     """Manages the deadline for the current phase."""
@@ -99,19 +102,18 @@ async def set_deadline(ctx: commands.Context) -> None:
     if new_deadline is not None:
         get_connection().execute_arbitrary_sql(
             "INSERT OR REPLACE INTO board_parameters (board_id, parameter_key, parameter_value) VALUES (?, ?, ?)",
-            (board.board_id, "deadline", new_deadline)
+            (board.board_id, "deadline", new_deadline),
         )
     else:
         get_connection().execute_arbitrary_sql(
             "DELETE FROM board_parameters WHERE board_id = ? AND parameter_key = ?",
-            (board.board_id, "deadline")
+            (board.board_id, "deadline"),
         )
 
-def _ping_player_builds(board: Board,
-                        player: Player,
-                        users: set[Member | Role]) -> str:
+
+def _ping_player_builds(board: Board, player: Player, users: set[Member | Role]) -> str:
     build_options = board.data.get("build_options", "classic")
-    user_str = ''.join([u.mention for u in users])
+    user_str = "".join([u.mention for u in users])
 
     count = len(player.centers) - len(player.units)
     num_builds = len([o for o in player.build_orders if isinstance(o, Build)])
@@ -127,30 +129,40 @@ def _ping_player_builds(board: Board,
     if count < 0:
         if current == count:
             return ""
-        return f"Hey {user_str}, you have {difference} {'less' if current > count else 'more'} " + \
-            f"disband {order_text} than necessary. Please get this looked at."
+        return (
+            f"Hey {user_str}, you have {difference} {'less' if current > count else 'more'} "
+            + f"disband {order_text} than necessary. Please get this looked at."
+        )
 
-    available_centers = [center for center in player.centers if center.can_build(build_options)]
+    available_centers = [
+        center for center in player.centers if center.can_build(build_options)
+    ]
     available = min(len(available_centers), count)
 
     difference = abs(current - available)
     # We use count here in case someone waives builds
     if current > count:
-        return f"Hey {user_str}, you have {difference} more build {order_text} than possible. " + \
-            "Please get this looked at."
+        return (
+            f"Hey {user_str}, you have {difference} more build {order_text} than possible. "
+            + "Please get this looked at."
+        )
     if current < available:
-        return f"Hey {user_str}, you have {difference} less build {order_text} than necessary. " + \
-                f"Please use `.order waive {difference}` if you wish to waive."
+        return (
+            f"Hey {user_str}, you have {difference} less build {order_text} than necessary. "
+            + f"Please use `.order waive {difference}` if you wish to waive."
+        )
     return ""
 
-def _ping_player_moves(board: Board,
-                       player: Player,
-                       users: set[Member | Role]) -> str:
+
+def _ping_player_moves(board: Board, player: Player, users: set[Member | Role]) -> str:
     missing = [
         unit
         for unit in player.units
-        if unit.order is None and
-            (board.turn.is_moves() or (unit == unit.province.dislodged_unit and unit.retreat_options))
+        if unit.order is None
+        and (
+            board.turn.is_moves()
+            or (unit == unit.province.dislodged_unit and unit.retreat_options)
+        )
     ]
     missing_dp = 0
     if board.data.get("dp", "False").lower() in ("true", "enabled"):
@@ -162,16 +174,19 @@ def _ping_player_moves(board: Board,
     unit_text = f"unit{'s' if len(missing) != 1 else ''}"
     response = f"Hey **{''.join([u.mention for u in users])}**, "
     if missing:
-        response += f"you are missing moves for the following {len(missing)} {unit_text}:"
-        for unit in sorted(
-            missing, key=lambda _unit: _unit.province.name
-        ):
+        response += (
+            f"you are missing moves for the following {len(missing)} {unit_text}:"
+        )
+        for unit in sorted(missing, key=lambda _unit: _unit.province.name):
             response += f"\n{unit}"
     if missing_dp > 0:
-        response += ('\nY' if missing else 'y') + f"ou have {missing_dp} unspent DP."
+        response += ("\nY" if missing else "y") + f"ou have {missing_dp} unspent DP."
     elif missing_dp < 0:
-        response += ('\nY' if missing else 'y') + f"ou have spent {-missing_dp} too much DP."
+        response += (
+            "\nY" if missing else "y"
+        ) + f"ou have spent {-missing_dp} too much DP."
     return response
+
 
 async def ping_players(ctx: commands.Context) -> None:
     """Pings all players with withstanding orders"""
@@ -182,7 +197,7 @@ async def ping_players(ctx: commands.Context) -> None:
     timestamp = board.data.get("deadline")
 
     # extract deadline argument
-    if (parsed_timestamp := re.match(r"<t:(\d+):[a-zA-Z]>", remove_prefix(ctx))):
+    if parsed_timestamp := re.match(r"<t:(\d+):[a-zA-Z]>", remove_prefix(ctx)):
         timestamp = parsed_timestamp.group(1)
 
     # get abstract player information
@@ -201,7 +216,9 @@ async def ping_players(ctx: commands.Context) -> None:
     # ping required players
     pinged_players = 0
     failed_players = []
-    for channel in [ch for category in player_categories for ch in category.text_channels]:
+    for channel in [
+        ch for category in player_categories for ch in category.text_channels
+    ]:
         if (player := perms.get_player_by_channel(board, channel)) is None:
             continue
 
@@ -215,18 +232,24 @@ async def ping_players(ctx: commands.Context) -> None:
 
         if not board.is_chaos():
             # Find users which have a player role to not ping spectators
-            users: set[Member | Role] = {m for m in role.members if set(m.roles) & player_roles}
+            users: set[Member | Role] = {
+                m for m in role.members if set(m.roles) & player_roles
+            }
         else:
-            users = {overwritter for overwritter, permission
-                        in channel.overwrites.items()
-                        if isinstance(overwritter, Member) and permission.view_channel}
+            users = {
+                overwritter
+                for overwritter, permission in channel.overwrites.items()
+                if isinstance(overwritter, Member) and permission.view_channel
+            }
 
         if len(users) == 0:
             failed_players.append(player)
             # Ping role in case of no players
             users.add(role)
 
-        ping_function = _ping_player_builds if board.turn.is_builds() else _ping_player_moves
+        ping_function = (
+            _ping_player_builds if board.turn.is_builds() else _ping_player_moves
+        )
         response = ping_function(board, player, users)
         if not response:
             continue
@@ -241,7 +264,9 @@ async def ping_players(ctx: commands.Context) -> None:
     )
 
     if len(failed_players) > 0:
-        failed_players_str = "\n- ".join([player.get_name() for player in failed_players])
+        failed_players_str = "\n- ".join(
+            [player.get_name() for player in failed_players]
+        )
         await send_message_and_file(
             channel=ctx.channel,
             title="Failed to find a player for the following:",

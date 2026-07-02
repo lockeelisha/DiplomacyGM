@@ -11,40 +11,63 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-def _parse_unit(board: Board, province: Province, unit_data: dict, is_dislodged: bool = False) -> None:
-    retreat_options = ({board.get_province_and_coast(loc)
-                        for loc in unit_data.get("retreat_options", [])}
-                        if is_dislodged else None)
-    unit = board.create_unit(unit_data["type"],
-                             board.get_player(unit_data.get("owner", "None")),
-                             province,
-                             unit_data.get("coast"),
-                             retreat_options)
+
+def _parse_unit(
+    board: Board, province: Province, unit_data: dict, is_dislodged: bool = False
+) -> None:
+    retreat_options = (
+        {
+            board.get_province_and_coast(loc)
+            for loc in unit_data.get("retreat_options", [])
+        }
+        if is_dislodged
+        else None
+    )
+    unit = board.create_unit(
+        unit_data["type"],
+        board.get_player(unit_data.get("owner", "None")),
+        province,
+        unit_data.get("coast"),
+        retreat_options,
+    )
     if "order" in unit_data:
         order_data = unit_data["order"]
         try:
-            unit.order = board.parse_order(order_data["type"],
-                                            order_data.get("destination"),
-                                            order_data.get("source"))
+            unit.order = board.parse_order(
+                order_data["type"],
+                order_data.get("destination"),
+                order_data.get("source"),
+            )
         except (ValueError, KeyError) as e:
             logger.warning("Could not parse order for %s: %s", province.name, e)
     for player_name, dp_data in unit_data.get("dp_allocations", {}).items():
         try:
-            dp_order = board.parse_order(dp_data["order"]["type"],
-                                            dp_data["order"].get("destination"),
-                                            dp_data["order"].get("source"))
+            dp_order = board.parse_order(
+                dp_data["order"]["type"],
+                dp_data["order"].get("destination"),
+                dp_data["order"].get("source"),
+            )
             if dp_order is not None:
-                unit.dp_allocations[player_name] = DPAllocation(dp_data["points"], dp_order)
+                unit.dp_allocations[player_name] = DPAllocation(
+                    dp_data["points"], dp_order
+                )
         except (ValueError, KeyError) as e:
             logger.warning("Could not parse DP order for %s: %s", province.name, e)
+
 
 def _parse_province(province: Province, province_data: dict, board: Board) -> None:
     if province_data.get("is_impassable", False) is True:
         province.is_impassable = True
 
-    board.change_owner(province, board.get_player(province_data.get("owner", "None")), force_change=True)
+    board.change_owner(
+        province,
+        board.get_player(province_data.get("owner", "None")),
+        force_change=True,
+    )
     province.core_data.core = board.get_player(province_data.get("core", "None"))
-    province.core_data.half_core = board.get_player(province_data.get("half_core", "None"))
+    province.core_data.half_core = board.get_player(
+        province_data.get("half_core", "None")
+    )
 
     if "unit" in province_data:
         _parse_unit(board, province, province_data["unit"])
@@ -52,6 +75,7 @@ def _parse_province(province: Province, province_data: dict, board: Board) -> No
     # Dislodged unit
     if "dislodged_unit" in province_data:
         _parse_unit(board, province, province_data["dislodged_unit"], is_dislodged=True)
+
 
 def import_game(board: Board, data: dict) -> str:
     """Applies a game state from an export JSON dict or string."""
@@ -68,7 +92,9 @@ def import_game(board: Board, data: dict) -> str:
     # Update player data
     for player_data in data.get("players", []):
         if player_data["name"].lower() not in board.name_to_player:
-            board.add_new_player(player_data["name"], player_data.get("color", "00FF00"))
+            board.add_new_player(
+                player_data["name"], player_data.get("color", "00FF00")
+            )
         player = board.get_player(player_data["name"])
         if player is None:
             continue
@@ -88,6 +114,7 @@ def import_game(board: Board, data: dict) -> str:
 
     # Apply custom parameters
     if "parameters" in data:
+
         def flatten_params(d: dict, parent_key: str = "", sep: str = "/") -> dict:
             items = {}
             for k, v in d.items():

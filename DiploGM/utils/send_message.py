@@ -24,6 +24,7 @@ DISCORD_EMBED_TOTAL_LIMIT = 6000
 
 class ErrorMessage(Enum):
     """Enum that gives a common set of error messages for send_error()."""
+
     CHANNEL_NOT_GIVEN = "No channel given."
     COMMAND_IN_PAST = "Don't schedule a command to occur in the past."
     FOW_DISABLED = "This is not a fog of war game."
@@ -49,14 +50,16 @@ async def send_error(channel: Messageable, error_message: ErrorMessage) -> Messa
         embed_colour=config.ERROR_COLOUR,
     )
 
+
 async def send_orders_locked_error(channel: Messageable) -> Message:
     """Sends an 'Orders locked' error message to the specified channel."""
     return await send_message_and_file(
-                    channel=channel,
-                    title="Orders locked!",
-                    message="If you think this is an error, contact a GM.",
-                    embed_colour=config.ERROR_COLOUR,
-                )
+        channel=channel,
+        title="Orders locked!",
+        message="If you think this is an error, contact a GM.",
+        embed_colour=config.ERROR_COLOUR,
+    )
+
 
 async def send_message_and_file(
     *,
@@ -93,9 +96,9 @@ async def send_message_and_file(
                 if not message:
                     message = ""
                 message += (
-                    f"\n" f"### {field_title}\n"
+                    f"\n### {field_title}\n"
                     if field_title.strip()
-                    else f"{field_title}\n" f"{field_body}"
+                    else f"{field_title}\n{field_body}"
                 )
 
     if message and messages:
@@ -146,8 +149,7 @@ async def send_message_and_file(
     for field in fields or []:
         if (
             len(embeds[-1].fields) == 25
-            or sum(map(len, embeds)) + sum(map(len, field))
-            > DISCORD_EMBED_TOTAL_LIMIT
+            or sum(map(len, embeds)) + sum(map(len, field)) > DISCORD_EMBED_TOTAL_LIMIT
             or len(embeds) == 10
         ):
             await channel.send(embeds=embeds)

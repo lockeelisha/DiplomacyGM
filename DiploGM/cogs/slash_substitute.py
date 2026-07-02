@@ -8,6 +8,7 @@ from discord.ext import commands
 from discord.utils import find as discord_find
 
 from DiploGM import config, perms
+from DiploGM.services import reputation_service
 from DiploGM.utils import send_message_and_file
 from DiploGM.manager import Manager
 
@@ -20,6 +21,7 @@ SERVER_OVERRIDE = True
 class SlashSubstituteCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.service = reputation_service
 
     @app_commands.command(
         name="advertise",
@@ -68,6 +70,7 @@ class SlashSubstituteCog(commands.Cog):
         None
 
         """
+
         def send_advertise_error(message: str):
             assert isinstance(interaction.channel, discord.TextChannel)
             return send_message_and_file(
@@ -78,9 +81,11 @@ class SlashSubstituteCog(commands.Cog):
             )
 
         guild = interaction.guild
-        if (not guild
+        if (
+            not guild
             or not isinstance(interaction.user, discord.Member)
-            or not isinstance(interaction.channel, discord.TextChannel)):
+            or not isinstance(interaction.channel, discord.TextChannel)
+        ):
             return
 
         bot = interaction.client
@@ -130,7 +135,9 @@ class SlashSubstituteCog(commands.Cog):
             lambda r: r.name == "Interested Substitute", locations["hub_server"].roles
         )
         if not interested_sub_role:
-            await send_advertise_error("Could not find the role for interested substitutes.")
+            await send_advertise_error(
+                "Could not find the role for interested substitutes."
+            )
             return
 
         board = manager.get_board(guild.id)
@@ -175,9 +182,9 @@ class SlashSubstituteCog(commands.Cog):
             "\n"
             f"Message: {message}\n"
             "\n"
-            f"If you are interested, please go to {locations['tickets_channel'].mention} and create a ticket. " +
-            f"Don't forget to ping {interaction.user.mention}[{interaction.user.name}] " +
-            "so that they know you want to join the game!"
+            f"If you are interested, please go to {locations['tickets_channel'].mention} and create a ticket. "
+            + f"Don't forget to ping {interaction.user.mention}[{interaction.user.name}] "
+            + "so that they know you want to join the game!"
         )
         file, file_name = manager.draw_map_for_board(
             board, player_restriction=None, draw_moves=False, color_mode="standard"
@@ -256,6 +263,7 @@ class SlashSubstituteCog(commands.Cog):
         None
 
         """
+
         def send_substitute_error(message: str):
             assert isinstance(interaction.channel, discord.TextChannel)
             return send_message_and_file(
@@ -267,9 +275,11 @@ class SlashSubstituteCog(commands.Cog):
 
         guild = interaction.guild
         bot = interaction.client
-        if (not guild
+        if (
+            not guild
             or not isinstance(interaction.user, discord.Member)
-            or not isinstance(interaction.channel, discord.TextChannel)):
+            or not isinstance(interaction.channel, discord.TextChannel)
+        ):
             return
 
         # TODO: app_commands permissions check decorators
@@ -329,9 +339,7 @@ class SlashSubstituteCog(commands.Cog):
                 lambda r: r.name == f"orders-{power_role.name.lower()}", guild.roles
             ),
             "player": discord_find(lambda r: r.name == "Player", guild.roles),
-            "cspec": discord_find(
-                lambda r: r.name == "Country Spectator", guild.roles
-            ),
+            "cspec": discord_find(lambda r: r.name == "Country Spectator", guild.roles),
         }
 
         if any(map(lambda pair: pair[1] is None, roles.items())):
@@ -432,6 +440,9 @@ class SlashSubstituteCog(commands.Cog):
             f"Out: {outgoing_user.mention if outgoing_user else '(null)'}[{outgoing_username}]\n"
             f"Phase: {board.turn}\n"
             f"Reason: {reason}"
+        )
+        self.service.create_delta(
+            incoming_user.id, delta=3, reason=f"Substituted into: {guild.name}"
         )
 
         if recommended_penalty:

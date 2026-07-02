@@ -1,4 +1,5 @@
 """Module to parse commands to edit the board parameters."""
+
 import re
 
 from DiploGM.config import ERROR_COLOUR, PARTIAL_ERROR_COLOUR
@@ -6,7 +7,10 @@ from DiploGM.manager import Manager
 from DiploGM.utils import get_keywords
 from DiploGM.models.board import Board
 
-def parse_server_params(server_id: int, message: str, board: Board) -> tuple[str, str, str | None]:
+
+def parse_server_params(
+    server_id: int, message: str, board: Board
+) -> tuple[str, str, str | None]:
     """Parses a message containing commands to edit server settings,
     executes those commands, and returns a response message."""
     invalid: list[tuple[str, RuntimeError | ValueError]] = []
@@ -38,22 +42,28 @@ def parse_server_params(server_id: int, message: str, board: Board) -> tuple[str
         embed_colour,
     )
 
-def _set_maps_channel(_, keywords: list[str], board: Board) -> tuple[str | None, str | None]:
-    maps_channel_matches = re.findall(r'\d{10,}', keywords[0])
+
+def _set_maps_channel(
+    _, keywords: list[str], board: Board
+) -> tuple[str | None, str | None]:
+    maps_channel_matches = re.findall(r"\d{10,}", keywords[0])
     if not maps_channel_matches:
         raise ValueError("Invalid maps channel.")
     color_mode = keywords[1].lower() if len(keywords) > 1 else "standard"
     if color_mode == "none":
         color_mode = None
     else:
-        valid_color_modes = board.data["svg config"].get("color_options", []) + ["standard", "custom"]
+        valid_color_modes = board.data["svg config"].get("color_options", []) + [
+            "standard",
+            "custom",
+        ]
         if color_mode not in valid_color_modes:
             raise ValueError(f"Unknown color mode: {color_mode}")
     return f"maps_channel/{maps_channel_matches[-1]}", color_mode
 
-function_list = {
-    "maps channel": _set_maps_channel
-}
+
+function_list = {"maps channel": _set_maps_channel}
+
 
 def _parse_command(server_id: int, command: str, board: Board) -> None:
     command_list: list[str] = get_keywords(command)

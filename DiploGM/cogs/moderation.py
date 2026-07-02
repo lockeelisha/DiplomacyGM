@@ -1,4 +1,5 @@
 """Cog for moderation features and user management."""
+
 import datetime
 import logging
 
@@ -13,8 +14,10 @@ from DiploGM.utils import send_message_and_file
 logger = logging.getLogger(__name__)
 NEW_ACCOUNT_WARNING = datetime.timedelta(weeks=6)
 
+
 class ModerationCog(commands.Cog):
     """Cog for moderation features and user management."""
+
     def __init__(self, bot):
         self.bot = bot
 
@@ -45,8 +48,11 @@ class ModerationCog(commands.Cog):
         guild = member.guild
         hub = self.bot.get_guild(config.HUB_SERVER_ID)
         if not hub:
-            logger.warning("%s joined %s: Could not find the Hub server to check for moderation.",
-                           member.name, member.guild.name)
+            logger.warning(
+                "%s joined %s: Could not find the Hub server to check for moderation.",
+                member.name,
+                member.guild.name,
+            )
             return
 
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -60,18 +66,24 @@ class ModerationCog(commands.Cog):
 
         # NOT HUB
         if hub and guild.id != config.HUB_SERVER_ID:
-            hub_member = discord.utils.find(lambda m: m.name == member.name, hub.members)
+            hub_member = discord.utils.find(
+                lambda m: m.name == member.name, hub.members
+            )
             if not hub_member:
                 msg = "Not a member of the hub server!"
                 problems.append(msg)
-            elif not discord.utils.find(lambda r: r.name == config.HUB_SERVER_VERIFIED_ROLE, hub_member.roles):
+            elif not discord.utils.find(
+                lambda r: r.name == config.HUB_SERVER_VERIFIED_ROLE, hub_member.roles
+            ):
                 msg = "Not verified on the hub server!"
                 problems.append(msg)
 
         if len(problems) == 0:
             return
 
-        modchannel = discord.utils.find(lambda c: c.name == "mod-log", hub.text_channels)
+        modchannel = discord.utils.find(
+            lambda c: c.name == "mod-log", hub.text_channels
+        )
         msg = (
             f"Somebody to watch/interrogate:\n"
             f"User: {member} (ID: {member.id})\n"
@@ -82,6 +94,7 @@ class ModerationCog(commands.Cog):
             msg += f"- {p}\n"
 
         await modchannel.send(msg)
+
 
 async def setup(bot):
     """Setup function for the Moderation cog."""

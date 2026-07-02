@@ -9,6 +9,6 @@ from .sanitise import (
     get_keywords,
     _manage_coast_signature,
     parse_season,
-    get_value_from_timestamp
+    get_value_from_timestamp,
 )
 from .singleton import SingletonMeta

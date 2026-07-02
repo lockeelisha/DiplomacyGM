@@ -1,4 +1,5 @@
 """Utility functions for the mapper."""
+
 from __future__ import annotations
 import copy
 import re
@@ -14,28 +15,44 @@ if TYPE_CHECKING:
     from DiploGM.models.province import Province
     from DiploGM.models.unit import Unit
 
+
 def create_element(tag: str, attributes: dict[str, Any]) -> Element:
     """Creates an XML element with the given tag and attributes."""
     attributes_str = {key: str(val) for key, val in attributes.items()}
     return etree.Element(tag, attributes_str)
 
-def is_moveable(unit: Unit,
-                adjacent_provinces: set[str],
-                player_restriction: str | None,
-                is_retreats: bool = False) -> bool:
+
+def is_moveable(
+    unit: Unit,
+    adjacent_provinces: set[str],
+    player_restriction: str | None,
+    is_retreats: bool = False,
+) -> bool:
     """Checks if a unit is moveable."""
     if unit.province.name not in adjacent_provinces:
         return False
-    if player_restriction and unit.player is not None and unit.player.name != player_restriction:
+    if (
+        player_restriction
+        and unit.player is not None
+        and unit.player.name != player_restriction
+    ):
         return False
     if is_retreats and unit.province.dislodged_unit != unit:
         return False
     return True
 
-def get_closest_loc(possibilities: set[complex], coord: complex, map_width: float=0, normalize: bool=True) -> complex:
+
+def get_closest_loc(
+    possibilities: set[complex],
+    coord: complex,
+    map_width: float = 0,
+    normalize: bool = True,
+) -> complex:
     """Gets the closest point to the given coordinate, accounting for horizontal wrapping of the map."""
     if map_width <= 0:
-        map_width = float('inf') # If map_width is zero, we make it infinite to prevent wrapping
+        map_width = float(
+            "inf"
+        )  # If map_width is zero, we make it infinite to prevent wrapping
     possibilities_list = list(possibilities)
     crossed_pos = []
     crossed = []
@@ -58,10 +75,10 @@ def get_closest_loc(possibilities: set[complex], coord: complex, map_width: floa
     closest = crossed_pos[short_ind]
     return complex(closest.real % map_width, closest.imag) if normalize else closest
 
-def get_unit_coordinates(province: Province,
-                         unit_type: UnitType,
-                         coast: str | None,
-                         retreat: bool = False) -> complex:
+
+def get_unit_coordinates(
+    province: Province, unit_type: UnitType, coast: str | None, retreat: bool = False
+) -> complex:
     """Returns the set of coordinates for a unit in a province, with failbacks if needed."""
     coords = province.unit_coordinates
     if not coords:
@@ -76,10 +93,10 @@ def get_unit_coordinates(province: Province,
         locations = next(iter(coords.values()))
     return locations.retreat_coordinate if retreat else locations.primary_coordinate
 
-def get_all_unit_coordinates(province: Province,
-                             unit_type: UnitType,
-                             coast: str | None,
-                             retreat: bool = False) -> set[complex]:
+
+def get_all_unit_coordinates(
+    province: Province, unit_type: UnitType, coast: str | None, retreat: bool = False
+) -> set[complex]:
     """Returns the set of coordinates for a unit in a province, with failbacks if needed."""
     coords = province.all_coordinates
     if not coords:
@@ -92,11 +109,20 @@ def get_all_unit_coordinates(province: Province,
         locations = coords["Army"]
     else:
         locations = next(iter(coords.values()))
-    return {loc.retreat_coordinate if retreat else loc.primary_coordinate
-            for loc in locations}
+    return {
+        loc.retreat_coordinate if retreat else loc.primary_coordinate
+        for loc in locations
+    }
 
-def loc_to_point(loc: Province, unit_type: UnitType, coast: str | None,
-                current: complex, map_width: float = 0, use_retreats=False) -> complex:
+
+def loc_to_point(
+    loc: Province,
+    unit_type: UnitType,
+    coast: str | None,
+    current: complex,
+    map_width: float = 0,
+    use_retreats=False,
+) -> complex:
     """Gets the coordinates to draw a unit in a province, given the unit type and coast.
     If there are multiple possibilities, gets the one closest to the current coordinates."""
     # If we're moving to somewhere that's inhabitted, draw to the proper coast
@@ -107,7 +133,10 @@ def loc_to_point(loc: Province, unit_type: UnitType, coast: str | None,
     coords = get_all_unit_coordinates(loc, unit_type, coast, retreat=use_retreats)
     return get_closest_loc(coords, current, map_width, False)
 
-def pull_coordinate(anchor: complex, coordinate: complex, pull: float, limit=0.25) -> complex:
+
+def pull_coordinate(
+    anchor: complex, coordinate: complex, pull: float, limit=0.25
+) -> complex:
     """
     Pull coordinate toward anchor by a small margin to give unit view breathing room. The pull will be limited to be
     no more than the given percent of the distance because otherwise small province size areas are hard to see.
@@ -120,8 +149,11 @@ def pull_coordinate(anchor: complex, coordinate: complex, pull: float, limit=0.2
     pull = min(pull, abs(distance) * limit)
     return coordinate + pull * distance / abs(distance)
 
-def add_arrow_definition_to_svg(svg: ElementTree, board: Board, player_colors: dict[str, str]) -> None:
-    """ Adds arrow marker definitions and half-core gradients to the SVG."""
+
+def add_arrow_definition_to_svg(
+    svg: ElementTree, board: Board, player_colors: dict[str, str]
+) -> None:
+    """Adds arrow marker definitions and half-core gradients to the SVG."""
     defs = svg.find("{http://www.w3.org/2000/svg}defs")
     if defs is None:
         defs = create_element("defs", {})
@@ -139,10 +171,7 @@ def add_arrow_definition_to_svg(svg: ElementTree, board: Board, player_colors: d
         "markerHeight": "3",
         "orient": "auto-start-reverse",
     }
-    arrow_marker: Element = create_element(
-        "marker",
-        arrow_data
-    )
+    arrow_marker: Element = create_element("marker", arrow_data)
     arrow_path: Element = create_element(
         "path",
         {"d": "M 0,0 L 3,1.5 L 0,3 z"},
@@ -152,10 +181,7 @@ def add_arrow_definition_to_svg(svg: ElementTree, board: Board, player_colors: d
 
     red_arrow_data: dict[str, str] = copy.deepcopy(arrow_data)
     red_arrow_data["id"] = "redarrow"
-    red_arrow_marker: Element = create_element(
-        "marker",
-        red_arrow_data
-    )
+    red_arrow_marker: Element = create_element("marker", red_arrow_data)
     red_arrow_path: Element = create_element(
         "path",
         {"d": "M 0,0 L 3,1.5 L 0,3 z", "fill": "red"},
@@ -171,13 +197,10 @@ def add_arrow_definition_to_svg(svg: ElementTree, board: Board, player_colors: d
         "markerWidth": "3",
         "markerHeight": "3",
         "orient": "auto-start-reverse",
-        "shape-rendering": "geometricPrecision", # Needed bc firefox is weird
-        "overflow": "visible"
+        "shape-rendering": "geometricPrecision",  # Needed bc firefox is weird
+        "overflow": "visible",
     }
-    ball_marker: Element = create_element(
-        "marker",
-        ball_marker_data
-    )
+    ball_marker: Element = create_element("marker", ball_marker_data)
     ball_def: Element = create_element(
         "circle",
         {"r": "2", "fill": "black"},
@@ -187,10 +210,7 @@ def add_arrow_definition_to_svg(svg: ElementTree, board: Board, player_colors: d
 
     red_ball_data: dict[str, str] = copy.deepcopy(ball_marker_data)
     red_ball_data["id"] = "redball"
-    red_ball_marker: Element = create_element(
-        "marker",
-        red_ball_data
-    )
+    red_ball_marker: Element = create_element("marker", red_ball_data)
     red_ball_def: Element = create_element(
         "circle",
         {"r": "2", "fill": "red"},
@@ -205,14 +225,18 @@ def add_arrow_definition_to_svg(svg: ElementTree, board: Board, player_colors: d
     for province in board.provinces:
         if not province.has_supply_center or province.core_data.half_core is None:
             continue
-        mapping = (province.core_data.half_core.name,
-                    "None" if province.core_data.core is None else province.core_data.core.name)
+        mapping = (
+            province.core_data.half_core.name,
+            "None" if province.core_data.core is None else province.core_data.core.name,
+        )
         if mapping in created_defs:
             continue
 
         created_defs.add(mapping)
 
-        gradient_def: Element = create_element("linearGradient", {"id": f"{mapping[0]}_{mapping[1]}"})
+        gradient_def: Element = create_element(
+            "linearGradient", {"id": f"{mapping[0]}_{mapping[1]}"}
+        )
         first: Element = create_element(
             "stop", {"offset": "50%", "stop-color": f"#{player_colors[mapping[0]]}"}
         )
@@ -223,9 +247,12 @@ def add_arrow_definition_to_svg(svg: ElementTree, board: Board, player_colors: d
         gradient_def.append(second)
         defs.append(gradient_def)
 
+
 def color_element(element: Element, color: str, key="fill") -> None:
     """Colors a specific element with a given color."""
-    if len(color) == 6:  # Potentially buggy hack; just assume everything with length 6 is rgb without #
+    if (
+        len(color) == 6
+    ):  # Potentially buggy hack; just assume everything with length 6 is rgb without #
         color = f"#{color}"
     if element.get(key) is not None:
         element.set(key, color)
@@ -234,6 +261,7 @@ def color_element(element: Element, color: str, key="fill") -> None:
         assert style is not None
         style = re.sub(key + r":#[0-9a-fA-F]{6}", f"{key}:{color}", style)
         element.set("style", style)
+
 
 def invert_hexcode(code: str) -> str:
     code = code.removeprefix("#")
@@ -248,7 +276,10 @@ def invert_hexcode(code: str) -> str:
 
     return f"{hex_r:02}{hex_g:02}{hex_b:02}"[::-1]
 
-def set_element_visibility(element: Element, visible: bool = False, key="display") -> None:
+
+def set_element_visibility(
+    element: Element, visible: bool = False, key="display"
+) -> None:
     """Colors a specific element with a given color."""
     if visible:
         display = "inline"

@@ -17,8 +17,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class BuildsAdjudicator(Adjudicator):
     """Adjudicator for handling Adjustment phase."""
+
     def __init__(self, board: Board):
         self.failed_build_provinces: set[str] = set()
         super().__init__(board)
@@ -26,11 +28,16 @@ class BuildsAdjudicator(Adjudicator):
     def _adjudicate_build(self, order: Build, player: Player) -> int:
         # ignore coast specifications for army
         error = ""
-        if (Terrain.LAND not in order.unit_type.moves_on and order.province.is_landlocked()):
+        if (
+            Terrain.LAND not in order.unit_type.moves_on
+            and order.province.is_landlocked()
+        ):
             error = "tried building an inland fleet"
-        elif (Terrain.COAST in order.unit_type.moves_on
+        elif (
+            Terrain.COAST in order.unit_type.moves_on
             and order.province.adjacencies.coasts
-            and order.coast not in order.province.adjacencies.coasts):
+            and order.coast not in order.province.adjacencies.coasts
+        ):
             error = "someone didn't specify a valid coast"
         elif order.province.unit is not None:
             error = "there is already a unit there"
@@ -43,7 +50,9 @@ class BuildsAdjudicator(Adjudicator):
             logger.warning("Skipping %s; errors: %s", order, error)
             order.has_failed = True
             return 0
-        self._board.create_unit(order.unit_type, player, order.province, order.coast, None)
+        self._board.create_unit(
+            order.unit_type, player, order.province, order.coast, None
+        )
         return -1
 
     def _adjudicate_transform(self, order: TransformBuild):
@@ -56,9 +65,11 @@ class BuildsAdjudicator(Adjudicator):
             error = "tried to transform a unit that cannot transform"
         elif order.province.is_landlocked() and Terrain.LAND not in new_type.moves_on:
             error = "tried to transform in an inland province"
-        elif (Terrain.COAST in new_type.moves_on
-              and order.province.adjacencies.coasts
-              and order.coast not in order.province.adjacencies.coasts):
+        elif (
+            Terrain.COAST in new_type.moves_on
+            and order.province.adjacencies.coasts
+            and order.coast not in order.province.adjacencies.coasts
+        ):
             error = "tried to transform to an invalid coast"
         else:
             order.province.unit.unit_type = new_type
@@ -68,7 +79,9 @@ class BuildsAdjudicator(Adjudicator):
         order.has_failed = True
         logger.warning("Skipping %s; errors: %s", order, error)
 
-    def _adjudicate_order(self, order: Order, available_builds: int, player: Player) -> int:
+    def _adjudicate_order(
+        self, order: Order, available_builds: int, player: Player
+    ) -> int:
         if isinstance(order, Build):
             if available_builds <= 0:
                 order.has_failed = True
@@ -101,12 +114,28 @@ class BuildsAdjudicator(Adjudicator):
 
         owned_cores = {c for c in supply_centers if c.core_data.core == player}
         for unit in list(player.units):
-            shortest_core_distance = min(unit.province.get_distance(c) for c in owned_cores) if owned_cores else 0
-            shortest_sc_distance = min(unit.province.get_distance(c, shortest_core_distance) for c in supply_centers)
-            unit_distances[unit.province] = (shortest_sc_distance, shortest_core_distance)
+            shortest_core_distance = (
+                min(unit.province.get_distance(c) for c in owned_cores)
+                if owned_cores
+                else 0
+            )
+            shortest_sc_distance = min(
+                unit.province.get_distance(c, shortest_core_distance)
+                for c in supply_centers
+            )
+            unit_distances[unit.province] = (
+                shortest_sc_distance,
+                shortest_core_distance,
+            )
 
-        sorted_units = sorted(player.units, key=lambda u: (unit_distances[u.province][0],
-                                                           unit_distances[u.province][1]), reverse=True)
+        sorted_units = sorted(
+            player.units,
+            key=lambda u: (
+                unit_distances[u.province][0],
+                unit_distances[u.province][1],
+            ),
+            reverse=True,
+        )
         for i in range(needed_disbands):
             self._board.delete_unit(sorted_units[i].province)
 
@@ -114,9 +143,14 @@ class BuildsAdjudicator(Adjudicator):
         for player in self._board.players:
             available_builds = len(player.centers) - len(player.units)
             for order in player.build_orders:
-                available_builds += self._adjudicate_order(order, available_builds, player)
+                available_builds += self._adjudicate_order(
+                    order, available_builds, player
+                )
             if available_builds < 0:
-                logger.warning("Player %s disbanded less orders than they should have", player.get_name())
+                logger.warning(
+                    "Player %s disbanded less orders than they should have",
+                    player.get_name(),
+                )
                 self._adjudicate_civil_disorder(player, -available_builds)
 
         self.failed_build_provinces = {

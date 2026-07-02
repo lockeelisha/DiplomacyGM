@@ -1,7 +1,20 @@
+import asyncio
 import logging
+
+
+from discord import Intents
+
 # Importing config for the first time initialises it.
-from DiploGM.config import ConfigException, LOGGING_LEVEL, DISCORD_TOKEN, COMMAND_PREFIX, toml_errors, \
-    output_config_logs
+from DiploGM.bot import DiploGM
+from DiploGM.config import (
+    ConfigException,
+    LOGGING_LEVEL,
+    DISCORD_TOKEN,
+    COMMAND_PREFIX,
+    output_config_logs,
+)
+from DiploGM.utils.logging import setup_logging
+
 match LOGGING_LEVEL:
     case "CRITICAL":
         log_level = logging.CRITICAL
@@ -17,22 +30,11 @@ match LOGGING_LEVEL:
         raise ConfigException("bot.log_level is set to an invalid value")
 
 
-logging.basicConfig(
-    format="%(asctime)-15s | %(levelname)-7s: | %(filename)-16s (line %(lineno)-4d) | %(message)s",
-    level=log_level,
-)
-import asyncio
-from dotenv.main import load_dotenv
-import os
-
-from discord import Intents
-
-from DiploGM.bot import DiploGM
-
 logger = logging.getLogger(__name__)
 
 # config is run before logging is setup. Output logs now.
 output_config_logs()
+
 
 async def main():
     token = DISCORD_TOKEN
@@ -42,9 +44,7 @@ async def main():
     intents = Intents.default()
     intents.message_content = True
     intents.members = True
-    bot = DiploGM(
-        command_prefix=COMMAND_PREFIX, intents=intents
-    )
+    bot = DiploGM(command_prefix=COMMAND_PREFIX, intents=intents)
 
     async with bot:
         try:
@@ -58,5 +58,11 @@ async def main():
             logger.info("Bot has shut down :)")
 
 
+def cli():
+    setup_logging(LOGGING_LEVEL)
+    asyncio.run(main())
+
+
 if __name__ == "__main__":
+    setup_logging(LOGGING_LEVEL)
     asyncio.run(main())

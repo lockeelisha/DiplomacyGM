@@ -6,12 +6,14 @@ from typing import Iterable, Optional
 from DiploGM.db.database import get_connection
 from DiploGM.utils.repository import Repository
 
+
 @dataclass
 class Community:
     id: int
     name: str
     description: Optional[str] = None
     created_at: datetime.datetime = field(default_factory=datetime.datetime.now)
+
 
 class SQLiteCommunityRepository(Repository):
     def __init__(self) -> None:
@@ -40,12 +42,7 @@ class SQLiteCommunityRepository(Repository):
                 name = excluded.name,
                 description = excluded.description
             """,
-            (
-                entity.id,
-                entity.name,
-                entity.description,
-                entity.created_at.isoformat()
-            ),
+            (entity.id, entity.name, entity.description, entity.created_at.isoformat()),
         )
         self.conn.commit()
         return entity

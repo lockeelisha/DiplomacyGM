@@ -38,6 +38,7 @@ try:
 except FileNotFoundError:
     pass
 
+
 def fish_pop_model(fish, _, growth_rate, carrying_capacity):
     return growth_rate * fish * (1 - fish / carrying_capacity)
 
@@ -52,6 +53,7 @@ class PartyCog(commands.Cog):
         bot (DiploGM): A reference to the running discord bot instance
         eolhc_ed_members (Dict[int, List[int]]): A set describing which members have used eolhc in different guilds
     """
+
     def __init__(self, bot):
         self.bot: Bot = bot
         self.eolhc_ed_members: Dict[int, List[int]] = dict()
@@ -61,10 +63,10 @@ class PartyCog(commands.Cog):
     async def botsay(self, ctx: commands.Context) -> None:
         """Have the bot output a specific message within a channel
 
-        Usage: 
+        Usage:
             Used as `.botsay #channel message`
 
-        Note: 
+        Note:
             Limited to the server of command invocation
 
         Args:
@@ -105,7 +107,7 @@ class PartyCog(commands.Cog):
     async def ping(self, ctx: commands.Context):
         """A method to check bot activity
 
-        Usage: 
+        Usage:
             Used as `.ping`
 
         Notes:
@@ -141,10 +143,10 @@ class PartyCog(commands.Cog):
     async def bumble(self, ctx: commands.Context) -> None:
         """Output a scrambled form of our saviour, Bumble
 
-        Usage: 
+        Usage:
             Used as `.bumble`
 
-        Note: 
+        Note:
             User bumble always is "bumble"
             If scrambled output is "bumble", temporarily flag user as a bumble
             If scrambled output is "elbmub", output reverse message
@@ -186,10 +188,10 @@ class PartyCog(commands.Cog):
     async def pelican(self, ctx: commands.Context) -> None:
         """A pelican is chasing you! Output a fun message
 
-        Usage: 
+        Usage:
             Used as `.pelican`
 
-        Note: 
+        Note:
             Places a pelican can chase are weighted priority
 
         Args:
@@ -231,7 +233,7 @@ class PartyCog(commands.Cog):
     async def cheat(self, ctx: commands.Context) -> None:
         """Are you cheating? Output a fun message
 
-        Usage: 
+        Usage:
             Used as `.cheat`
 
         Note:
@@ -275,7 +277,7 @@ class PartyCog(commands.Cog):
     async def phish(self, ctx: commands.Context) -> None:
         """Not that kind of fishing, Output a fun message
 
-        Usage: 
+        Usage:
             Used as `.phish`
 
         Note:
@@ -304,12 +306,12 @@ class PartyCog(commands.Cog):
     async def advice(self, ctx: commands.Context) -> None:
         """Output some advice to the user
 
-        Usage: 
+        Usage:
             Used as `.advice`
 
-        Note: 
+        Note:
             Default: "You are not worthy of advice"
-            If user is bumbled: 
+            If user is bumbled:
             If random == 0: Pre-written joke advice
             If random == 1: World of Chaos, Hobbit's 115 statements
 
@@ -360,7 +362,7 @@ class PartyCog(commands.Cog):
     async def fish(self, ctx: commands.Context) -> None:
         """There's always a bigger fish... you just might find one!
 
-        Usage: 
+        Usage:
             Used as `.fish`
 
         Note:
@@ -482,8 +484,10 @@ class PartyCog(commands.Cog):
 
         if debumblify:
             temporary_bumbles.remove(ctx.author.name)
-            fish_message = f"\n Your luck has run out! {fish_message}\n" + \
-                           "Bumble is sad, you must once again prove your worth by Bumbling!"
+            fish_message = (
+                f"\n Your luck has run out! {fish_message}\n"
+                + "Bumble is sad, you must once again prove your worth by Bumbling!"
+            )
 
         await send_message_and_file(channel=ctx.channel, title=fish_message)
 
@@ -491,7 +495,7 @@ class PartyCog(commands.Cog):
     async def global_leaderboard(self, ctx: commands.Context) -> None:
         """Get a list of the best fishing servers, also the position of the current
 
-        Usage: 
+        Usage:
             Used as `.global_leaderboard`
 
         Note:
@@ -510,7 +514,9 @@ class PartyCog(commands.Cog):
 
         assert ctx.guild is not None
         sorted_boards = sorted(
-            manager._boards.items(), key=lambda board: int(board[1].data.get("fish", 0)), reverse=True
+            manager._boards.items(),
+            key=lambda board: int(board[1].data.get("fish", 0)),
+            reverse=True,
         )
         raw_boards = tuple(map(lambda b: b[1], sorted_boards))
         try:
@@ -532,9 +538,7 @@ class PartyCog(commands.Cog):
             if guild:
                 text += f"\\#{i + 1: >{len(index)}} | {board[1].data.get('fish', 0): <{max_fishes}} | {bold}{guild.name}{bold}\n"
         if this_board is not None and this_board not in raw_boards[:9]:
-            text += (
-                f"\n\\#{index} | {this_board.data.get('fish', 0): <{max_fishes}} | {ctx.guild.name}"
-            )
+            text += f"\n\\#{index} | {this_board.data.get('fish', 0): <{max_fishes}} | {ctx.guild.name}"
 
         await send_message_and_file(
             channel=ctx.channel, title="Global Fishing Leaderboard", message=text
@@ -544,12 +548,12 @@ class PartyCog(commands.Cog):
     async def shutdown(self, ctx: commands.Context):
         """Please don't shut me down :? , Output a fun message
 
-        Usage: 
+        Usage:
             Used as `.shutdown`
 
-        Note: 
+        Note:
             Default: "You are not worthy of advice"
-            If user is superuser: 
+            If user is superuser:
 
         Args:
             ctx (commands.Context): Context from discord regarding command invocation
@@ -568,7 +572,9 @@ class PartyCog(commands.Cog):
             )
         else:
             await send_message_and_file(
-                channel=ctx.channel, title="Why would you want to do this to me?", message=""
+                channel=ctx.channel,
+                title="Why would you want to do this to me?",
+                message="",
             )
 
     # feel free to add cute animal gifs
@@ -576,17 +582,20 @@ class PartyCog(commands.Cog):
         "https://tenor.com/view/otter-cookie-svenja-gif-26360393",
         "https://tenor.com/view/otter-gif-24469293",
         "https://tenor.com/view/biting-smartphone-otter-bite-phone-animalsdoingthings-gif-16767408",
-        "https://tenor.com/view/oh-no-you-didnt-otter-get-otter-here-too-cute-funny-animals-gif-8905253"
+        "https://tenor.com/view/oh-no-you-didnt-otter-get-otter-here-too-cute-funny-animals-gif-8905253",
     ]
 
     @commands.command(hidden=True)
-    async def eolhc(self, ctx: commands.Context,):
+    async def eolhc(
+        self,
+        ctx: commands.Context,
+    ):
         """Did my name always look like that? Reverses the nickname
 
-        Usage: 
+        Usage:
             Used as `.eolhc`
 
-        Note: 
+        Note:
             Not for Chaos games
 
         Args:
@@ -603,14 +612,18 @@ class PartyCog(commands.Cog):
 
         assert ctx.guild is not None
         if ctx.author.id == 1352388421003251833:
-            if (ctx.guild.id != HUB_SERVER_ID
+            if (
+                ctx.guild.id != HUB_SERVER_ID
                 and perms.is_gm(ctx.author)
-                and (ctx.guild.id not in self.eolhc_ed_members
-                     or ctx.me.id not in self.eolhc_ed_members[ctx.guild.id])):
+                and (
+                    ctx.guild.id not in self.eolhc_ed_members
+                    or ctx.me.id not in self.eolhc_ed_members[ctx.guild.id]
+                )
+            ):
                 self.eolhc_ed_members.setdefault(ctx.guild.id, []).append(ctx.me.id)
                 await ctx.reply("*incoherent screaming*"[::-1])
                 if isinstance(ctx.me, discord.Member):
-                    await ctx.me.edit(nick = ctx.me.display_name[::-1])
+                    await ctx.me.edit(nick=ctx.me.display_name[::-1])
             else:
                 await ctx.reply(random.choice(self.eolhc_gifs))
             return
@@ -619,10 +632,9 @@ class PartyCog(commands.Cog):
 
         try:
             if isinstance(ctx.author, discord.Member):
-                await ctx.author.edit(nick = ctx.author.display_name[::-1])
+                await ctx.author.edit(nick=ctx.author.display_name[::-1])
         except discord.Forbidden:
             await ctx.reply("Pesky Admin")
-
 
     eolhc_permutations = list(map(lambda x: "".join(x), permutations("eolhc")))
     eolhc_permutations.remove("eolhc")
@@ -632,11 +644,11 @@ class PartyCog(commands.Cog):
     async def eohlc(self, ctx: commands.Context):
         """How could you do that?
 
-        Usage: 
+        Usage:
             *Used as `.eohlc`
             All incorrect permutations of eolhc
 
-        Note: 
+        Note:
         Args:
             ctx (commands.Context): Context from discord regarding command invocation
 
@@ -648,7 +660,9 @@ class PartyCog(commands.Cog):
             Messages:
         """
 
-        if ctx.author.id == 285108244714881024 and isinstance(ctx.author, discord.Member): # aahoughton
+        if ctx.author.id == 285108244714881024 and isinstance(
+            ctx.author, discord.Member
+        ):  # aahoughton
             try:
                 await ctx.reply("*eolhc")
                 await ctx.author.edit(nick="aahuoghton")
@@ -656,6 +670,7 @@ class PartyCog(commands.Cog):
                 await ctx.reply("Very Pesky Admin")
         else:
             await ctx.reply("*eolhc")
+
 
 async def setup(bot):
     cog = PartyCog(bot)

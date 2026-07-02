@@ -8,7 +8,7 @@ from xml.etree.ElementTree import Element, ElementTree
 from shapely.geometry import Point
 
 from DiploGM.map_parser.vector.transform import TransGL3
-from DiploGM.models.province import Province
+from DiploGM.models.tile import Tile
 
 # TODO: Better way of doing custom units
 LAYER_DICTIONARY = {
@@ -218,10 +218,10 @@ def parse_path(path_string: str, translation: TransGL3) -> list[list[complex]]:
 # function: method in Province that, given the province and a child element corresponding to that province, initializes
 # that data in the Province
 def initialize_province_resident_data(
-    provinces: set[Province],
+    provinces: set[Tile],
     resident_dataset: Element | list[Element],
     get_coordinates: Callable[[Element], complex],
-    resident_data_callback: Callable[[Province, Element, str | None], None],
+    resident_data_callback: Callable[[Tile, Element, str | None], None],
 ) -> None:
     resident_dataset = list(resident_dataset)
     for province in provinces:

@@ -1,4 +1,6 @@
 """Bot administration commands, to be used by superusers only."""
+
+from asyncio import sleep
 import logging
 import re
 
@@ -10,7 +12,12 @@ from DiploGM import config
 from DiploGM import perms
 from DiploGM.config import MAP_ARCHIVE_SAS_TOKEN
 from DiploGM.errors import NoGameError
-from DiploGM.utils import log_command, parse_season, send_message_and_file, upload_map_to_archive
+from DiploGM.utils import (
+    log_command,
+    parse_season,
+    send_message_and_file,
+    upload_map_to_archive,
+)
 from DiploGM.manager import Manager
 from DiploGM.utils.sanitise import remove_prefix
 from DiploGM.utils.send_message import send_error, ErrorMessage
@@ -21,6 +28,7 @@ manager = Manager()
 
 class AdminCog(commands.Cog):
     """Bot administration commands, to be used by superusers only."""
+
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -37,9 +45,11 @@ class AdminCog(commands.Cog):
         for server in bot.guilds:
             if server is None:
                 continue
-            admin_chat_channels: list[TextChannel] = [channel for channel in server.channels
-                                                      if isinstance(channel, TextChannel)
-                                                      and config.is_gm_channel(channel)]
+            admin_chat_channels: list[TextChannel] = [
+                channel
+                for channel in server.channels
+                if isinstance(channel, TextChannel) and config.is_gm_channel(channel)
+            ]
 
             if len(admin_chat_channels) == 0:
                 message += f"\n- ~~{server.name}~~ Couldn't find admin channel"
@@ -72,9 +82,7 @@ class AdminCog(commands.Cog):
                 title="DiploGM Announcement",
                 message=content.format(*server_roles),
             )
-        log_command(
-            logger, ctx, f"Sent Announcement into {len(bot.guilds)} servers"
-        )
+        log_command(logger, ctx, f"Sent Announcement into {len(bot.guilds)} servers")
         await send_message_and_file(
             channel=ctx.channel,
             title=f"Announcement sent to {len(bot.guilds)} servers:",
@@ -278,20 +286,49 @@ class AdminCog(commands.Cog):
         server_id = int(arguments[0])
         board = manager.get_board(server_id)
         season = parse_season(arguments[1:], board.turn)
+        draw_moves = "results" not in arguments
         file, _ = manager.draw_map(
             server_id,
-            draw_moves=True,
+            draw_moves=draw_moves,
             turn=season,
         )
-        await upload_map_to_archive(ctx, server_id, board, file, season)
+        await upload_map_to_archive(ctx, server_id, board, file, season, draw_moves)
 
-    @commands.command(
-        brief="Execute Arbitrary Python"
-    )
+    @commands.command(hidden=True)
+    @perms.superuser_only("Uploads all maps to archive")
+    async def archive_upload_all(self, ctx: commands.Context) -> None:
+        """Uploads all maps from a server to the map archive."""
+        arguments = remove_prefix(ctx).lower().split()
+        server_id = int(arguments[0])
+        board = manager.get_board(server_id)
+        current_turn = board.turn
+        if "finished" in arguments:
+            file, _ = manager.draw_map(
+                server_id,
+                draw_moves=False,
+                turn=current_turn,
+            )
+            await upload_map_to_archive(ctx, server_id, board, file, current_turn, False)
+
+        while True:
+            await sleep(0)
+            current_turn = current_turn.get_previous_turn()
+            try:
+                file, _ = manager.draw_map(
+                    server_id,
+                    draw_moves=True,
+                    turn=current_turn,
+                )
+            except NoGameError:
+                break
+            await upload_map_to_archive(ctx, server_id, board, file, current_turn, True)
+
+    @commands.command(brief="Execute Arbitrary Python")
     @perms.superuser_only("Execute arbitrary python code")
     async def exec_py(self, ctx: commands.Context) -> None:
         """Executes arbitrary python code."""
         assert ctx.guild is not None
+
         class ContainedPrinter:
             def __init__(self):
                 self.text = ""

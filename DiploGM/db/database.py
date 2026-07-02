@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 # TODO: Find a better way to do this
 # maybe use a copy from manager?
+from DiploGM.config import DB_LOCATION, DB_SCHEMA_LOCATION
 from DiploGM.map_parser.vector.vector import get_parser
 from DiploGM.models.turn import Turn
 from DiploGM.models.order import PlayerOrder, Build, Disband, TransformBuild
@@ -22,11 +23,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-SQL_FILE_PATH = "bot_db.sqlite"
-
-
 class _DatabaseConnection:
-    def __init__(self, db_file: str = SQL_FILE_PATH):
+    def __init__(self, db_file: str = DB_LOCATION):
         try:
             self._connection = sqlite3.connect(db_file)
             logger.info("Connection to SQLite DB successful")
@@ -42,7 +40,7 @@ class _DatabaseConnection:
 
     def _initialize_schema(self):
         # FIXME: move the sql file somewhere more accessible (maybe it shouldn't be inside the package? /resources ?)
-        with open("DiploGM/db/schema.sql", "r", encoding="utf-8") as sql_file:
+        with open(DB_SCHEMA_LOCATION, "r", encoding="utf-8") as sql_file:
             cursor = self._connection.cursor()
             cursor.executescript(sql_file.read())
             cursor.close()
@@ -205,7 +203,6 @@ class _DatabaseConnection:
         province.core_data.half_core = board.get_player(half_core) if half_core is not None else None
         province.unit = None
         province.dislodged_unit = None
-        province.geometry = None
 
     def _load_unit(self, board: Board, board_id: int, unit_info: tuple, cursor):
         (location, is_dislodged, owner, unit_type, order_type, destination, source, has_failed) = unit_info

@@ -1,4 +1,5 @@
 """Superuser features primarily used for Development of the bot"""
+
 import logging
 
 from discord import TextChannel
@@ -68,7 +69,9 @@ class DevelopmentCog(commands.Cog):
     async def shutdown_the_bot_yes_i_want_to_do_this(self, ctx: commands.Context):
         """Shuts down the bot."""
         await send_message_and_file(
-            channel=ctx.channel, title="Why would you do this to me?", message="Shutting down"
+            channel=ctx.channel,
+            title="Why would you do this to me?",
+            message="Shutting down",
         )
         channel = self.bot.get_channel(HUB_SERVER_BOT_STATUS_CHANNEL_ID)
         if channel and isinstance(channel, TextChannel):
@@ -80,6 +83,7 @@ async def setup(bot: DiploGM):
     """Standard setup"""
     cog = DevelopmentCog(bot)
     await bot.add_cog(cog)
+
 
 async def teardown(bot: DiploGM):
     """Standard teardown"""
