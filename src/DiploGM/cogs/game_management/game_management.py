@@ -181,11 +181,12 @@ class GameManagementCog(commands.Cog):
         """Pings all players with withstanding orders, listing number of needed orders and which units require them
 
         Usage:
-            `.ping_players <timestamp?>`
+            `.ping_players <timestamp?> <message?>`
 
         Note:
             Timestamp optional, will be formatted to "in XX hours" when displayed.
             If a deadline is set with .set_deadline, the timestamp will default to that time.
+            #!TODO explain how I ended up implementing message
         """
         await deadline_management.ping_players(ctx)
 

@@ -111,9 +111,8 @@ async def set_deadline(ctx: commands.Context) -> None:
         )
 
 
-def _ping_player_builds(board: Board, player: Player, users: set[Member | Role]) -> str:
+def _ping_player_builds(board: Board, player: Player, user_str: str) -> str:
     build_options = board.data.get("build_options", "classic")
-    user_str = "".join([u.mention for u in users])
 
     count = len(player.centers) - len(player.units)
     num_builds = len([o for o in player.build_orders if isinstance(o, Build)])
@@ -154,7 +153,7 @@ def _ping_player_builds(board: Board, player: Player, users: set[Member | Role])
     return ""
 
 
-def _ping_player_moves(board: Board, player: Player, users: set[Member | Role]) -> str:
+def _ping_player_moves(board: Board, player: Player, user_str: str) -> str:
     missing = [
         unit
         for unit in player.units
@@ -172,7 +171,8 @@ def _ping_player_moves(board: Board, player: Player, users: set[Member | Role]) 
         return ""
 
     unit_text = f"unit{'s' if len(missing) != 1 else ''}"
-    response = f"Hey **{''.join([u.mention for u in users])}**, "
+    response = f"Hey **{user_str}**, "
+
     if missing:
         response += (
             f"you are missing moves for the following {len(missing)} {unit_text}:"
@@ -195,10 +195,17 @@ async def ping_players(ctx: commands.Context) -> None:
     assert guild is not None
     board = manager.get_board(guild.id)
     timestamp = board.data.get("deadline")
+    content = remove_prefix(ctx)
 
-    # extract deadline argument
-    if parsed_timestamp := re.match(r"<t:(\d+):[a-zA-Z]>", remove_prefix(ctx)):
+    # extract and strip deadline argument
+    if parsed_timestamp := re.match(r"^<t:(\d{10}):[a-zA-Z]>$", content.split(' ')[0]):
+        if len(content.split(' ')) > 1:
+            content = ' '.join(content.split(' ')[1:])
+        else:
+            content = ''
         timestamp = parsed_timestamp.group(1)
+
+    custom_message = content != ''
 
     # get abstract player information
     player_roles: set[Role] = {r for r in guild.roles if config.is_player_role(r)}
@@ -250,12 +257,22 @@ async def ping_players(ctx: commands.Context) -> None:
         ping_function = (
             _ping_player_builds if board.turn.is_builds() else _ping_player_moves
         )
-        response = ping_function(board, player, users)
+        user_mention = ''.join([u.mention for u in users])
+        user_str = ', '.join([u.nick if (type(u) == Member and u.nick is not None) else str(u) for u in users]) if custom_message else user_mention
+        response = ping_function(board, player, user_str)
         if not response:
             continue
         pinged_players += 1
         if timestamp:
             response += f"\n The orders deadline is <t:{timestamp}:R>."
+        if custom_message:
+            content = content.replace("%F", f"<t:{timestamp}:F>").replace("%f", f"<t:{timestamp}:f>")
+            content = content.replace("%D", f"<t:{timestamp}:D>").replace("%d", f"<t:{timestamp}:d>")
+            content = content.replace("%T", f"<t:{timestamp}:T>").replace("%t", f"<t:{timestamp}:t>")
+            content = content.replace("%R", f"<t:{timestamp}:R>")
+            if (message := content.replace("%p", user_mention)) == content:
+                message = f"{user_mention}, {content}"
+            await channel.send(message)
         await channel.send(response)
 
     log_command(logger, ctx, message=f"Pinged {pinged_players} players")
