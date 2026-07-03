@@ -1,9 +1,27 @@
+1.12.3
+======
+
+Contributors:
+- cin
+
+# New Features
+- Added custom message functionality to `ping_players`
+- Added Era of Chaos variant
+
+# Developer Changes
+- Added versioning to variant config files
+
+# Bugfixes
+- `.adjudicate` no longer silently fails to post maps if there is no maps channel in the server
+- fixed unhashable `ExtensionEvent` being used in a set
+- setting the recommended subout penalty to 0 no longer mysteriously vanishes it
+
 1.12.2
 ======
 
 Contributors:
 - Golden Kumquat
-- ianic
+- cin
 - notnot
 
 # New Features
