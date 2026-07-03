@@ -265,11 +265,11 @@ async def ping_players(ctx: commands.Context) -> None:
         pinged_players += 1
         if timestamp:
             response += f"\n The orders deadline is <t:{timestamp}:R>."
-        if custom_message:
             content = content.replace("%F", f"<t:{timestamp}:F>").replace("%f", f"<t:{timestamp}:f>")
             content = content.replace("%D", f"<t:{timestamp}:D>").replace("%d", f"<t:{timestamp}:d>")
             content = content.replace("%T", f"<t:{timestamp}:T>").replace("%t", f"<t:{timestamp}:t>")
             content = content.replace("%R", f"<t:{timestamp}:R>")
+        if custom_message:
             if (message := content.replace("%p", user_mention)) == content:
                 message = f"{user_mention}, {content}"
             await channel.send(message)

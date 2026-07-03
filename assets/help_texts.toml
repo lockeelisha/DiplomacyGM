@@ -355,6 +355,10 @@ Pings all players in their orders channel that satisfy the following constraints
 1. They have too many build orders, or too little or too many disband orders.
 2. They are missing move orders or retreat orders.
 If a deadline has been set, the timestamp will be sent. Otherwise you may also specify one manually.
+You can additionally specify a message that will instead be the one the player gets pinged with, where %p gets replaced by the ping.
+If the message doesn't contain a %p, the ping will be prepended to the message.
+%F/%f/%D/%d/%T/%t/%R will get replaced with their respective style of timestamp, but only if the timestamp is specified or set.
+%F for full and %R for relative are most useful.
 """
 timestamp = "Optional Discord timestamp to display as the deadline reminder."
 

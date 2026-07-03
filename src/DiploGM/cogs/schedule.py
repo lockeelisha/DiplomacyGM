@@ -77,7 +77,7 @@ class ScheduleCog(commands.Cog):
     Usage:
     .schedule <timestamp> <command> <args>
     .schedule <timestamp> view_map dark
-    .schedule <timestamp> ping_players <timestamp>
+    .schedule <timestamp> ping_players <timestamp> <message>
         """,
     )
     @perms.gm_only("schedule a command")
