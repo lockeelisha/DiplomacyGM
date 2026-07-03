@@ -445,7 +445,7 @@ class SlashSubstituteCog(commands.Cog):
             incoming_user.id, delta=3, reason=f"Substituted into: {guild.name}"
         )
 
-        if recommended_penalty:
+        if recommended_penalty is not None:
             out += f"\nRecommended Penalty: {recommended_penalty}"
 
         link = await send_message_and_file(
