@@ -90,7 +90,7 @@ class Parser:
         except FileNotFoundError:
             data = variant_data
 
-        match data["config_version"]:
+        match data.get("config_version"):
             case None | "0.1":
                 pass
 

@@ -391,6 +391,9 @@ async def adjudicate(ctx: commands.Context) -> None:
         map_channels[default_maps_channel] = "standard"
     if args.get("color") is not None and default_maps_channel:
         map_channels[default_maps_channel] = args["color"]
+    if len(map_channels.items()) == 0:
+        await _upload_maps(ctx, args, draw_board, True, "0", "standard")
+        await _upload_maps(ctx, args, new_board, False, "0", "standard")
     for map_channel, color_mode in map_channels.items():
         await _upload_maps(ctx, args, draw_board, True, map_channel, color_mode)
         await _upload_maps(ctx, args, new_board, False, map_channel, color_mode)
