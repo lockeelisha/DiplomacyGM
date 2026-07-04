@@ -179,6 +179,9 @@ wc = ["Vstrakl", "Longbrow's Straits", "Thla"]
 sc = ["Vstrakl", "Tirsk", "The Shallow Crypts"]
 
 [overrides.provinces]
+"Bay of Elibath".adjacencies = ["Arak"]
+Arak.adjacencies = ["Bay of Elibath"]
+
 OS1.unit_loc = [[5731.345, 811.6]]
 OS1.retreat_unit_loc = [[5773.778, 841.763]]
 OS2.unit_loc = [[5731.992, 1488.858]]
