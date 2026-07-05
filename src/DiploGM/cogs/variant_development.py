@@ -27,7 +27,7 @@ class VariantDevelopmentCog(commands.Cog):
     @commands.command(
         brief="Checks the adjacencies of a variant to find potential issues"
     )
-    @perms.superuser_only(
+    @perms.variant_dev_only(
         "Checks the adjacencies of a variant to find potential issues"
     )
     async def verify_adjacencies(self, ctx: commands.Context, arg) -> None:
@@ -42,7 +42,7 @@ class VariantDevelopmentCog(commands.Cog):
     @commands.command(
         brief="Reloads the map parser for a given variant. Useful if a map has been updated."
     )
-    @perms.superuser_only(
+    @perms.variant_dev_only(
         "Reloads the map parser for a given variant. Useful if a map has been updated."
     )
     async def reload_variant(self, ctx: commands.Context, arg) -> None:
@@ -69,7 +69,7 @@ class VariantDevelopmentCog(commands.Cog):
         await send_message_and_file(channel=ctx.channel, message=message)
 
     @commands.command(brief="Pulls changes from the Git repository.")
-    @perms.superuser_only("Pulls changes from the Git repository.")
+    @perms.variant_dev_only("Pulls changes from the Git repository.")
     async def update_variant(
         self, ctx: commands.Context, variant: str, branch: str = "main"
     ) -> None:

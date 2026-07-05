@@ -7,7 +7,7 @@ from discord.ext import commands
 
 from DiploGM import config
 from DiploGM.errors import CommandPermissionError
-from DiploGM.config import HUB_SERVER_ID, SUPERUSERS, is_player_category
+from DiploGM.config import HUB_SERVER_ID, SUPERUSERS, VARIANT_DEVS, is_player_category
 from DiploGM.utils import simple_player_name
 from DiploGM.manager import Manager
 from DiploGM.models.player import Player
@@ -253,3 +253,25 @@ def superuser_only(description: str = "run this command"):
 def is_superuser(author: discord.Member | discord.User) -> bool:
     """Checks if the given author is a superuser."""
     return author.id in SUPERUSERS
+
+
+# Variant Developer
+def assert_variant_dev_only(ctx: commands.Context, description: str = "run this command"):
+    """Checks that the command invoker is a variant developer.
+    Raises a CommandPermissionError if not, otherwise returns True."""
+    if not is_variant_dev(ctx.message.author) and not is_superuser(ctx.message.author):
+        raise CommandPermissionError(
+            f"You cannot {description} as you are not a variant developer"
+        )
+    return True
+
+
+def variant_dev_only(description: str = "run this command"):
+    """Checks that the command invoker is a variant developer.
+    Raises a CommandPermissionError if not, otherwise returns True."""
+    return commands.check(lambda ctx: assert_variant_dev_only(ctx, description))
+
+
+def is_variant_dev(author: discord.Member | discord.User) -> bool:
+    """Checks if the given author is a variant developer."""
+    return author.id in VARIANT_DEVS

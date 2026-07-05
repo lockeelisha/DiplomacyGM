@@ -102,6 +102,7 @@ RESTRICTED_ROLE_NAMES: str = all_config["server_channels"]["restricted_roles"]
 
 # PERMISSIONS
 SUPERUSERS = all_config["permissions"]["superusers"]
+VARIANT_DEVS = all_config["permissions"]["variant_devs"]
 
 # EXTENSIONS
 EXTENSIONS_TO_LOAD_ON_STARTUP: list[str] = all_config["extensions"]["load_on_startup"]
