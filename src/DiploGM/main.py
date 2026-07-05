@@ -55,7 +55,7 @@ async def main():
             if not bot.is_closed():
                 await bot.close()
 
-            logger.info("Bot has shut down :)")
+            logger.info("Bot has shut down :3")
 
 
 def cli():

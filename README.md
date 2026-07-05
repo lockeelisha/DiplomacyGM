@@ -41,6 +41,9 @@ source venv/bin/activate
 #This installs all the python dependencies the bot needs, only needed once.
 pip install -r requirements.txt
 
+#This installs the DiploGM module
+pip install -e .
+
 #Copies 
 cp config_defaults.toml config.toml
 # Now edit config.toml and add the right inputs
@@ -53,7 +56,7 @@ cp config_defaults.toml config.toml
 source venv/bin/activate
 
 #Run the bot
-python main.py
+python src/DiploGM/main.py
 
 #Stop virtual environment
 deactivate

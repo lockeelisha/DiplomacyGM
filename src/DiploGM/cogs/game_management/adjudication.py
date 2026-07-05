@@ -245,7 +245,7 @@ async def _upload_maps(
     args: dict,
     board: Board,
     is_orders: bool,
-    maps_channel_id: str,
+    maps_channel_id: str | None,
     color_mode: str,
 ) -> None:
     assert ctx.guild is not None
@@ -258,14 +258,15 @@ async def _upload_maps(
     title = (
         f"{board.data.get('game_name')} — " if board.data.get("game_name") else ""
     ) + f"{old_turn}"
-    map_channel = (
-        ctx.guild.get_channel(int(maps_channel_id))
-        if maps_channel_id is not None
-        else None
-    )
-    if not isinstance(map_channel, discord.TextChannel):
-        await send_error(ctx.channel, ErrorMessage.INVALID_MAPS_CHANNEL)
+
+    if maps_channel_id is not None:
+        map_channel = ctx.guild.get_channel(int(maps_channel_id))
+        if not isinstance(map_channel, discord.TextChannel):
+            await send_error(ctx.channel, ErrorMessage.INVALID_MAPS_CHANNEL)
+            map_channel = None
+    else:
         map_channel = None
+
     image_file: bytes | None = None
     image_file_name: str | None = None
     needs_png = args["return_svg"] or (args["full"] and map_channel is not None)
@@ -391,6 +392,11 @@ async def adjudicate(ctx: commands.Context) -> None:
         map_channels[default_maps_channel] = "standard"
     if args.get("color") is not None and default_maps_channel:
         map_channels[default_maps_channel] = args["color"]
+    if len(map_channels.items()) == 0:
+        log_command(logger, ctx, "No map channel found in this server", level=logging.WARNING)
+        await send_error(ctx.channel, ErrorMessage.NO_MAPS_CHANNEL)
+        await _upload_maps(ctx, args, draw_board, True, None, "standard")
+        await _upload_maps(ctx, args, new_board, False, None, "standard")
     for map_channel, color_mode in map_channels.items():
         await _upload_maps(ctx, args, draw_board, True, map_channel, color_mode)
         await _upload_maps(ctx, args, new_board, False, map_channel, color_mode)

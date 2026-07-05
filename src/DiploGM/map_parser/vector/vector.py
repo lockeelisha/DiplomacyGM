@@ -90,6 +90,10 @@ class Parser:
         except FileNotFoundError:
             data = variant_data
 
+        match data.get("config_version"):
+            case None | "0.1":
+                pass
+
         # If a config override removes a player, delete it
         if isinstance(data["players"], dict):
             keys_to_delete = [p[0] for p in data["players"].items()

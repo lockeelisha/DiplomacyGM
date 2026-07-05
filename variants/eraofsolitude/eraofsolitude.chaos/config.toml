@@ -1,12 +1,16 @@
-name = "Era of Solitude"
-file = "eraofsolitude.b1.1.svg"
+name = "Era of Chaos"
+file = "eraofchaos.svg"
+
+config_version = "0.1"
+
 year = 1167
-build_options = "cores"
+first_season = "winter"
+build_options = "control"
 victory_conditions = "classic"
-victory_count = 20
+victory_count = 57
 convoyable_islands = "enabled"
 
-['svg config']
+["svg config"]
 detect_starting_units = true
 unit_type_labeled = false
 unit_labels = true
@@ -19,7 +23,7 @@ unit_radius = 26
 order_stroke_width = 5
 
 neutral_sc = "ffffff"
-neutral.standard = "808080"
+neutral = "808080"
 
 loc_x_offset = 0
 loc_y_offset = 0
@@ -27,11 +31,6 @@ delete_layer = ["army", "retreat_army", "fleet", "retreat_fleet"]
 
 season_format.0 = "%Z"
 season_format.1 = "%Y"
-
-['svg config'.scoreboard]
-sort = true
-indexes.1 = "__name__"
-indexes.2 = "__score__"
 
 
 [abbreviations]
@@ -166,17 +165,18 @@ azr = "Azish Range"
 maz = "Mazzu"
 
 
-[overrides.provinces.'Western Frostlands'.coasts]
+[overrides.provinces."Western Frostlands".coasts]
 nc = ["Karanak", "Mevan Bay", "Kharbranth"]
 sc = ["Kharbranth", "Sea of Kharbranth", "Longbrow's Straits", "Thla"]
 
-[overrides.provinces.'Iriali Highlands'.coasts]
+[overrides.provinces."Iriali Highlands".coasts]
 wc = ["Kasitor", "Domain of Cusicesh", "Rall Elorim"]
 ec = ["Rall Elorim", "Western Reshi Sea", "Rira"]
 
-[overrides.provinces.'Eastern Frostlands'.coasts]
+[overrides.provinces."Eastern Frostlands".coasts]
 wc = ["Vstrakl", "Longbrow's Straits", "Thla"]
 sc = ["Vstrakl", "Tirsk", "The Shallow Crypts"]
+
 
 [overrides.provinces]
 "Bay of Elibath".adjacencies = ["Arak"]
@@ -189,43 +189,61 @@ OS2.retreat_unit_loc = [[5774.425, 1519.022]]
 OS3.unit_loc = [[5731.163, 2190.717]]
 OS3.retreat_unit_loc = [[5773.597, 2220.881]]
 
-
-[players.Alethkar]
-iscc = 4
-color.standard = "23436d"
-
-[players.Azir]
-iscc = 3
-color.standard = "c9aa58"
-
-[players.Iri]
-iscc = 3
-color.standard = "d6954a"
-
-[players.'Jah Keved']
-iscc = 4
-color.standard = "b0a4d1"
-
-[players.'New Natanan']
-iscc = 3
-color.standard = "8ad0de"
-
-[players.Marat]
-iscc = 3
-color.standard = "4e9038"
-
-[players.Shinovar]
-iscc = 3
-color.standard = "692a33"
-
-[players.Thaylenah]
-iscc = 3
-color.standard = "7a5348"
-
-[players.Tukar]
-iscc = 3
-color.standard = "b56750"
-
-[players.Yulay]
-iscc = 3
-color.standard = "58a89f"
+[players]
+"Covenant Stone Crossroads".color = "fb95b8"
+"Dawn's Shadow".color = "edcac0"
+"Fu Namir".color = "6273e0"
+"Ja Dran".color = "0114ba"
+"Natan Isles".color = "ea1732"
+"New Natanan".color = "8ad0de"
+"Rall Elorim".color = "d6954a"
+"Riqu Mar".color = "b56750"
+"Rossen Dar".color = "4e9038"
+"Ru Parat".color = "77b1da"
+"Sesemalex Dar".color = "4ea9e9"
+"Shattered Plains".color = "303030"
+"Thaylen City".color = "7a5348"
+"The Shallow Crypts".color = "e4b512"
+"Tu Fallia".color = "952030"
+"Yian Dion".color = "c8d754"
+Aimia.color = "fc8837"
+Alm.color = "1487dd"
+Amydlatn.color = "7c25a8"
+Arak.color = "d3613f"
+Ayabiza.color = "692a33"
+Azimir.color = "c9aa58"
+Berizhet.color = "a1116c"
+Domistar.color = "58a89f"
+Eila.color = "8fe46a"
+Elanar.color = "b42c6a"
+Hazzel.color = "189d55"
+Herdaz.color = "df0df9"
+Holiqqil.color = "f72924"
+Icewater.color = "b6728f"
+Karanak.color = "d80315"
+Kasitor.color = "419bbf"
+Kharbranth.color = "d612bc"
+Kholinar.color = "23436d"
+Khrishji.color = "f79f57"
+Klna.color = "51b0dd"
+Koring.color = "06ae1e"
+Kurth.color = "3104f6"
+Lexili.color = "fb2a8a"
+Marabethia.color = "d7a819"
+Mathl.color = "f07f2f"
+Mokdown.color = "13aa88"
+Northgrip.color = "19f1e7"
+Panatham.color = "650f58"
+Revolar.color = "7e9c9f"
+Rira.color = "d2409b"
+Silnasen.color = "131d8c"
+Steen.color = "536d54"
+Thla.color = "837e9f"
+Tirsk.color = "56ab0c"
+Torriqqam.color = "103e80"
+Varikev.color = "fbb532"
+Vedenar.color = "b0a4d1"
+Vstrakl.color = "0d236f"
+Yeddaw.color = "640f9b"
+Yezier.color = "1031ed"
+Zawfix.color = "c26fb0"
