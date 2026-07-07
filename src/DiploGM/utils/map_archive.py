@@ -32,9 +32,11 @@ async def upload_map_to_archive(
     """Uploads a map to the archive given a server ID and the map as a PNG."""
     if not MAP_ARCHIVE_SAS_TOKEN:
         return
+    if turn is None:
+        turn = board.turn
     if not draw_moves:
-        turn = turn.get_previous_turn() if turn is not None else board.turn.get_previous_turn()
-    turnstr = format(board.turn, "%y%s") if turn is None else format(turn, "%y%s")
+        turn = turn.get_previous_turn()
+    turnstr = format(turn, "%y%s")
     url = None
     with open("gamelist.tsv", "r", encoding="utf-8") as gamefile:
         for server in gamefile:
