@@ -330,7 +330,6 @@ class ScheduleCog(commands.Cog):
 
         Note:
             Can potentially debumblify bumbled users
-            Should save to db in 1 out of every 5 fishes (rng)
 
         Args:
 
