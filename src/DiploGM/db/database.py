@@ -102,7 +102,7 @@ class _DatabaseConnection:
     def load_board(self, board_id: int) -> Board | None:
         """Gets a specific board from the database."""
         cursor = self._connection.cursor()
-        board_data = cursor.execute("SELECT * FROM boards  WHERE board_id=?", (board_id,)).fetchall()
+        board_data = cursor.execute("SELECT * FROM boards WHERE board_id=?", (board_id,)).fetchall()
         board_phases = [row[1] for row in board_data]
         logger.info("Loading %s boards from DB", len(board_data))
         board = None

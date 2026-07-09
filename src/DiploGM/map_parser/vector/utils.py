@@ -27,7 +27,7 @@ LAYER_DICTIONARY = {
     "retreat_fleet": {"Fleet Retreat Locations", "Fleet Locations (Retreats)"},
     "starting_units": {"Units"},
     "unit_output": {"Unit Output Layer"},
-    "arrow_output": {"Orders Output Layer"},
+    "arrow_output": {"Orders Output Layer", "Order Output Layer"},
     "background": {"Background"},
     "other_fills": {"Other Fills", "OTHER FILLS (High Seas)", "OTHER FILLS (Impassables and High Seas)"},
     "season": {"Season Title"},
