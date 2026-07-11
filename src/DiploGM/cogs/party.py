@@ -1,6 +1,5 @@
 import logging
 import random
-import time
 
 from typing import List, Dict
 from itertools import permutations
@@ -9,15 +8,11 @@ import discord
 from discord.ext.commands import Bot
 from discord.ext import commands
 
-from scipy.integrate import odeint
-
 from DiploGM.manager import Manager
-from DiploGM.errors import NoGameError
 from DiploGM import perms
 from DiploGM.config import is_bumble, temporary_bumbles, HUB_SERVER_ID
 from DiploGM.utils import log_command, send_message_and_file
 from DiploGM.utils.sanitise import remove_prefix
-from DiploGM.db.database import get_connection
 from DiploGM.utils.send_message import ErrorMessage, send_error
 
 logger = logging.getLogger(__name__)
