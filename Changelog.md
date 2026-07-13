@@ -1,3 +1,18 @@
+1.12.4
+======
+
+Contributors:
+- Golden Kumquat
+
+# Features
+- Removed .fish, as people spamming it was causing the bot to not function
+
+# Developer Changes
+- Added better error handling so common caught errors don't produce a needless traceback
+
+# Bugfixes
+- Fixed displaying of turns when uploading maps to archive
+
 1.12.3
 ======
 
