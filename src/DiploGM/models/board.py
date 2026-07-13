@@ -59,10 +59,8 @@ class Board:
         self.units: set[Unit] = units
         self.turn: Turn = turn
         self.board_id = 0
-        self.fish_pop = {"fish_pop": float(700), "time": time.time()}
         self.orders_enabled: bool = True
         self.data: dict = data
-        self.data.setdefault("fish", 0)
         self.custom_data: dict = {}
         self.datafile = datafile
 
@@ -628,7 +626,6 @@ class Board:
         export = {
             "turn": str(self.turn),
             "datafile": self.datafile,
-            "fish": self.data.get("fish", 0),
             "players": players,
             "provinces": provinces,
             "parameters": params,

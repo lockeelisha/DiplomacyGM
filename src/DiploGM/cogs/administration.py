@@ -287,6 +287,8 @@ class AdminCog(commands.Cog):
         board = manager.get_board(server_id)
         season = parse_season(arguments[1:], board.turn)
         draw_moves = "results" not in arguments
+        if not draw_moves:
+            season = season.get_next_turn()
         file, _ = manager.draw_map(
             server_id,
             draw_moves=draw_moves,
@@ -300,6 +302,7 @@ class AdminCog(commands.Cog):
         """Uploads all maps from a server to the map archive."""
         arguments = remove_prefix(ctx).lower().split()
         server_id = int(arguments[0])
+        await manager.ensure_board_loaded(server_id)
         board = manager.get_board(server_id)
         current_turn = board.turn
         if "finished" in arguments:

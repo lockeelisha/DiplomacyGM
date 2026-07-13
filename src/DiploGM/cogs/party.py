@@ -1,6 +1,5 @@
 import logging
 import random
-import time
 
 from typing import List, Dict
 from itertools import permutations
@@ -9,15 +8,11 @@ import discord
 from discord.ext.commands import Bot
 from discord.ext import commands
 
-from scipy.integrate import odeint
-
 from DiploGM.manager import Manager
-from DiploGM.errors import NoGameError
 from DiploGM import perms
 from DiploGM.config import is_bumble, temporary_bumbles, HUB_SERVER_ID
 from DiploGM.utils import log_command, send_message_and_file
 from DiploGM.utils.sanitise import remove_prefix
-from DiploGM.db.database import get_connection
 from DiploGM.utils.send_message import ErrorMessage, send_error
 
 logger = logging.getLogger(__name__)
@@ -37,10 +32,6 @@ try:
         WOC_ADVICE.extend(f.readlines())
 except FileNotFoundError:
     pass
-
-
-def fish_pop_model(fish, _, growth_rate, carrying_capacity):
-    return growth_rate * fish * (1 - fish / carrying_capacity)
 
 
 class PartyCog(commands.Cog):
@@ -150,7 +141,6 @@ class PartyCog(commands.Cog):
             User bumble always is "bumble"
             If scrambled output is "bumble", temporarily flag user as a bumble
             If scrambled output is "elbmub", output reverse message
-            Decrements `fish` count for the current game board
 
         Args:
             ctx (commands.Context): Context from discord regarding command invocation
@@ -180,8 +170,6 @@ class PartyCog(commands.Cog):
         if word_of_bumble == "elbmub":
             word_of_bumble = "elbmub nesohc eht era uoY"
 
-        board = manager.get_board(ctx.guild.id)
-        board.set_data("fish", int(board.data["fish"]) - 1)
         await send_message_and_file(channel=ctx.channel, title=word_of_bumble)
 
     @commands.command(hidden=True)
@@ -274,35 +262,6 @@ class PartyCog(commands.Cog):
         await send_message_and_file(channel=ctx.channel, title=message)
 
     @commands.command(hidden=True)
-    async def phish(self, ctx: commands.Context) -> None:
-        """Not that kind of fishing, Output a fun message
-
-        Usage:
-            Used as `.phish`
-
-        Note:
-            Default: "No! Phishing is bad!"
-            If a user is bumbled: "Please provide your firstborn pet"
-
-        Args:
-            ctx (commands.Context): Context from discord regarding command invocation
-
-        Returns:
-            None
-
-        Raises:
-            None:
-            Messages:
-        """
-
-        await ctx.message.add_reaction("🐟")
-
-        message = "No! Phishing is bad!"
-        if is_bumble(ctx.author.name):
-            message = "Please provide your firstborn pet and your soul for a chance at winning your next game!"
-        await send_message_and_file(channel=ctx.channel, title=message)
-
-    @commands.command(hidden=True)
     async def advice(self, ctx: commands.Context) -> None:
         """Output some advice to the user
 
@@ -357,192 +316,6 @@ class PartyCog(commands.Cog):
             message = f"{index}. {WOC_ADVICE[index]}"
 
         await send_message_and_file(channel=ctx.channel, title=message)
-
-    @commands.command(hidden=True)
-    async def fish(self, ctx: commands.Context) -> None:
-        """There's always a bigger fish... you just might find one!
-
-        Usage:
-            Used as `.fish`
-
-        Note:
-            Can potentially debumblify bumbled users
-            Should save to db in 1 out of every 5 fishes (rng)
-
-        Args:
-            ctx (commands.Context): Context from discord regarding command invocation
-
-        Returns:
-            None
-
-        Raises:
-            None:
-            Messages:
-        """
-
-        assert ctx.guild is not None
-        await ctx.message.add_reaction("🐟")
-
-        board = manager.get_board(ctx.guild.id)
-        board.data["fish"] = int(board.data.get("fish", 0))
-        fish_num = random.randrange(0, 20)
-
-        # overfishing model
-        # https://www.maths.gla.ac.uk/~nah/2J/ch1.pdf
-        # figure 1.9
-        growth_rate = 0.001
-        carrying_capacity = 1000
-        args = (growth_rate, carrying_capacity)
-
-        time_now = time.time()
-        delta_t = time_now - board.fish_pop["time"]
-
-        board.fish_pop["time"] = time_now
-        board.fish_pop["fish_pop"] = odeint(
-            fish_pop_model, board.fish_pop["fish_pop"], [0, delta_t], args=args
-        )[1]
-
-        if board.fish_pop["fish_pop"] <= 200:
-            fish_num += 5
-        if board.fish_pop["fish_pop"] <= 50:
-            fish_num += 20
-
-        debumblify = False
-        if is_bumble(ctx.author.name) and random.randrange(0, 10) == 0:
-            # Bumbles are good fishers
-            if fish_num == 1:
-                fish_num = 0
-            elif fish_num > 15:
-                fish_num -= 5
-
-        if 0 == fish_num:
-            # something special
-            rare_fish_options = [
-                ":dolphin:",
-                ":shark:",
-                ":duck:",
-                ":goose:",
-                ":dodo:",
-                ":flamingo:",
-                ":penguin:",
-                ":unicorn:",
-                ":swan:",
-                ":whale:",
-                ":seal:",
-                ":sheep:",
-                ":sloth:",
-                ":hippopotamus:",
-            ]
-            board.set_data("fish", board.data["fish"] + 10)
-            board.fish_pop["fish_pop"] -= 10
-            fish_message = f"**Caught a rare fish!** {random.choice(rare_fish_options)}"
-        elif fish_num < 16:
-            fish_num = (fish_num + 1) // 2
-            board.set_data("fish", board.data["fish"] + fish_num)
-            board.fish_pop["fish_pop"] -= fish_num
-            fish_emoji_options = [
-                ":fish:",
-                ":tropical_fish:",
-                ":blowfish:",
-                ":jellyfish:",
-                ":shrimp:",
-            ]
-            fish_weights = [8, 4, 2, 1, 2]
-            fish_message = f"Caught {fish_num} fish! " + " ".join(
-                random.choices(fish_emoji_options, weights=fish_weights, k=fish_num)
-            )
-        elif fish_num < 21:
-            fish_num = (21 - fish_num) // 2
-
-            if is_bumble(ctx.author.name):
-                if random.randrange(0, 20) == 0:
-                    # Sometimes Bumbles are so bad at fishing they debumblify
-                    debumblify = True
-                    fish_num = random.randrange(10, 20)
-                    return
-                else:
-                    # Bumbles that lose fish lose a lot of them
-                    fish_num *= random.randrange(3, 10)
-
-            board.set_data("fish", board.data["fish"] - fish_num)
-            board.fish_pop["fish_pop"] += fish_num
-            fish_kind = "captured" if board.data["fish"] >= 0 else "future"
-            fish_message = f"Accidentally let {fish_num} {fish_kind} fish sneak away :("
-        else:
-            fish_message = "You find nothing but barren water and overfished seas, maybe let the population recover?"
-        fish_message += f"\nIn total, {board.data['fish']} fish have been caught!"
-        # TODO: Next patch, finish migrating fish to parameters and remove it from the board SQL
-        if random.randrange(0, 5) == 0:
-            get_connection().execute_arbitrary_sql(
-                """UPDATE boards SET fish=? WHERE board_id=? AND phase=?""",
-                (board.data["fish"], board.board_id, format(board.turn, "%I %S")),
-            )
-            get_connection().execute_arbitrary_sql(
-                """INSERT OR REPLACE INTO board_parameters (board_id, parameter_key, parameter_value) VALUES (?, ?, ?)""",
-                (board.board_id, "fish", board.data["fish"]),
-            )
-
-        if debumblify:
-            temporary_bumbles.remove(ctx.author.name)
-            fish_message = (
-                f"\n Your luck has run out! {fish_message}\n"
-                + "Bumble is sad, you must once again prove your worth by Bumbling!"
-            )
-
-        await send_message_and_file(channel=ctx.channel, title=fish_message)
-
-    @commands.command(brief="Show global fishing leaderboard")
-    async def global_leaderboard(self, ctx: commands.Context) -> None:
-        """Get a list of the best fishing servers, also the position of the current
-
-        Usage:
-            Used as `.global_leaderboard`
-
-        Note:
-            Displays 10 boards total (top 9 and current)
-
-        Args:
-            ctx (commands.Context): Context from discord regarding command invocation
-
-        Returns:
-            None
-
-        Raises:
-            None:
-            Messages:
-        """
-
-        assert ctx.guild is not None
-        sorted_boards = sorted(
-            manager._boards.items(),
-            key=lambda board: int(board[1].data.get("fish", 0)),
-            reverse=True,
-        )
-        raw_boards = tuple(map(lambda b: b[1], sorted_boards))
-        try:
-            this_board = manager.get_board(ctx.guild.id)
-        except NoGameError:
-            this_board = None
-        sorted_boards = sorted_boards[:9]
-        text = ""
-        if this_board is not None:
-            index = str(raw_boards.index(this_board) + 1)
-        else:
-            index = "NaN"
-
-        max_fishes = len(str(sorted_boards[0][1].data.get("fish", 0)))
-
-        for i, board in enumerate(sorted_boards):
-            bold = "**" if this_board == board[1] else ""
-            guild = ctx.bot.get_guild(board[0])
-            if guild:
-                text += f"\\#{i + 1: >{len(index)}} | {board[1].data.get('fish', 0): <{max_fishes}} | {bold}{guild.name}{bold}\n"
-        if this_board is not None and this_board not in raw_boards[:9]:
-            text += f"\n\\#{index} | {this_board.data.get('fish', 0): <{max_fishes}} | {ctx.guild.name}"
-
-        await send_message_and_file(
-            channel=ctx.channel, title="Global Fishing Leaderboard", message=text
-        )
 
     @commands.command(hidden=True)
     async def shutdown(self, ctx: commands.Context):

@@ -2,7 +2,6 @@ CREATE TABLE IF NOT EXISTS boards (
     board_id int,
     phase text,
     data_file text,
-    fish int,
     name text,
     PRIMARY KEY (board_id, phase));
 CREATE TABLE IF NOT EXISTS players (

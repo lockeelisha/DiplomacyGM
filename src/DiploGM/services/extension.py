@@ -45,10 +45,10 @@ class ExtensionService(BaseService):
     def view_server_extensions(self, server_id: int) -> dict[int, list[ExtensionEvent]]:
         events = extension_repo.load_by_server(server_id)
 
-        users = {}
+        users: dict[int, list[ExtensionEvent]] = {}
         for e in sorted(events, key=lambda e: (e.user_id, e.created_at), reverse=True):
             if e not in users[e.server_id]:
-                users[e.server_id] = users.get(e.server_id, list()).append(e)
+                users[e.server_id] = users.get(e.server_id, []) + [e]
 
         return users
 

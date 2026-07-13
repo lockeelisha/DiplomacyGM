@@ -86,9 +86,6 @@ def import_game(board: Board, data: dict) -> str:
             new_turn.start_year = board.data.get("year", 1901)
             board.turn = new_turn
 
-    if "fish" in data:
-        board.set_data("fish", int(data["fish"]))
-
     # Update player data
     for player_data in data.get("players", []):
         if player_data["name"].lower() not in board.name_to_player:

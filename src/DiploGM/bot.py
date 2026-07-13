@@ -370,13 +370,14 @@ class DiploGM(commands.Bot):
             else context.channel.id
         )
 
-        if isinstance(original, CommandPermissionError):
+        if isinstance(original, (CommandPermissionError, NoGameError, PermissionError)):
             logger.info(
-                "[%s][#%s](%s) - '%s' - permission denied in %s: %s",
+                "[%s][#%s](%s) - '%s' - %s in %s: %s",
                 context.guild.name,
                 channel_name,
                 context.message.author.name,
                 context.message.content,
+                type(original).__name__,
                 time_spent,
                 original,
             )
@@ -422,15 +423,6 @@ class DiploGM(commands.Bot):
             await send_message_and_file(
                 channel=context.channel,
                 title="You are missing a required argument.",
-                message=out,
-            )
-            return
-
-        if isinstance(original, NoGameError):
-            out = f"`{original}`\n"
-            await send_message_and_file(
-                channel=context.channel,
-                title="A game does not exist in this server.",
                 message=out,
             )
             return

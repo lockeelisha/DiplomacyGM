@@ -423,9 +423,6 @@ usage = "<#channel> <message>"
 channel = "A link to the channel to send the message in."
 message = "The message text to send."
 
-[global_leaderboard]
-description = "Shows the top fishing servers globally, plus the current server's position."
-
 [ping]
 description = "Checks that the bot is listening and responds."
 

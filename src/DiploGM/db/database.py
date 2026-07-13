@@ -102,7 +102,7 @@ class _DatabaseConnection:
     def load_board(self, board_id: int) -> Board | None:
         """Gets a specific board from the database."""
         cursor = self._connection.cursor()
-        board_data = cursor.execute("SELECT * FROM boards  WHERE board_id=?", (board_id,)).fetchall()
+        board_data = cursor.execute("SELECT * FROM boards WHERE board_id=?", (board_id,)).fetchall()
         board_phases = [row[1] for row in board_data]
         logger.info("Loading %s boards from DB", len(board_data))
         board = None
@@ -134,7 +134,7 @@ class _DatabaseConnection:
     ) -> Board | None:
         """Gets a board from the database.
         clear_status is used to wipe out failed order information, which we need to do for rollbacks."""
-        # TODO: Stuff like fish and name should be board parameters
+        # TODO: Stuff like name should be board parameters
         cursor = self._connection.cursor()
 
         board_data = cursor.execute(
@@ -358,8 +358,8 @@ class _DatabaseConnection:
         )
 
         cursor.execute(
-            "INSERT INTO boards (board_id, phase, data_file, fish, name) VALUES (?, ?, ?, ?, ?)",
-            (board_id, format(board.turn, "%I %S"), board.datafile, board.data.get("fish", 0), board.data.get("game_name")),
+            "INSERT INTO boards (board_id, phase, data_file, name) VALUES (?, ?, ?, ?)",
+            (board_id, format(board.turn, "%I %S"), board.datafile, board.data.get("game_name")),
         )
         cursor.executemany(
             "INSERT OR REPLACE INTO players (board_id, player_name, color, liege, points) VALUES (?, ?, ?, ?, ?)",
