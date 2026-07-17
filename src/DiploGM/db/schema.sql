@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS boards (
     board_id int,
     phase text,
+    phase_index int,
     data_file text,
     name text,
     PRIMARY KEY (board_id, phase));
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS players (
 CREATE TABLE IF NOT EXISTS provinces (
     board_id int,
     phase text,
+    phase_index int,
     province_name text,
     owner text,
     core text,
@@ -29,6 +31,7 @@ CREATE TABLE IF NOT EXISTS provinces (
 CREATE TABLE IF NOT EXISTS retreat_options (
     board_id int,
     phase text,
+    phase_index int,
     origin text,
     retreat_loc text,
     PRIMARY KEY (board_id, phase, origin, retreat_loc),
@@ -38,6 +41,7 @@ CREATE TABLE IF NOT EXISTS retreat_options (
 CREATE TABLE IF NOT EXISTS units (
     board_id int,
     phase text,
+    phase_index int,
     location text,
     is_dislodged boolean,
     owner text,
@@ -55,6 +59,7 @@ CREATE TABLE IF NOT EXISTS units (
 CREATE TABLE IF NOT EXISTS builds(
     board_id int,
     phase text,
+    phase_index int,
     player text,
     location text,
     order_type text,
@@ -64,6 +69,23 @@ CREATE TABLE IF NOT EXISTS builds(
     FOREIGN KEY (board_id, phase) REFERENCES boards (board_id, phase),
     FOREIGN KEY (board_id, player) REFERENCES players (board_id, player_name),
     FOREIGN KEY (board_id, phase, location) REFERENCES provinces (board_id, phase, province_name)
+);
+
+CREATE TABLE IF NOT EXISTS dp_orders (
+    board_id int,
+    phase text,
+    phase_index int,
+    location text,
+    player text,
+    points int,
+    order_type text,
+    order_destination text,
+    order_source text,
+    PRIMARY KEY (board_id, phase, location, player),
+    FOREIGN KEY (board_id, phase) REFERENCES boards (board_id, phase),
+    FOREIGN KEY (board_id, phase, location) REFERENCES provinces (board_id, phase, province_name),
+    FOREIGN KEY (board_id, player) REFERENCES players (board_id, player_name),
+    FOREIGN KEY (board_id, phase, location) REFERENCES retreat_options (board_id, phase, origin)
 );
 
 CREATE TABLE IF NOT EXISTS spec_requests (
@@ -86,20 +108,4 @@ CREATE TABLE IF NOT EXISTS ctx_parameters (
     parameter_key TEXT NOT NULL,
     parameter_value TEXT NOT NULL,
     PRIMARY KEY (context_id, parameter_key)
-);
-
-CREATE TABLE IF NOT EXISTS dp_orders (
-    board_id int,
-    phase text,
-    location text,
-    player text,
-    points int,
-    order_type text,
-    order_destination text,
-    order_source text,
-    PRIMARY KEY (board_id, phase, location, player),
-    FOREIGN KEY (board_id, phase) REFERENCES boards (board_id, phase),
-    FOREIGN KEY (board_id, phase, location) REFERENCES provinces (board_id, phase, province_name),
-    FOREIGN KEY (board_id, player) REFERENCES players (board_id, player_name),
-    FOREIGN KEY (board_id, phase, location) REFERENCES retreat_options (board_id, phase, origin)
 );

@@ -60,7 +60,7 @@ class _DatabaseConnection:
         cursor.executemany(
             "INSERT INTO units (board_id, phase, phase_index, location, is_dislodged, owner, "
             "unit_type, order_type, order_destination, order_source, failed_order) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     board_id,
@@ -361,7 +361,7 @@ class _DatabaseConnection:
         )
 
         cursor.execute(
-            "INSERT INTO boards (board_id, phase, phase_index, data_file, name) VALUES (?, ?, ?, ?)",
+            "INSERT INTO boards (board_id, phase, phase_index, data_file, name) VALUES (?, ?, ?, ?, ?)",
             (board_id, format(board.turn, DATE_STRING_FORMAT), format(board.turn, "%i"), board.datafile, board.data.get("game_name")),
         )
         cursor.executemany(
