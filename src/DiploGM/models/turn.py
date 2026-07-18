@@ -81,9 +81,7 @@ class Turn:
         result = result.replace("%S", self.phase_names[self.phase])
         result = result.replace("%s", self.short_names[self.phase])
         result = result.replace("%Z", self.season_names[self.phase])
-        result = result.replace(
-            "%i", str(5 * (self.year - self.start_year) + self.phase.value)
-        )
+        result = result.replace("%i", str(5 * self.year + self.phase.value))
         return result
 
     def get_next_turn(self) -> Turn:

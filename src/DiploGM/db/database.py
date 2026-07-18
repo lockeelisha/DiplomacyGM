@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from DiploGM.models.province import Province
 
 logger = logging.getLogger(__name__)
+DATE_STRING_FORMAT = "%I %S" # EG: 0 Spring Moves
 
 class _DatabaseConnection:
     def __init__(self, db_file: str = DB_LOCATION):
@@ -57,13 +58,14 @@ class _DatabaseConnection:
         """Saves the units for the given board."""
         cursor = self._connection.cursor()
         cursor.executemany(
-            "INSERT INTO units (board_id, phase, location, is_dislodged, owner, "
+            "INSERT INTO units (board_id, phase, phase_index, location, is_dislodged, owner, "
             "unit_type, order_type, order_destination, order_source, failed_order) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     board_id,
-                    format(board.turn, "%I %S"),
+                    format(board.turn, DATE_STRING_FORMAT),
+                    format(board.turn, "%i"),
                     unit.province.get_name(unit.coast),
                     unit == unit.province.dislodged_unit,
                     unit.player.name if unit.player else None,
@@ -83,11 +85,12 @@ class _DatabaseConnection:
         """Saves the retreat options for the given board."""
         cursor = self._connection.cursor()
         cursor.executemany(
-            "INSERT INTO retreat_options (board_id, phase, origin, retreat_loc) VALUES (?, ?, ?, ?)",
+            "INSERT INTO retreat_options (board_id, phase, phase_index, origin, retreat_loc) VALUES (?, ?, ?, ?, ?)",
             [
                 (
                     board_id,
-                    format(board.turn, "%I %S"),
+                    format(board.turn, DATE_STRING_FORMAT),
+                    format(board.turn, "%i"),
                     unit.province.get_name(unit.coast),
                     retreat_option[0].get_name(retreat_option[1]),
                 )
@@ -102,12 +105,12 @@ class _DatabaseConnection:
     def load_board(self, board_id: int) -> Board | None:
         """Gets a specific board from the database."""
         cursor = self._connection.cursor()
-        board_data = cursor.execute("SELECT * FROM boards WHERE board_id=?", (board_id,)).fetchall()
-        board_phases = [row[1] for row in board_data]
+        board_data = cursor.execute("SELECT phase, data_file FROM boards WHERE board_id=?", (board_id,)).fetchall()
+        board_phases = [row[0] for row in board_data]
         logger.info("Loading %s boards from DB", len(board_data))
         board = None
         for board_row in board_data:
-            _, phase_string, data_file, _, _ = board_row
+            phase_string, data_file = board_row
 
             current_turn = Turn.turn_from_string(phase_string)
             if current_turn is None:
@@ -138,8 +141,8 @@ class _DatabaseConnection:
         cursor = self._connection.cursor()
 
         board_data = cursor.execute(
-            "SELECT * FROM boards WHERE board_id=? and phase=?",
-            (board_id, format(turn, "%I %S")),
+            "SELECT 1 FROM boards WHERE board_id=? and phase=?",
+            (board_id, format(turn, DATE_STRING_FORMAT)),
         ).fetchone()
         if not board_data:
             cursor.close()
@@ -152,7 +155,7 @@ class _DatabaseConnection:
     def _load_builds(self, cursor, board_id: int, board: Board):
         builds_data = cursor.execute(
             "SELECT player, location, order_type, unit_type, failed_order FROM builds WHERE board_id=? and phase=?",
-            (board_id, format(board.turn, "%I %S")),
+            (board_id, format(board.turn, DATE_STRING_FORMAT)),
         ).fetchall()
 
         player_by_name = {player.name: player for player in board.players}
@@ -218,7 +221,7 @@ class _DatabaseConnection:
             province.dislodged_unit = unit
             retreat_ops = cursor.execute(
                 "SELECT retreat_loc FROM retreat_options WHERE board_id=? and phase=? and origin=?",
-                (board_id, format(board.turn, "%I %S"), location),
+                (board_id, format(board.turn, DATE_STRING_FORMAT), location),
             )
             unit.retreat_options = set(map(board.get_province_and_coast, set().union(*retreat_ops)))
         else:
@@ -298,7 +301,7 @@ class _DatabaseConnection:
 
         province_data = cursor.execute(
             "SELECT province_name, owner, core, half_core FROM provinces WHERE board_id=? and phase=?",
-            (board_id, format(board.turn, "%I %S")),
+            (board_id, format(board.turn, DATE_STRING_FORMAT)),
         ).fetchall()
         province_info_by_name = {
             province_name: (owner, core, half_core)
@@ -307,14 +310,14 @@ class _DatabaseConnection:
 
         if clear_status:
             cursor.execute("UPDATE units SET failed_order=False WHERE board_id=? and phase=?",
-                (board_id, format(board.turn, "%I %S")))
+                (board_id, format(board.turn, DATE_STRING_FORMAT)))
             cursor.execute("UPDATE builds SET failed_order=False WHERE board_id=? and phase=?",
-                (board_id, format(board.turn, "%I %S")))
+                (board_id, format(board.turn, DATE_STRING_FORMAT)))
         unit_data = cursor.execute(
             "SELECT location, is_dislodged, owner, unit_type, order_type, " +
                    "order_destination, order_source, failed_order " +
             "FROM units WHERE board_id=? and phase=?",
-            (board_id, format(board.turn, "%I %S")),
+            (board_id, format(board.turn, DATE_STRING_FORMAT)),
         ).fetchall()
         for province in board.provinces:
             self._load_province(board, province, province_info_by_name)
@@ -326,7 +329,7 @@ class _DatabaseConnection:
         dp_data = cursor.execute(
             "SELECT location, player, points, order_type, order_destination, order_source " +
             "FROM dp_orders WHERE board_id=? and phase=?",
-            (board_id, format(board.turn, "%I %S")),
+            (board_id, format(board.turn, DATE_STRING_FORMAT)),
         ).fetchall()
         for dp_info in dp_data:
             self._load_dp_orders(board, dp_info)
@@ -358,8 +361,8 @@ class _DatabaseConnection:
         )
 
         cursor.execute(
-            "INSERT INTO boards (board_id, phase, data_file, name) VALUES (?, ?, ?, ?)",
-            (board_id, format(board.turn, "%I %S"), board.datafile, board.data.get("game_name")),
+            "INSERT INTO boards (board_id, phase, phase_index, data_file, name) VALUES (?, ?, ?, ?, ?)",
+            (board_id, format(board.turn, DATE_STRING_FORMAT), format(board.turn, "%i"), board.datafile, board.data.get("game_name")),
         )
         cursor.executemany(
             "INSERT OR REPLACE INTO players (board_id, player_name, color, liege, points) VALUES (?, ?, ?, ?, ?)",
@@ -376,11 +379,12 @@ class _DatabaseConnection:
         )
 
         cursor.executemany(
-            "INSERT INTO provinces (board_id, phase, province_name, owner, core, half_core) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO provinces (board_id, phase, phase_index, province_name, owner, core, half_core) VALUES (?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     board_id,
-                    format(board.turn, "%I %S"),
+                    format(board.turn, DATE_STRING_FORMAT),
+                    format(board.turn, "%i"),
                     province.name,
                     province.get_owner_name(),
                     province.core_data.core.name if province.core_data.core else None,
@@ -390,11 +394,12 @@ class _DatabaseConnection:
             ],
         )
         cursor.executemany(
-            "INSERT INTO builds (board_id, phase, player, location, order_type, unit_type, failed_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO builds (board_id, phase, phase_index, player, location, order_type, unit_type, failed_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     board_id,
-                    format(board.turn, "%I %S"),
+                    format(board.turn, DATE_STRING_FORMAT),
+                    format(board.turn, "%i"),
                     player.name,
                     build_order.province.get_name(build_order.coast),
                     build_order.__class__.__name__,
@@ -409,13 +414,14 @@ class _DatabaseConnection:
         self._save_units(board_id, board)
         self._save_retreat_options(board_id, board)
         cursor.executemany(
-            "INSERT INTO dp_orders (board_id, phase, location, player, points, " +
+            "INSERT INTO dp_orders (board_id, phase, phase_index, location, player, points, " +
                                    "order_type, order_destination, order_source) " +
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
                     board_id,
-                    format(board.turn, "%I %S"),
+                    format(board.turn, DATE_STRING_FORMAT),
+                    format(board.turn, "%i"),
                     unit.province.get_name(unit.coast),
                     dp_player,
                     dp_order.points,
@@ -437,7 +443,7 @@ class _DatabaseConnection:
         Used to save the board after .edit commands
         """
         cursor = self._connection.cursor()
-        phase = format(board.turn, "%I %S")
+        phase = format(board.turn, DATE_STRING_FORMAT)
 
         # We delete and re-create units and retreat options, since some might be removed via command
         cursor.execute("DELETE FROM retreat_options WHERE board_id=? AND phase=?", (board_id, phase))
@@ -478,7 +484,7 @@ class _DatabaseConnection:
                     unit.order.get_source_str() if unit.order is not None else None,
                     unit.order.has_failed if unit.order is not None else False,
                     board.board_id,
-                    format(board.turn, "%I %S"),
+                    format(board.turn, DATE_STRING_FORMAT),
                     unit.province.get_name(unit.coast),
                     f"{unit.province.get_name()} coast" if not unit.coast else None, # Legacy coast support
                     unit.province.dislodged_unit == unit,
@@ -491,7 +497,7 @@ class _DatabaseConnection:
             [
                 (
                     board.board_id,
-                    format(board.turn, "%I %S"),
+                    format(board.turn, DATE_STRING_FORMAT),
                     unit.province.get_name(unit.coast),
                 )
                 for unit in units
@@ -499,13 +505,14 @@ class _DatabaseConnection:
             ],
         )
         cursor.executemany(
-            "INSERT INTO dp_orders (board_id, phase, location, player, points, order_type, " +
+            "INSERT INTO dp_orders (board_id, phase, phase_index, location, player, points, order_type, " +
                                    "order_destination, order_source) " +
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
              [
                 (
                     board.board_id,
-                    format(board.turn, "%I %S"),
+                    format(board.turn, DATE_STRING_FORMAT),
+                    format(board.turn, "%i"),
                     unit.province.get_name(unit.coast),
                     dp_player,
                     dp_order.points,
@@ -523,7 +530,7 @@ class _DatabaseConnection:
             [
                 (
                     board.board_id,
-                    format(board.turn, "%I %S"),
+                    format(board.turn, DATE_STRING_FORMAT),
                     unit.province.get_name(unit.coast),
                 )
                 for unit in units
@@ -531,11 +538,12 @@ class _DatabaseConnection:
             ],
         )
         cursor.executemany(
-            "INSERT INTO retreat_options (board_id, phase, origin, retreat_loc) VALUES (?, ?, ?, ?)",
+            "INSERT INTO retreat_options (board_id, phase, phase_index, origin, retreat_loc) VALUES (?, ?, ?, ?, ?)",
             [
                 (
                     board.board_id,
-                    format(board.turn, "%I %S"),
+                    format(board.turn, DATE_STRING_FORMAT),
+                    format(board.turn, "%i"),
                     unit.province.get_name(unit.coast),
                     retreat_option[0].get_name(retreat_option[1]),
                 )
@@ -556,14 +564,15 @@ class _DatabaseConnection:
         cursor = self._connection.cursor()
         cursor.executemany(
             "DELETE FROM builds WHERE board_id=? AND phase=? AND player=?",
-            [(board.board_id, format(board.turn, "%I %S"), p.name) for p in players],
+            [(board.board_id, format(board.turn, DATE_STRING_FORMAT), p.name) for p in players],
         )
         cursor.executemany(
-            "INSERT OR REPLACE INTO builds (board_id, phase, player, location, order_type, unit_type, failed_order) VALUES (?, ?, ?, ?, ?, ?, ?) ",
+            "INSERT OR REPLACE INTO builds (board_id, phase, phase_index, player, location, order_type, unit_type, failed_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ",
             [
                 (
                     board.board_id,
-                    format(board.turn, "%I %S"),
+                    format(board.turn, DATE_STRING_FORMAT),
+                    format(board.turn, "%i"),
                     player.name,
                     build_order.province.get_name(build_order.coast),
                     build_order.__class__.__name__,
@@ -576,10 +585,10 @@ class _DatabaseConnection:
             ],
         )
         cursor.executemany(
-            "INSERT OR REPLACE INTO builds (board_id, phase, player, location, order_type, unit_type, failed_order) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO builds (board_id, phase, phase_index, player, location, order_type, unit_type, failed_order) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [
-                (board.board_id, format(board.turn, "%I %S"), player.name, player.waived_orders, "Waive", "", False)
+                (board.board_id, format(board.turn, DATE_STRING_FORMAT), format(board.turn, "%i"), player.name, player.waived_orders, "Waive", "", False)
                 for player in players
             ]
         )
@@ -627,7 +636,7 @@ class _DatabaseConnection:
     def delete_board(self, board: Board):
         """Deletes a board and all associated data for that phase."""
         cursor = self._connection.cursor()
-        phase = format(board.turn, "%I %S")
+        phase = format(board.turn, DATE_STRING_FORMAT)
         cursor.execute("DELETE FROM boards WHERE board_id=? AND phase=?", (board.board_id, phase))
         cursor.execute("DELETE FROM provinces WHERE board_id=? AND phase=?", (board.board_id, phase))
         cursor.execute("DELETE FROM units WHERE board_id=? AND phase=?", (board.board_id, phase))
