@@ -78,6 +78,10 @@ Supply center gain/loss is compared with the previous Fall Moves.
 alpha = "Outputs the result alphabetically instead of sorted by score."
 csv = "Outputs a list of SC counts with no additional decorators. Used for copy-pasting into spreadsheets."
 
+[sc_history]
+description = "Gets the history of the number of SCs owned by each power per year"
+alpha = "Outputs the result alphabetically instead of sorted by score."
+
 [uptime]
 description = "Displays how long the bot has been running and how long it has been since the last executed command."
 

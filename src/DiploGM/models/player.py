@@ -44,6 +44,7 @@ class Player:
 
         self._dp_max: int | None = None
         self.is_active: bool = is_active
+        self.sc_history: dict[int, int] = {}
 
         # Must be initialised when the board is made
         self.board: Board | None = None

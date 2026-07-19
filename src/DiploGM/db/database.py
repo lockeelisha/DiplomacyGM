@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 # maybe use a copy from manager?
 from DiploGM.config import DB_LOCATION, DB_SCHEMA_LOCATION
 from DiploGM.map_parser.vector.vector import get_parser
-from DiploGM.models.turn import Turn
+from DiploGM.models.turn import Turn, PhaseName
 from DiploGM.models.order import PlayerOrder, Build, Disband, TransformBuild
 from DiploGM.models.unit import DPAllocation, Unit
 
@@ -102,6 +102,31 @@ class _DatabaseConnection:
         cursor.close()
         self._connection.commit()
 
+    def _load_board_history(self, board: Board, cursor):
+        # Gets how many SCs each power has had over the course of a game
+        # TODO: For each SC, store how long it has been an SC
+        scs = {p.name for p in board.provinces if p.has_supply_center}
+        start_string = f"{board.data.get('year', 1901)} "
+        start_string += "Winter Builds" if board.data.get("first_season") == "Winter" else "Spring Moves"
+        phase = Turn.turn_from_string(start_string)
+        if phase is None:
+            raise ValueError(f"Unable to get turn from string {start_string}")
+        phase.start_year = board.turn.start_year
+        while(not phase.is_later(board.turn)):
+            province_data = cursor.execute(
+                "SELECT province_name, owner FROM provinces WHERE board_id=? AND phase_index=?",
+                (board.board_id, format(phase, "%i"))
+            ).fetchall()
+            if phase.phase == PhaseName.SPRING_MOVES:
+                phase = phase.get_previous_turn() # We'd want to look at Winter, but games start in Spring usually
+            for province, owner in province_data:
+                if province in scs and owner is not None and (player := board.get_player(owner)) is not None:
+                    player.sc_history[phase.year] = player.sc_history.get(phase.year, 0) + 1
+            phase = phase.get_next_year()
+            # If SC ownership has changed but it's not the next year yet, we still want that SC data anyway
+            if phase.is_later(board.turn) and board.turn.phase in (PhaseName.FALL_RETREATS, PhaseName.WINTER_BUILDS):
+                phase = Turn(board.turn.year, board.turn.phase, board.turn.start_year)
+
     def load_board(self, board_id: int) -> Board | None:
         """Gets a specific board from the database."""
         cursor = self._connection.cursor()
@@ -124,6 +149,8 @@ class _DatabaseConnection:
             board = self._get_board(board_id, current_turn, data_file, cursor)
             board.turn = Turn(board.data["year"] + board.turn.year, board.turn.phase, board.data["year"])
 
+        if board is not None:
+            self._load_board_history(board, cursor)
         cursor.close()
         logger.info("Successfully loaded")
         return board
