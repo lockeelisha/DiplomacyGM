@@ -1,3 +1,12 @@
+1.12.5
+======
+
+Contributors:
+- Golden Kumquat
+
+# Features
+- Added .sc_history, which creates a table of how many SCs each power has had over time
+
 1.12.4
 ======
 
