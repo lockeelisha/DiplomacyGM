@@ -35,6 +35,7 @@
         "loc_y_offset": 7.033,
         "delete_layer": ["army", "retreat_army", "fleet", "retreat_fleet"]
     },
+    "year": 1901,
     "first_season": "Spring",
     "build_options": "classic",
     "victory_conditions": "classic",
