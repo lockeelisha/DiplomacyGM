@@ -162,6 +162,42 @@ class CommandCog(commands.Cog):
             message=response,
         )
 
+    @commands.command(brief="Outputs a history of SC control over the game")
+    async def sc_history(self, ctx: commands.Context) -> None:
+        """Outputs a history of SC control over the game"""
+        assert ctx.guild is not None
+        arguments = remove_prefix(ctx).lower().split()
+        alphabetical = len({"a", "alpha", "alphabetical"} & set(arguments)) > 0
+
+        board = manager.get_board(ctx.guild.id)
+        if board.data.get("fow", "disabled") == "enabled":
+            perms.assert_gm_only(ctx, "get sc history")
+
+        player_list = (
+            sorted(board.get_players(), key=lambda p: p.get_name())
+            if alphabetical
+            else board.get_players_sorted_by_score()
+        )
+        player_list = [p for p in player_list if not board.is_player_hidden(p)]
+        max_length = max([len(p.name) for p in player_list]) # We set padding based on the longest player name
+        year_range = sorted({y for p in player_list for y in p.sc_history}) # Gets all the years from all the powers
+        header = [f"{'Player':<{max_length}}"]
+        header += [str(year) for year in year_range]
+        response = [" ".join(header)]
+        for player in player_list:
+            logger.info(player.sc_history)
+            player_data = [f"{player.name:<{max_length}}"]
+            for year in year_range:
+                sc_count = player.sc_history.get(year, "")
+                sc_count = "" if sc_count == 0 else sc_count
+                player_data.append(f"{sc_count:>{len(str(year))}}")
+            response.append(" ".join(player_data))
+        await send_message_and_file(
+            channel=ctx.channel,
+            title="Supply Center history",
+            message = "\n".join(["```"] + response + ["```"])
+        )
+
     @commands.command(brief="outputs information about the current game", aliases=["i"])
     async def info(self, ctx: commands.Context) -> None:
         """Outputs information about the current game."""

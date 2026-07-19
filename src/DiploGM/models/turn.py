@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from enum import Enum
-
+import math
 
 class PhaseName(Enum):
     """Enum for the different phases within a year."""
@@ -96,6 +96,10 @@ class Turn:
             return Turn(self.year - 1, PhaseName.WINTER_BUILDS, self.start_year)
         return Turn(self.year, PhaseName(self.phase.value - 1), self.start_year)
 
+    def get_next_year(self) -> Turn:
+        """Gets the same turn in the next year."""
+        return Turn(self.year + 1, self.phase, self.start_year)
+
     def is_moves(self) -> bool:
         """Checks to see if it's Spring or Fall Moves."""
         return "Moves" in self.phase_names[self.phase]
@@ -113,13 +117,15 @@ class Turn:
         return "Fall" in self.phase_names[self.phase]
 
     def is_later(self, other: Turn) -> bool:
+        """Returns True if the current Turn is later than the Turn being compared"""
         year_diff = abs(self.year - self.start_year)
         other_year_diff = abs(other.year - other.start_year)
         if other_year_diff < year_diff:
             return True
+        if other_year_diff > year_diff:
+            return False
         if other.phase.value < self.phase.value:
             return True
-
         return False
 
     @staticmethod
@@ -134,3 +140,10 @@ class Turn:
         if current_turn.year != year:
             return None
         return current_turn
+
+    @staticmethod
+    def turn_from_int(turn_int: int) -> Turn | None:
+        """Creates a Turn object from an integer index."""
+        year = math.floor(turn_int / 5)
+        phase = PhaseName(turn_int % 5)
+        return Turn(year, phase)
