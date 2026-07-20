@@ -13,6 +13,9 @@ from DiploGM.models.player import Player
 from DiploGM.manager import Manager
 from DiploGM.utils.sanitise import remove_prefix
 
+import os
+import json
+
 logger = logging.getLogger(__name__)
 manager = Manager()
 MAX_CHANNELS_PER_CATEGORY = 50
@@ -371,4 +374,68 @@ async def last_message(ctx: commands.Context) -> None:
     )
     await send_message_and_file(
         channel=ctx.channel, title="Last Message Times", message=message
+    )
+
+async def populate_channels(interaction: discord.Interaction) -> None:
+    """Reads JSON templates and processes pre-split message arrays from assets."""
+    guild = interaction.guild
+    file_path = "assets/msg_templates.json"
+
+    if not os.path.exists(file_path):
+        await interaction.followup.send("❌ Error: `assets/msg_templates.json` missing.", ephemeral=True)
+        return
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            templates = json.load(f)
+    except json.JSONDecodeError:
+        await interaction.followup.send("❌ Error: JSON formatting error.", ephemeral=True)
+        return
+
+    # Dynamically fetch fresh IDs from the current server
+    def get_ch_id(name: str) -> str:
+        ch = discord.utils.get(guild.text_channels, name=name)
+        return str(ch.id) if ch else "0"
+
+    def get_role_id(name: str) -> str:
+        r = discord.utils.get(guild.roles, name=name)
+        return str(r.id) if r else "0"
+
+    id_mapping = {
+        "public_square_id": get_ch_id("the-public-square"),
+        "player_information_id": get_ch_id("player-information"),
+        "admin_help_id": get_ch_id("admin-help"),
+        "gm_role_id": get_role_id("GM Team"),
+        "moderators_role_id": get_role_id("Moderators"),
+        "admin_role_id": get_role_id("Admin")
+    }
+
+    sent_count = 0
+
+    for channel_name, message_data in templates.items():
+        channel = discord.utils.get(guild.text_channels, name=channel_name)
+        if not channel:
+            continue
+
+        # Compatibility: Convert a single string to a list containing that string
+        chunks = message_data if isinstance(message_data, list) else [message_data]
+
+        try:
+            for chunk in chunks:
+                if not chunk.strip():
+                    continue
+                    
+                # Format each predetermined section individually
+                formatted_text = chunk.format(**id_mapping)
+                await channel.send(formatted_text)
+                
+            sent_count += 1
+        except discord.Forbidden:
+            print(f"⚠️ Permissions error on channel: #{channel_name}")
+        except Exception as e:
+            print(f"❌ Failed processing formatting for #{channel_name}: {e}")
+
+    await interaction.followup.send(
+        content=f"✅ Setup complete! Successfully processed and populated {sent_count} channels.",
+        ephemeral=True
     )

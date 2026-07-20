@@ -5,6 +5,7 @@ import logging
 from typing import Optional
 import discord
 from discord.ext import commands
+from discord import app_commands
 from DiploGM.cogs.game_management import (
     adjudication,
     channel_management,
@@ -501,6 +502,19 @@ class GameManagementCog(commands.Cog):
             You cannot rename a player to have the same name as another existing player.
         """
         await game_editing.rename_player(ctx, old_name, new_name)
+
+    @app_commands.command(
+        name="populate_channels",
+        description="Populates variant channels with Imperial Diplomacy text"
+    )
+    @perms.gm_only("populate channels")
+    async def populate_channels(self, interaction: discord.Interaction) -> None:
+        """Note: Channels must already exist before running this command."""
+        # Defer response since sending messages across multiple channels can take a few seconds
+        await interaction.response.defer(ephemeral=True)
+        
+        # Hand off execution to your management logic
+        await channel_management.populate_channels(interaction)
 
 
 async def setup(bot):
