@@ -1,3 +1,12 @@
+1.12.6
+======
+
+Contributors:
+- Ellie
+
+# Features
+- Added /populate_channels, which puts in the default messages for an ImpDip server
+
 1.12.5
 ======
 
