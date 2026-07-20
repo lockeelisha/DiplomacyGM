@@ -6,7 +6,7 @@ from math import ceil
 import discord
 from discord import CategoryChannel, PermissionOverwrite, Role
 from discord.ext import commands
-from DiploGM import config
+from DiploGM import config, perms
 from DiploGM.map_parser.vector.vector import get_parser
 from DiploGM.utils import log_command, send_message_and_file
 from DiploGM.models.player import Player
@@ -377,6 +377,13 @@ async def last_message(ctx: commands.Context) -> None:
     )
 
 async def populate_channels(interaction: discord.Interaction) -> None:
+    # TODO: app_commands permissions check decorators
+    if not perms.is_gm(interaction.user):
+        await interaction.followup.send(
+            "You are not allowed to use `/populate_channels`!", ephemeral=True
+        )
+        return
+    
     """Reads JSON templates and processes pre-split message arrays from assets."""
     guild = interaction.guild
     file_path = "assets/msg_templates.json"
