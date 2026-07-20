@@ -404,7 +404,6 @@ async def populate_channels(interaction: discord.Interaction) -> None:
     id_mapping = {
         "public_square_id": get_ch_id("the-public-square"),
         "player_information_id": get_ch_id("player-information"),
-        "admin_help_id": get_ch_id("admin-help"),
         "gm_role_id": get_role_id("GM Team"),
         "moderators_role_id": get_role_id("Moderators"),
         "admin_role_id": get_role_id("Admin")
